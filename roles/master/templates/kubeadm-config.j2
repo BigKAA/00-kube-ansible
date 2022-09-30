@@ -39,6 +39,8 @@ apiServer:
 kubernetesVersion: {{ kube_version }}
 {% if ha_cluster_virtual_ip is defined and ha_cluster_virtual_ip != "" %}
 controlPlaneEndpoint: {{ ha_cluster_virtual_ip }}:{{ ha_cluster_virtual_port }}
+{% alse %}
+controlPlaneEndpoint: {{ hostvars[groups['k8s_masters'][0]].ansible_facts.default_ipv4.address }}:6443
 {% endif %}
 networking:
   dnsDomain: {{ kube_domain_name }}
