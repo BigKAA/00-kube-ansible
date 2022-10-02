@@ -1,0 +1,22 @@
+---
+- name: Air-gap directory
+  file:
+    path: /var/lib/rancher/k3s/agent/images/
+    state: directory
+
+- name: Copy k3s-airgap-images-amd64.tar.gz to host
+  copy:
+    src: "k3s-airgap-images-amd64.tar.gz"
+    dest: /var/lib/rancher/k3s/agent/images/k3s-airgap-images-amd64.tar.gz
+
+- name: Copy k3s to host
+  copy:
+    src: "k3s"
+    dest: /usr/local/bin/k3s
+    mode: 0755
+
+- name: Copy install.sh to host
+  copy:
+    src: "install.sh"
+    dest: /root/install.sh
+    mode: 0700

@@ -1,0 +1,8 @@
+---
+- name: Reset Cluster
+  hosts: k8s_cluster
+  tasks:
+    - when: inventory_hostname in groups['k8s_masters']
+      shell: /usr/local/bin/k3s-uninstall.sh
+    - when: inventory_hostname in groups['k8s_workers']
+      shell: /usr/local/bin/k3s-agent-uninstall.sh

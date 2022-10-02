@@ -1,0 +1,76 @@
+---
+- name: Add rancher repo
+  yum_repository:
+    name: "rancher-k3s-common-stable"
+    description: 'Rancher K3s Common (stable)'
+    baseurl: 'https://rpm.rancher.io/k3s/stable/common/centos/8/noarch'
+    enabled: yes
+    gpgcheck: yes
+    gpgkey: 
+      - 'https://rpm.rancher.io/public.key'
+
+- name: Install packages dnf
+  dnf:
+    name:
+      - net-tools
+      - mc
+      - vim
+      - git
+      - bash-completion
+      - nfs-utils
+      - python3
+      - python3-libselinux
+      - tar
+      - rsyslog
+      - container-selinux
+      - k3s-selinux
+    state: latest
+
+- name: Enable rsyslog
+  service:
+    name: rsyslog
+    state: started
+    enabled: yes
+
+- name: Disable firewalld
+  service:
+    name: firewalld
+    state: stopped
+    enabled: no
+
+- name: Check Disable SELinux
+  selinux:
+    state: disabled
+  register: selinux_ret
+
+- name: Disable SELinux
+  shell: setenforce 0
+  when: selinux_ret.state != "disabled"
+
+- name: Load modules
+  modprobe:
+    name: br_netfilter
+
+- name: Load module permanet
+  copy:
+    src: modules-kubernetes.conf
+    dest: /etc/modules-load.d/modules-kubernetes.conf
+
+- name: Set Sysctl on all nodes
+  sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    state: present
+  with_items:
+    - name: net.ipv4.ip_forward
+      value: 1
+    - name: net.bridge.bridge-nf-call-iptables
+      value: 1
+    - name: net.bridge.bridge-nf-call-ip6tables
+      value: 1
+
+- name: Set PS1
+  lineinfile:
+    path: /root/.bashrc
+    regexp: '^PS1='
+    line: "PS1={{ ps1 }} "

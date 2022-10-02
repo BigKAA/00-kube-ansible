@@ -1,0 +1,13 @@
+---
+- name: Check is agent running
+  stat:
+    path: "/var/lib/rancher/k3s/agent/client-ca.crt"
+  register: is_agent_running
+
+- name: Run agent
+  when: not is_agent_running.stat.exists
+  shell: >
+    INSTALL_K3S_SKIP_DOWNLOAD=true 
+    K3S_URL=https://{{ hostvars[groups['k8s_masters'][0]].ansible_default_ipv4.address }}:6443
+    K3S_TOKEN={{ hostvars[groups['k8s_masters'][0]].join_token.stdout }}
+    /root/install.sh

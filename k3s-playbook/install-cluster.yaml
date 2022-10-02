@@ -1,0 +1,17 @@
+- name: Install packages
+  hosts: k8s_cluster
+  roles:
+    - prepare-hosts
+    
+- name: Prepare files
+  hosts: k8s_cluster
+  tasks:
+    - include_tasks: books/copy.yaml
+    - include_tasks: books/master.yaml
+      when: inventory_hostname == groups['k8s_masters'][0]
+    - include_tasks: books/workers.yaml
+      when: inventory_hostname in groups['k8s_workers']
+
+
+    
+
