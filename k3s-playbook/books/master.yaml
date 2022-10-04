@@ -14,8 +14,12 @@
       --cluster-cidr "10.223.0.0/18" 
       --service-cidr "10.224.0.0/18"
       --cluster-dns "10.223.0.10"
-      "{% if disable_servicelb %} --disable servicelb {% endif %}"
-      "{% if disable_traefik %} --disable traefik {% endif %}" 
+      {% if disable_servicelb %} --disable servicelb {% endif %}
+      {% if disable_traefik %} --disable traefik {% endif %}
+    register: shell_out
+
+  - debug:
+      var=shell_out 
 
   - name: Make aliases
     lineinfile:
