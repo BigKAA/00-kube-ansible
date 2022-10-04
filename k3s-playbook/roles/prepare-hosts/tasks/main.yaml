@@ -22,6 +22,7 @@
       - python3-libselinux
       - tar
       - rsyslog
+      - wget
       - container-selinux
       - k3s-selinux
     state: latest
