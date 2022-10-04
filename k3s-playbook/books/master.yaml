@@ -6,14 +6,16 @@
 
 - when: not is_k3s_token.stat.exists
   block:
-  
+
   - name: init master node
     shell: >
-      INSTALL_K3S_SKIP_DOWNLOAD=true K3S_KUBECONFIG_MODE="644" 
-      /root/install.sh 
-      --cluster-cidr "10.223.0.0/18"  
-      --service-cidr "10.224.0.0/18" 
+      INSTALL_K3S_SKIP_DOWNLOAD=true K3S_KUBECONFIG_MODE="644"
+      /root/install.sh
+      --cluster-cidr "10.223.0.0/18" 
+      --service-cidr "10.224.0.0/18"
       --cluster-dns "10.223.0.10"
+      "{% if disable_servicelb %} --disable servicelb {% endif %}"
+      "{% if disable_traefik %} --disable traefik {% endif %}" 
 
   - name: Make aliases
     lineinfile:
