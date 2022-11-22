@@ -20,8 +20,24 @@
 
 - name: Init master control node
   shell: kubeadm init --config /etc/kubernetes/kubeadm-config.yaml
-  run_once: yes
   register: kubeadm_init
+
+# Nodelocaldns
+
+- name: Get coredns service IP address
+  shell: kubectl -n kube-system get svc kube-dns -o jsonpath='{.spec.clusterIP}'
+  register: dns_ip
+
+- set_fact: 
+    coredns_ip: "{{ dns_ip.stdout }}"
+
+- name: Copy nodelocaldns manifest
+  template:
+    src: nodelocaldns-daemonset.j2
+    dest: /etc/kubernetes/nodelocaldns-daemonset.yaml
+
+- name: Deploy nodelocaldns
+  shell: kubectl apply -f /etc/kubernetes/nodelocaldns-daemonset.yaml
 
 # Calico
 - name: Check for installed tigera-operator

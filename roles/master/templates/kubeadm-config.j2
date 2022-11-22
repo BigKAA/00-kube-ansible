@@ -55,3 +55,8 @@ clusterCIDR: {{ pod_network_cidr }}
 ipvs:
   strictARP: True
 mode: ipvs
+---
+apiVersion: kubelet.config.k8s.io/v1beta1
+kind: KubeletConfiguration
+clusterDNS:
+- {{ nodelocaldns_local_ip }}

@@ -7,11 +7,17 @@
   vars:
     ansible_python_interpreter: /usr/bin/python3
   tasks:
-    - name: Check
-      debug:
-        msg: "Abort"
-      #when: groups['k8s_masters'] | length | int is divisibleby 2
-      failed_when: groups['k8s_masters'] | length | int is divisibleby 2
+    - name: Get coredns service IP address
+      shell: kubectl -n kube-system get svc kube-dns -o jsonpath='{.spec.clusterIP}'
+      register: coreds_ip
+
+    - debug:
+        var=coreds_ip.stdout 
+    # - name: Check
+    #   debug:
+    #     msg: "Abort"
+    #   #when: groups['k8s_masters'] | length | int is divisibleby 2
+    #   failed_when: groups['k8s_masters'] | length | int is divisibleby 2
     
     
     # - name: facts
