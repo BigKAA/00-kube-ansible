@@ -60,3 +60,22 @@ apiVersion: kubelet.config.k8s.io/v1beta1
 kind: KubeletConfiguration
 clusterDNS:
 - {{ nodelocaldns_local_ip }}
+{% if system_reserved is defined and system_reserved %}
+systemReserved:
+{% if system_memory_reserved is defined %}
+  memory: {{ system_memory_reserved }}
+{% endif %}
+{% if system_cpu_reserved is defined %}
+  cpu: {{ system_cpu_reserved }}
+{% endif %}
+{% if system_ephemeral_storage_reserved is defined %}
+  ephemeral-storage: {{ system_ephemeral_storage_reserved }}
+{% endif %}
+{% endif %}
+# Default: "10Mi"
+{% if container_log_max_size is defined %}
+containerLogMaxSize: {{ container_log_max_size }}
+{% endif %}
+{% if container_log_max_size is defined %}
+containerLogMaxFiles: {{ container_log_max_files }}
+{% endif %}

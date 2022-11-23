@@ -13,6 +13,18 @@ pod_network_cidr: "10.233.64.0/18"
 encapsulation: "IPIPCrossSubnet"
 tigera_operator_version: v3.24.5
 
+# Kubelet configuration
+# https://kubernetes.io/docs/reference/config-api/kubelet-config.v1beta1/
+## Reserve resources for OS system daemons.
+system_reserved: true
+system_memory_reserved: 512Mi
+system_cpu_reserved: 500m
+system_ephemeral_storage_reserved: 2Gi
+## Default: "10Mi"
+container_log_max_size: 1Mi
+## Default: 5
+container_log_max_files: 3
+
 # It is advisable not to change.
 kubectl_config: /etc/kubernetes/admin.conf
 kubeadmin_config: /etc/kubernetes/kubeadm.conf
