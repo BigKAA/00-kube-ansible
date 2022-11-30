@@ -63,7 +63,7 @@ control nodes**.
 
 Используются haproxy и keepalived.
 
-![](images/ha_cluser.jpg)
+![](images/ha_cluster.jpg)
 
 В конфигурационном файле определите параметры доступа к API :
 
