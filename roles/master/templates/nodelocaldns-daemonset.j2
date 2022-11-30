@@ -89,8 +89,7 @@ spec:
         operator: "Exists"
       containers:
       - name: node-cache
-        #image: "k8s.gcr.io/dns/k8s-dns-node-cache:1.16.0"
-        image: "registry.k8s.io/dns/k8s-dns-node-cache:1.22.15"
+        image: "{{ nodelocaldns_image }}"
         resources:
           limits:
             memory: 170Mi

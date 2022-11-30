@@ -22,6 +22,7 @@
       - python3
       - tar
       - rsyslog
+      - chrony
       - containerd
       - jq
       - kubectl-{{ kube_version }}-0.x86_64
@@ -42,9 +43,16 @@
       - python3
       - tar
       - rsyslog
+      - chrony
       - containerd
     state: latest
   when: ansible_facts['os_family'] == "Debian"
+
+- name: Enable NTP server
+  service:
+    name: chrony
+    state: started
+    enabled: yes
 
 - name: Enable rsyslog
   service:

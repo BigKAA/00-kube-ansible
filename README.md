@@ -5,7 +5,8 @@
 * HA доступ к API kubernetes.
 * containerd.
 * calico.
-* В KubeProxyConfiguration установлены параметры для раьоты Metallb.
+* В KubeProxyConfiguration установлены параметры для работы Metallb.
+* nodelocaldns - кеширующий DNS сервер на каждой ноде кластера.
 
 Не оттестировано на дистрибутивах Debian.
 
@@ -62,7 +63,9 @@ control nodes**.
 
 Используются haproxy и keepalived.
 
-В конфигурационнм файле определите параметры доступа к API :
+![](images/ha_cluser.jpg)
+
+В конфигурационном файле определите параметры доступа к API :
 
 * `ha_cluster_virtual_ip` - виртуальный IP адрес.
 * `ha_cluster_virtual_port` - порт. Не должен быть равен 6443.

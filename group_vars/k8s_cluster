@@ -37,11 +37,11 @@ cri_socket: unix:///var/run/containerd/containerd.sock
 imageRepository: registry.k8s.io
 
 # nodelocaldns
-# Change only if this IP is already taken.
+nodelocaldns_image: "registry.k8s.io/dns/k8s-dns-node-cache:1.22.15"
+## Change only if this IP is already taken.
 nodelocaldns_local_ip: 169.254.25.10
 
 ## HA cluser
 # If you need disable HA, undefine ha_cluster_virtual_ip
-# ha_cluster_virtual_ip: ""
 ha_cluster_virtual_ip: 192.168.218.189
 ha_cluster_virtual_port: 7443
