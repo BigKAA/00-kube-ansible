@@ -7,12 +7,12 @@
   vars:
     ansible_python_interpreter: /usr/bin/python3
   tasks:
-    - name: Get coredns service IP address
-      shell: kubectl -n kube-system get svc kube-dns -o jsonpath='{.spec.clusterIP}'
-      register: coreds_ip
 
     - debug:
-        var=coreds_ip.stdout 
+        var=ansible_facts.default_ipv4.interface
+    # - name: Get coredns service IP address
+    #   shell: kubectl -n kube-system get svc kube-dns -o jsonpath='{.spec.clusterIP}'
+    #   register: coreds_ip
     # - name: Check
     #   debug:
     #     msg: "Abort"
