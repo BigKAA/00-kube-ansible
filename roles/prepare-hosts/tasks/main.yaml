@@ -50,7 +50,7 @@
 
 - name: Enable NTP server
   service:
-    name: chrony
+    name: chronyd
     state: started
     enabled: yes
 
