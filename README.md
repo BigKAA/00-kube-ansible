@@ -74,3 +74,9 @@ control nodes**.
 ## Удалить кластер
 
 ```ansible-playbook reset.yaml```
+
+## Сервисные функции
+
+Предварительная подготовка нод кластера. Устанавливаются базовые пакеты и сервисы.
+
+```ansible-playbook prepare-hosts.yaml```

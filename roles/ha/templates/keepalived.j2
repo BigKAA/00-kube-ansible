@@ -5,7 +5,7 @@ vrrp_script chk_haproxy {
 }
 
 vrrp_instance VI_1 {
-  interface {{ hostvars[server]['ansible_facts'].default_ipv4.interface }} # interface to monitor
+  interface {{ ansible_facts.default_ipv4.interface }} # interface to monitor
 {% if inventory_hostname == groups['k8s_masters'][0] %}
   state MASTER                # MASTER on master, BACKUP on slaves
 {% else %}

@@ -1,0 +1,7 @@
+---
+- name: Prepare hosts
+  hosts: k8s_cluster
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+  roles:
+    - prepare-hosts
