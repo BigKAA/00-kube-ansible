@@ -1,6 +1,7 @@
 # Ansible playbook для установки тестового кластера k8s
 
 В данный момент поддерживает:
+
 * Установку одной или несколько control nodes.
 * HA доступ к API kubernetes.
 * containerd.
@@ -46,24 +47,24 @@ ssh-copy-id root@db1.kryukov.local
 
 ## Установка
 
-### k8s с одной control node.
+### k8s с одной control node
 
 В [инвентори](hosts.yaml) в группе `k8s_masters` необходимо указать только один хост.
 
-    ansible-playbook install-cluster.yaml
+```ansible-playbook install-cluster.yaml```
 
-### k8s с несколькими control nodes.
+### k8s с несколькими control nodes
 
 В [инвентори](hosts.yaml) в группе `k8s_masters` необходимо указать **нечётное количество
 control nodes**.
 
-    ansible-playbook install-cluster.yaml
+```ansible-playbook install-cluster.yaml```
 
-### k8s c HA.
+### k8s c HA
 
 Используются haproxy и keepalived.
 
-![](images/ha_cluster.jpg)
+![ha cluster](images/ha_cluster.jpg)
 
 В конфигурационном файле определите параметры доступа к API :
 
@@ -72,4 +73,4 @@ control nodes**.
 
 ## Удалить кластер
 
-    ansible-playbook reset.yaml
+```ansible-playbook reset.yaml```
