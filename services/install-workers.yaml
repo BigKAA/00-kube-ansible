@@ -1,6 +1,6 @@
 ---
 - name: Install worker nodes
-  hosts: groups['k8s_masters'][0],k8s_workers
+  hosts: k8s_masters[0],k8s_workers
   vars:
     ansible_python_interpreter: /usr/bin/python3
   roles:
