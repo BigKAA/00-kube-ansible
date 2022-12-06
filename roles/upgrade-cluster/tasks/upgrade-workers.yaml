@@ -1,0 +1,46 @@
+- name: Get current version 
+  delegate_to: "{{ groups['k8s_masters'][0] }}"
+  shell:
+    cmd: "kubectl get nodes {{ ansible_fqdn }} -o=jsonpath='{.status.nodeInfo.kubeletVersion}'"
+  register: version_current
+
+# Сравниваем новую и текущую версию. Если они равны, ничего на этой ноде не делаем.
+- name: Version check. 
+  when: version_current.stdout is match(".*" + kube_version)
+  block:
+    - name: Nothing todo
+      debug: 
+        msg: "Current version {{ version_current.stdout }} equal a new version in variables {{ kube_version }}"
+
+    - name: Stop upgrade worker node
+      meta: end_host
+
+# Иначе обновим версию.
+- name: Install packages dnf
+  dnf:
+    name:
+      - kubectl-{{ kube_version }}-0.x86_64
+      - kubelet-{{ kube_version }}-0.x86_64
+      - kubeadm-{{ kube_version }}-0.x86_64
+    state: latest
+  when: ansible_facts['os_family'] == "RedHat"
+
+- name: Drain worker node
+  delegate_to: "{{ groups['k8s_masters'][0] }}"
+  shell: 
+    cmd: kubectl drain {{ ansible_fqdn }} --ignore-daemonsets
+
+- name: Upgrade worker node
+  shell: 
+    cmd: "kubeadm upgrade node"
+
+- name: Restart kubelet
+  systemd:
+    state: restarted
+    daemon_reload: yes
+    name: kubelet
+
+- name: Uncordon worker node
+  delegate_to: "{{ groups['k8s_masters'][0] }}"
+  shell: 
+    cmd: "kubectl uncordon {{ ansible_fqdn }}" 

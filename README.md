@@ -51,14 +51,18 @@ ssh-copy-id root@db1.kryukov.local
 
 В [инвентори](hosts.yaml) в группе `k8s_masters` необходимо указать только один хост.
 
-```ansible-playbook install-cluster.yaml```
+```shell
+ansible-playbook install-cluster.yaml
+```
 
 ### k8s с несколькими control nodes
 
 В [инвентори](hosts.yaml) в группе `k8s_masters` необходимо указать **нечётное количество
 control nodes**.
 
-```ansible-playbook install-cluster.yaml```
+```shell
+ansible-playbook install-cluster.yaml
+```
 
 ### k8s c HA
 
@@ -73,10 +77,18 @@ control nodes**.
 
 ## Удалить кластер
 
-```ansible-playbook reset.yaml```
+```shell
+ansible-playbook reset.yaml
+```
+
+## Апдейт кластера
+
+Изменяете версию кластера в `group_vars\k8s_cluster` и запускаете апдейт.
+
+```shell
+ansible-playbook upgrade.yaml
+```
 
 ## Сервисные функции
 
-Предварительная подготовка нод кластера. Устанавливаются базовые пакеты и сервисы.
-
-```ansible-playbook prepare-hosts.yaml```
+Сервисные функции находятся в директории `services`

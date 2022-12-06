@@ -2,7 +2,7 @@ ansible_user: root
 
 # Kubernetes parameters
 
-# Versions from 1.24.[0-4] to 1.25.[0-4]
+# Versions from 1.24.[0-8] to 1.25.[0-4]
 kube_version: 1.25.4
 
 kube_domain_name: cluster.local
