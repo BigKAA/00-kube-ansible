@@ -2,8 +2,8 @@ k8s_masters:
   hosts:
     # Control nodes
     control1.kryukov.local:
-    control2.kryukov.local:
-    control3.kryukov.local:
+    # control2.kryukov.local:
+    # control3.kryukov.local:
 k8s_workers:
   hosts:
     # Worker nodes
