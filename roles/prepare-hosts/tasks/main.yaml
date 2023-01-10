@@ -10,6 +10,17 @@
       - 'https://packages.cloud.google.com/yum/doc/yum-key.gpg'
       - 'https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg'
 
+- name: Docker repository for containerd
+  when: ansible_facts['os_family'] == "RedHat"
+  yum_repository:
+    name: docker
+    enabled: yes
+    baseurl: "https://download.docker.com/linux/centos/$releasever/$basearch/stable"
+    description: 'Docker'
+    gpgcheck: yes
+    gpgkey:
+      - 'https://download.docker.com/linux/centos/gpg'
+
 - name: Install packages dnf
   dnf:
     name:
@@ -91,6 +102,13 @@
   shell: setenforce 0
   when: selinux_ret.reboot_required
 
+- name: Remove containerd config.toml 
+  when: ansible_facts['os_family'] == "RedHat"
+  file:
+    path: /etc/containerd/config.toml
+    state: absent 
+
+
 - name: Containerd
   service:
     name: containerd
@@ -135,3 +153,9 @@
   with_items:
     - name: net.ipv4.ip_nonlocal_bind
       value: 1
+
+- name: Add PS1
+  lineinfile:
+    path: /root/.bashrc
+    state: present
+    line: "PS1='\\[\\e[44;36m\\]\\t:[\\w]\\[\\e[0;0m\\]\\n\\[\\e[0;31;04m\\]\\u\\[\\e[0;0m\\]@\\[\\e[0;32m\\]\\h\\[\\e[0;0m\\] \\$ '"

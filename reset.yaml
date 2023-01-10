@@ -36,6 +36,12 @@
         - haproxy
       state: absent
   
+  - name: Disabled containerd service
+    service:
+      name: containerd
+      state: stopped
+      enabled: no
+
   - name: Uninstall Kubernetes packages RedHat
     when: 
       - ansible_os_family == "RedHat"
@@ -44,4 +50,6 @@
         - kubectl
         - kubeadm
         - kubelet
+        - containerd
       state: absent
+

@@ -22,6 +22,30 @@
   shell: kubeadm init --config /etc/kubernetes/kubeadm-config.yaml
   register: kubeadm_init
 
+# Add link
+
+- name: Add directory for config file
+  file:
+    path: /root/.kube
+    state: directory
+
+- name: Add link for config file
+  file:
+    src: /etc/kubernetes/admin.conf
+    dest: /root/.kube/config
+    state: link
+
+- name: Wait for coredns started
+  shell:
+    cmd: "kubectl -n kube-system get svc kube-dns -o jsonpath='{.spec.clusterIP}'"
+  changed_when: false
+  check_mode: false
+  register: result
+  until: result.rc == 0
+  retries: 10 
+  delay: 30
+
+
 # Nodelocaldns
 
 - name: Get coredns service IP address
@@ -40,6 +64,16 @@
   shell: kubectl apply -f /etc/kubernetes/nodelocaldns-daemonset.yaml
 
 # Calico
+# - name: Check namespace tigera-operator
+#   shell:
+#     cmd: "kubectl get ns tigera-operator"
+#   changed_when: false
+#   check_mode: false
+#   register: ns_result
+#   until: ns_result.rc == 0
+#   retries: 10 
+#   delay: 30
+
 - name: Check for installed tigera-operator
   shell: kubectl get ns tigera-operator
   register: tigera_operator_out
@@ -54,5 +88,5 @@
     src: calico-install.j2
     dest: /etc/kubernetes/calico-install.yaml
 
-- name: Insatall Calico
+- name: Install Calico
   shell: kubectl apply -f /etc/kubernetes/calico-install.yaml

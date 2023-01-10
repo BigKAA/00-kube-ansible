@@ -7,10 +7,10 @@ k8s_masters:
 k8s_workers:
   hosts:
     # Worker nodes
-    worker1.kryukov.local:
-    worker2.kryukov.local:
-    worker3.kryukov.local:
-    db1.kryukov.local:
+    ws1.kryukov.local:
+    ws2.kryukov.local:
+    ws3.kryukov.local:
+    ws4.kryukov.local:
 k8s_cluster:
   children:
     k8s_masters:

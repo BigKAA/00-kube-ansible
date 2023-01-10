@@ -2,8 +2,8 @@ ansible_user: root
 
 # Kubernetes parameters
 
-# Versions: 1.24.[0-8], 1.25.[0-4], 1.26.0
-kube_version: 1.26.0
+# Versions: 1.24.[0-9], 1.25.[0-5], 1.26.0
+kube_version: 1.25.5
 
 kube_domain_name: cluster.local
 service_cidr: "10.233.0.0/18"

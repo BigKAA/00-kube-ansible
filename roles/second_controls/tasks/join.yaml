@@ -12,3 +12,16 @@
       --token {{ hostvars[groups['k8s_masters'][0]].join_token.stdout }} \
       --discovery-token-ca-cert-hash sha256:{{ hostvars[groups['k8s_masters'][0]].discovery_token_ca_cert_hash.stdout }} \
       --control-plane --certificate-key {{ hostvars[groups['k8s_masters'][0]].certificate_key.stdout }}
+
+# Add link
+
+- name: Add directory for config file
+  file:
+    path: /root/.kube
+    state: directory
+
+- name: Add link for config file
+  file:
+    src: /etc/kubernetes/admin.conf
+    dest: /root/.kube/config
+    state: link
