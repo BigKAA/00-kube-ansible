@@ -143,6 +143,8 @@
       value: 1
     - name: net.bridge.bridge-nf-call-ip6tables
       value: 1
+    - name: vm.max_map_count # for opensearch & elasticserarch
+      value: 262144
 
 - name: Set Sysctl on master node(s)
   when: inventory_hostname in groups['k8s_masters']

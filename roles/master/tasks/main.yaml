@@ -90,3 +90,10 @@
 
 - name: Install Calico
   shell: kubectl apply -f /etc/kubernetes/calico-install.yaml
+
+# Почему то в 1.25 на AlmaLinux 8 не ставится enabled
+- name: Kubelet enable
+  service:
+    name: kubelet
+    state: started
+    enabled: yes

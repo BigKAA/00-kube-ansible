@@ -11,4 +11,10 @@
       kubeadm join {{ hostvars[groups['k8s_masters'][0]].join_path.stdout }} \
       --token {{ hostvars[groups['k8s_masters'][0]].join_token.stdout }} \
       --discovery-token-ca-cert-hash sha256:{{ hostvars[groups['k8s_masters'][0]].discovery_token_ca_cert_hash.stdout }} 
-      
+
+# Почему то в 1.25 на AlmaLinux 8 не ставится enabled
+- name: Kubelet enable
+  service:
+    name: kubelet
+    state: started
+    enabled: yes

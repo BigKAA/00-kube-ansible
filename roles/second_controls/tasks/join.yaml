@@ -25,3 +25,10 @@
     src: /etc/kubernetes/admin.conf
     dest: /root/.kube/config
     state: link
+
+# Почему то в 1.25 на AlmaLinux 8 не ставится enabled
+- name: Kubelet enable
+  service:
+    name: kubelet
+    state: started
+    enabled: yes
