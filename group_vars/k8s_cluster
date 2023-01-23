@@ -34,7 +34,7 @@ cri_socket: unix:///var/run/containerd/containerd.sock
 imageRepository: registry.k8s.io
 
 # nodelocaldns
-nodelocaldns_image: "registry.k8s.io/dns/k8s-dns-node-cache:1.22.15"
+nodelocaldns_image: "registry.k8s.io/dns/k8s-dns-node-cache:1.22.17"
 ## Change only if this IP is already taken.
 nodelocaldns_local_ip: 169.254.25.10
 
