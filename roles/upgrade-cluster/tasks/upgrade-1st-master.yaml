@@ -26,7 +26,7 @@
 
 - name: Drain node
   shell: 
-    cmd: kubectl drain {{ ansible_fqdn }} --ignore-daemonsets
+    cmd: kubectl drain {{ ansible_fqdn }} --ignore-daemonsets --delete-emptydir-data
 
 # - name: Sleep for 180 seconds
 #   wait_for:

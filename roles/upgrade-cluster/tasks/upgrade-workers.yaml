@@ -28,7 +28,7 @@
 - name: Drain worker node
   delegate_to: "{{ groups['k8s_masters'][0] }}"
   shell: 
-    cmd: kubectl drain {{ ansible_fqdn }} --ignore-daemonsets
+    cmd: kubectl drain {{ ansible_fqdn }} --ignore-daemonsets --delete-emptydir-data
 
 - name: Upgrade worker node
   shell: 
