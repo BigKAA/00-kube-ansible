@@ -3,6 +3,7 @@ k8s_masters:
     # Control nodes
     control1.kryukov.local:
       ansible_host: 192.168.218.171
+      ansible_user: artur
     # control2.kryukov.local:
     # control3.kryukov.local:
 k8s_workers:
@@ -10,12 +11,16 @@ k8s_workers:
     # Worker nodes
     ws1.kryukov.local:
       ansible_host: 192.168.218.174
+      ansible_user: artur
     ws2.kryukov.local:
       ansible_host: 192.168.218.175
+      ansible_user: artur
     ws3.kryukov.local:
       ansible_host: 192.168.218.176
+      ansible_user: artur
     ws4.kryukov.local:
       ansible_host: 192.168.218.177
+      ansible_user: artur
 k8s_cluster:
   children:
     k8s_masters:
