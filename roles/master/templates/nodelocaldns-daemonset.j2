@@ -12,7 +12,7 @@ metadata:
   namespace: kube-system
 data:
   Corefile: |
-    cluster.local:53 {
+    {{ kube_domain_name }}:53 {
         errors
         cache {
             success 9984 30
