@@ -11,7 +11,7 @@ pod_network_cidr: "10.233.64.0/18"
 # calico
 # One of: IPIP, VXLAN, IPIPCrossSubnet, VXLANCrossSubnet, None
 encapsulation: "IPIPCrossSubnet"
-tigera_operator_version: v3.26.1
+tigera_operator_version: v3.26.3
 
 # Kubelet configuration
 # https://kubernetes.io/docs/reference/config-api/kubelet-config.v1beta1/
@@ -35,7 +35,7 @@ cri_socket: unix:///var/run/containerd/containerd.sock
 imageRepository: registry.k8s.io
 
 # nodelocaldns
-nodelocaldns_image: "registry.k8s.io/dns/k8s-dns-node-cache:1.22.17"
+nodelocaldns_image: "registry.k8s.io/dns/k8s-dns-node-cache:1.22.23"
 ## Change only if this IP is already taken.
 nodelocaldns_local_ip: 169.254.25.10
 
