@@ -81,6 +81,8 @@ ansible-playbook install-cluster.yaml
 ansible-playbook reset.yaml
 ```
 
+**Внимание!!!** Скрипт удаляет **все** нестандартные цепочки и чистит все стандартные цепочки.
+
 ## Апдейт кластера
 
 Изменяете версию кластера в `group_vars\k8s_cluster` и запускаете апдейт.
