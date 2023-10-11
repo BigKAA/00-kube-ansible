@@ -53,3 +53,13 @@
         - containerd
       state: absent
 
+  - name: Copy clear fw script
+    copy:
+      src: clear_fw.sh
+      dest: /root/clear_fw.sh
+      owner: root
+      mode: 777
+
+
+  - name: Clear firewall
+    shell: /root/clear_fw.sh
