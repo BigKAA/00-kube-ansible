@@ -1,0 +1,14 @@
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: kubernetes-services-endpoint
+  namespace: kube-system
+data:
+{% if ha_cluster_virtual_ip is defined and ha_cluster_virtual_ip != "" %}
+  KUBERNETES_SERVICE_HOST: "{{ ha_cluster_virtual_ip }}"
+  KUBERNETES_SERVICE_PORT: "{{ ha_cluster_virtual_port }}"
+{% else %}
+  KUBERNETES_SERVICE_HOST: "{{ hostvars[groups['k8s_masters'][0]].ansible_facts.default_ipv4.address }}"
+  KUBERNETES_SERVICE_PORT: "6443"
+{% endif %}

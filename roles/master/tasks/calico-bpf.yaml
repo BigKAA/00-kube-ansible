@@ -1,0 +1,30 @@
+- name: Init master control node with eBPF
+  shell: kubeadm init --config /etc/kubernetes/kubeadm-config.yaml --skip-phases=addon/kube-proxy
+  register: kubeadm_init
+
+- name: Install Utils
+  include_tasks: utils.yaml
+
+- name: Copy kubernetes-services-endpoint.yaml
+  template:
+    src: kubernetes-services-endpoint.j2
+    dest: /etc/kubernetes/kubernetes-services-endpoint.yaml
+
+- name: Add ConfigMap kubernetes-services-endpoint
+  shell: kubectl apply -f /etc/kubernetes/kubernetes-services-endpoint.yaml
+
+- name: Copy calico.yaml
+  template:
+    src: calico.j2
+    dest: /etc/kubernetes/calico-bpf.yaml
+
+- name: Install Calico BPF
+  shell: kubectl apply -f /etc/kubernetes/calico-bpf.yaml
+
+- name: Copy FelixConfiguration
+  template:
+    src: felix-configuration.j2
+    dest: /etc/kubernetes/felix-configuration.yaml
+
+- name: Apply FelixConfiguration
+  shell: calicoctl apply -f /etc/kubernetes/felix-configuration.yaml

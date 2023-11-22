@@ -1,0 +1,40 @@
+# Add link
+
+- name: Add directory for config file
+  file:
+    path: /root/.kube
+    state: directory
+
+- name: Add link for config file
+  file:
+    src: /etc/kubernetes/admin.conf
+    dest: /root/.kube/config
+    state: link
+
+- name: Wait for coredns started
+  shell:
+    cmd: "kubectl -n kube-system get svc kube-dns -o jsonpath='{.spec.clusterIP}'"
+  changed_when: false
+  check_mode: false
+  register: result
+  until: result.rc == 0
+  retries: 10 
+  delay: 30
+
+
+# Nodelocaldns
+
+- name: Get coredns service IP address
+  shell: kubectl -n kube-system get svc kube-dns -o jsonpath='{.spec.clusterIP}'
+  register: dns_ip
+
+- set_fact: 
+    coredns_ip: "{{ dns_ip.stdout }}"
+
+- name: Copy nodelocaldns manifest
+  template:
+    src: nodelocaldns-daemonset.j2
+    dest: /etc/kubernetes/nodelocaldns-daemonset.yaml
+
+- name: Deploy nodelocaldns
+  shell: kubectl apply -f /etc/kubernetes/nodelocaldns-daemonset.yaml

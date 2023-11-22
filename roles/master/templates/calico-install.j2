@@ -14,8 +14,7 @@ spec:
       cidr: {{ pod_network_cidr }}
       encapsulation: {{ encapsulation }}
       natOutgoing: Enabled
-      nodeSelector: all()
-
+      nodeSelector: all()  
 ---
 
 # This section configures the Calico API server.

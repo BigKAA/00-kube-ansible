@@ -1,0 +1,23 @@
+- name: Init master control node
+  shell: kubeadm init --config /etc/kubernetes/kubeadm-config.yaml
+  register: kubeadm_init
+
+- name: Install Utils
+  include_tasks: utils.yaml
+
+- name: Check for installed tigera-operator
+  shell: kubectl get ns tigera-operator
+  register: tigera_operator_out
+  ignore_errors: yes
+
+- name: Install tigera-operator
+  when: tigera_operator_out.rc == 1
+  shell: "kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/{{ tigera_operator_version }}/manifests/tigera-operator.yaml"
+
+- name: Copy calico-install.yaml
+  template:
+    src: calico-install.j2
+    dest: /etc/kubernetes/calico-install.yaml
+
+- name: Install Calico
+  shell: kubectl apply -f /etc/kubernetes/calico-install.yaml

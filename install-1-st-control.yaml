@@ -1,0 +1,15 @@
+---
+- name: Install packages
+  hosts: k8s_masters
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+  roles:
+    - prepare-hosts
+
+- name: Install Control nodes
+  hosts: k8s_masters
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+  roles:
+    - role: master
+      when: inventory_hostname == groups['k8s_masters'][0]
