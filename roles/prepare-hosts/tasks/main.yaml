@@ -25,6 +25,10 @@
   dnf:
     name:
       - net-tools
+      - bind-utils
+      - traceroute
+      - wget
+      - nano
       - mc
       - iproute-tc
       - vim
@@ -110,12 +114,58 @@
     path: /etc/containerd/config.toml
     state: absent 
 
-
 - name: Containerd
   service:
     name: containerd
     state: started
     enabled: yes
+    
+- name: add Containerd configuration default
+  shell: /usr/bin/containerd config default > /etc/containerd/config.toml
+
+- name: configuring the systemd cgroup driver for Containerd
+  lineinfile:
+    path: /etc/containerd/config.toml
+    regexp: '            SystemdCgroup = false'
+    line: '            SystemdCgroup = true'
+
+- name: Load modules br_netfilter
+  modprobe:
+    name: br_netfilter
+
+- name: Load modules overlay
+  modprobe:
+    name: overlay
+
+- name: create an empty file for the extendet module
+  copy:
+    content: ""
+    dest: /etc/modules-load.d/extendet.conf
+    force: no
+
+- name: configure modules permanet
+  blockinfile:
+    path: /etc/modules-load.d/extendet.conf
+    block: |
+          overlay
+          br_netfilter
+
+- name: enable the Containerd service and start it
+  systemd:
+    name: containerd
+    state: restarted
+    enabled: yes
+    daemon-reload: yes
+
+- name: Downloading and extracting {{ crictl_app }} {{ crictl_version }}
+  ansible.builtin.unarchive:
+    src: "{{ crictl_dl_url }}"
+    dest: "{{ crictl_bin_path }}"
+    owner: "{{ crictl_file_owner }}"
+    group: "{{ crictl_file_group }}"
+    extra_opts:
+      - crictl
+    remote_src: yes
 
 - name: Set crictl.yaml
   copy: 
@@ -123,15 +173,6 @@
     dest: /etc/crictl.yaml
     owner: root
     mode: 644
-
-- name: Load modules
-  modprobe:
-    name: br_netfilter
-
-- name: Load module permanet
-  copy:
-    src: modules-kubernetes.conf
-    dest: /etc/modules-load.d/modules-kubernetes.conf
 
 - name: Set Sysctl on all nodes
   sysctl:
