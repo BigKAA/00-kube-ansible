@@ -3,7 +3,7 @@
   when: ansible_facts['os_family'] == "RedHat"
   yum_repository:
     name: kubernetes
-    description: 'Base programs for k8s'
+    description: "Base programs for k8s, version: {{ kube_version }}"
     # baseurl: 'https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64'
     baseurl: 'https://pkgs.k8s.io/core:/stable:/{{ kube_version }}/rpm/'
     gpgcheck: yes
