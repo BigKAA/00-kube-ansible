@@ -39,9 +39,12 @@
       - chrony
       - containerd
       - jq
-      - kubectl-{{ kube_version }}-0.x86_64
-      - kubelet-{{ kube_version }}-0.x86_64
-      - kubeadm-{{ kube_version }}-0.x86_64
+      - kubectl
+      - kubelet
+      - kubeadm
+      #- kubectl-{{ kube_version }}-0.x86_64
+      #- kubelet-{{ kube_version }}-0.x86_64
+      #- kubeadm-{{ kube_version }}-0.x86_64
       - ipvsadm
     state: latest
   when: ansible_facts['os_family'] == "RedHat"
