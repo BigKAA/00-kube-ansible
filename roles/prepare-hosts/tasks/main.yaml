@@ -4,11 +4,13 @@
   yum_repository:
     name: kubernetes
     description: 'Base programs for k8s'
-    baseurl: 'https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64'
+    # baseurl: 'https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64'
+    baseurl: 'https://pkgs.k8s.io/core:/stable:/{{ kube_version }}/rpm/'
     gpgcheck: yes
     gpgkey: 
-      - 'https://packages.cloud.google.com/yum/doc/yum-key.gpg'
-      - 'https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg'
+      - "https://pkgs.k8s.io/core:/stable:/{{ kube_version }}/rpm/repodata/repomd.xml.key"
+      #- 'https://packages.cloud.google.com/yum/doc/yum-key.gpg'
+      #- 'https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg'
 
 - name: Docker repository for containerd
   when: ansible_facts['os_family'] == "RedHat"
