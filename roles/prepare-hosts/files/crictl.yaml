@@ -1,5 +1,5 @@
-runtime-endpoint: "unix:///var/run/containerd/containerd.sock"
-image-endpoint: "unix:///var/run/containerd/containerd.sock"
+runtime-endpoint: "unix:///run/containerd/containerd.sock"
+image-endpoint: "unix:///run/containerd/containerd.sock"
 timeout: 0
 debug: false
 pull-image-on-create: false
