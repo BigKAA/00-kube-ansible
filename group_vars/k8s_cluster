@@ -32,7 +32,7 @@ container_log_max_files: 3
 kubectl_config: /etc/kubernetes/admin.conf
 kubeadmin_config: /etc/kubernetes/kubeadm.conf
 
-cri_socket: unix:///var/run/containerd/containerd.sock
+cri_socket: unix:///run/containerd/containerd.sock
 
 # k8s.gcr.io image registry is gradually being redirected to registry.k8s.io (since 2023 Monday March 20th).
 imageRepository: registry.k8s.io
@@ -46,3 +46,13 @@ nodelocaldns_local_ip: 169.254.25.10
 # If you need disable HA, undefine ha_cluster_virtual_ip
 # ha_cluster_virtual_ip: 192.168.218.189
 # ha_cluster_virtual_port: 7443
+
+#install crictl 
+crictl_app: crictl
+crictl_version: 1.28.0
+crictl_os: linux
+crictl_arch: amd64
+crictl_dl_url: https://github.com/kubernetes-sigs/cri-tools/releases/download/v{{ crictl_version }}/{{ crictl_app }}-v{{ crictl_version }}-{{ crictl_os }}-{{ crictl_arch }}.tar.gz
+crictl_bin_path: /usr/bin
+crictl_file_owner: root
+crictl_file_group: root
