@@ -15,12 +15,31 @@
       meta: end_host
 
 # Иначе обновим версию.
+
+# Удалим репозитории
+- name: Remove repository kubernetes
+  when: ansible_facts['os_family'] == "RedHat"
+  yum_repository:
+    name: kubernetes
+    state: absent
+
+# Добавим репозитории
+- name: Add repo kubernetes
+  when: ansible_facts['os_family'] == "RedHat"
+  yum_repository:
+    name: kubernetes
+    description: "Base programs for k8s, version: v{{ kube_version[:4] }}"
+    baseurl: "https://pkgs.k8s.io/core:/stable:/v{{ kube_version[:4] }}/rpm/"
+    gpgcheck: yes
+    gpgkey: 
+      - "https://pkgs.k8s.io/core:/stable:/v{{ kube_version[:4] }}/rpm/repodata/repomd.xml.key"
+
 - name: Install packages dnf
   dnf:
     name:
-      - kubectl-{{ kube_version }}-0.x86_64
-      - kubelet-{{ kube_version }}-0.x86_64
-      - kubeadm-{{ kube_version }}-0.x86_64
+      - kubectl
+      - kubelet
+      - kubeadm
     state: latest
   when: ansible_facts['os_family'] == "RedHat"
 
