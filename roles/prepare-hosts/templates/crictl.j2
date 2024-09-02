@@ -1,10 +1,5 @@
-{% if cri = "containerd" %}
-runtime-endpoint: "unix:///var/run/containerd/containerd.sock"
-image-endpoint: "unix:///var/run/containerd/containerd.sock"
-{% elif cri = "crio" %}
-runtime-endpoint: "unix:///var/run/crio/crio.sock"
-image-endpoint: "unix:///var/run/crio/crio.sock"
-{% endif %}
+runtime-endpoint: "{{ cri_socket }}"
+image-endpoint: "{{ cri_socket }}"
 timeout: 0
 debug: false
 pull-image-on-create: false

@@ -6,13 +6,13 @@
     state: absent
 
 - name: Remove CRI-O repository
-  when: ansible_facts['os_family'] == "RedHat" and cri == "crio"
+  when: ansible_facts['os_family'] == "RedHat"
   ansible.builtin.yum_repository:
     name: cri-o
     state: absent
 
 - name: Remove docker repository
-  when: ansible_facts['os_family'] == "RedHat" and cri = "containerd"
+  when: ansible_facts['os_family'] == "RedHat"
   ansible.builtin.yum_repository:
     name: docker
     state: absent
@@ -22,14 +22,15 @@
   ansible.builtin.yum_repository:
     name: cri-o
     description: CRI-O repository for version {{ crio_version }}
-    baseurl: https://pkgs.k8s.io/addons:/cri-o:/stable:/{{ crio_version }}/rpm/
+    baseurl: https://pkgs.k8s.io/addons:/cri-o:/{{ stage }}:/{{ crio_version }}/rpm/
     gpgcheck: true
+    enabled: true
     gpgkey:
-      - https://pkgs.k8s.io/addons:/cri-o:/stable:/{{ crio_version }}/rpm/repodata/repomd.xml.key
+      - https://pkgs.k8s.io/addons:/cri-o:/{{ stage }}:/{{ crio_version }}/rpm/repodata/repomd.xml.key
     state: present
 
 - name: Docker repository for containerd
-  when: ansible_facts['os_family'] == "RedHat"
+  when: ansible_facts['os_family'] == "RedHat" and cri == "containerd"
   ansible.builtin.yum_repository:
     name: docker
     enabled: true
@@ -60,7 +61,6 @@
       - git
       - bash-completion
       - nfs-utils
-      - python3
       - tar
       - rsyslog
       - chrony
@@ -105,33 +105,29 @@
     state: stopped
     enabled: false
 
-- name: Check is swap enable
-  ansible.builtin.mount:
-    path: swap
-    state: mounted
-  register: swap_present
-  ignore_errors: true
+- name: Test swap
+  ansible.builtin.shell: "swapon --show --noheadings | wc -l"
+  register: swap_ret
 
 - name: If swap is enabled - disable it
-  ansible.builtin.swapoff:
-    name: swap
-  when: swap_present.state == 'mounted'
+  ansible.builtin.command: swapoff -a
+  when: swap_ret.stdout != "0"
 
 - name: Disable SWAP in fstab
+  when: swap_ret.stdout != "0"
   ansible.builtin.replace:
     path: /etc/fstab
     regexp: '^([^#].*\s*swap\s*.*)$'
     replace: '# \1'
 
 - name: Check Disable SELinux
-  selinux:
+  ansible.posix.selinux:
     state: disabled
   register: selinux_ret
 
 - name: Disable SELinux
-  selinux:
+  ansible.posix.selinux:
     state: disabled
-    persist: true
 
 - name: Remove containerd config.toml
   when: ansible_facts['os_family'] == "RedHat" and cri == "containerd"
@@ -149,7 +145,7 @@
 - name: Enable and start CRI-O service
   when: ansible_facts['os_family'] == "RedHat" and cri == "crio"
   ansible.builtin.service:
-    name: containerd
+    name: crio
     state: started
     enabled: true
 
@@ -162,7 +158,7 @@
     mode: u=rw,g=r,o=r
 
 - name: Load modules
-  modprobe:
+  community.general.modprobe:
     name: br_netfilter
 
 - name: Load module permanet
@@ -173,7 +169,7 @@
     mode: u=rw,g=r,o=r
 
 - name: Set Sysctl on all nodes
-  sysctl:
+  ansible.posix.sysctl:
     name: "{{ item.name }}"
     value: "{{ item.value }}"
     state: present
@@ -189,7 +185,7 @@
 
 - name: Set Sysctl on master node(s)
   when: inventory_hostname in groups['k8s_masters']
-  sysctl:
+  ansible.posix.sysctl:
     name: "{{ item.name }}"
     value: "{{ item.value }}"
     state: present

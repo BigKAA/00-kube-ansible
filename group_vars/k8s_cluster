@@ -3,10 +3,18 @@ ansible_user: root
 # CRI parameters
 # cri = container runtime
 # crio или containerd
-cri: containerd
+cri: crio
 
 # Если используется crio, необходимо указаьб его версию.
 crio_version: v1.31
+# Внимательно смотрим в какой состоянии находится требуемая версия CRI-O.
+# https://cri-o.io/
+# stable, prerelease
+stage: prerelease
+
+# Необходимо указать путь к сокету.
+# cri_socket: unix:///var/run/containerd/containerd.sock
+cri_socket: unix:///var/run/crio/crio.sock
 
 # Kubernetes parameters
 
@@ -44,7 +52,7 @@ container_log_max_files: 3
 kubectl_config: /etc/kubernetes/admin.conf
 kubeadmin_config: /etc/kubernetes/kubeadm.conf
 
-cri_socket: unix:///var/run/containerd/containerd.sock
+
 
 # k8s.gcr.io image registry is gradually being redirected to registry.k8s.io (since 2023 Monday March 20th).
 imageRepository: registry.k8s.io

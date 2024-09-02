@@ -3,7 +3,6 @@
   ansible.builtin.include_tasks: prepare.yaml
   when: inventory_hostname == groups['k8s_masters'][0]
 
-
 - name: Join another control nodes
   ansible.builtin.include_tasks: join.yaml
   when: inventory_hostname != groups['k8s_masters'][0]

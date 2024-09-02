@@ -2,8 +2,6 @@
 - name: Reset cluster
   hosts: k8s_cluster
 
-  vars:
-    ansible_python_interpreter: /usr/bin/python3
   tasks:
   - name: Reset k8s cluster
     ansible.builtin.command: kubeadm reset --force
@@ -80,9 +78,9 @@
       src: clear_fw.sh
       dest: /root/clear_fw.sh
       owner: root
-      mode: '0777'
+      mode: '0700'
 
 
   - name: Clear firewall
-    ansible.builtin.command: /root/clear_fw.sh
+    ansible.builtin.shell: /root/clear_fw.sh
     ignore_errors: true
