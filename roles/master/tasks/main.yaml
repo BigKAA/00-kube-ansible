@@ -1,40 +1,43 @@
 ---
 # 1-st control node
 - name: Check if kubeadm has already run
-  stat:
+  ansible.builtin.stat:
     path: "/etc/kubernetes/pki/ca.key"
   register: kubeadm_ca
 
-- meta: end_play
+- name: End play
+  ansible.builtin.meta: end_play
   when: kubeadm_ca.stat.exists
 
 - name: Create /etc/kubernetes directory
-  file:
+  ansible.builtin.file:
     path: /etc/kubernetes
     state: directory
+    mode: '0700'
 
 - name: Copy kubeadm-config.yaml
-  template:
+  ansible.builtin.template:
     src: kubeadm-config.j2
     dest: /etc/kubernetes/kubeadm-config.yaml
+    mode: '0600'
 
 - name: Install Calicoctl
-  shell: |
-    curl -L https://github.com/projectcalico/calico/releases/download/{{ tigera_operator_version }}/calicoctl-linux-amd64 -o calicoctl
-    chmod +x ./calicoctl
-    mv calicoctl /usr/local/bin
+  ansible.builtin.get_url:
+    url: https://github.com/projectcalico/calico/releases/download/{{ tigera_operator_version }}/calicoctl-linux-amd64
+    dest: /usr/local/bin/calicoctl
+    mode: '0755'
 
 - name: Install Calico
   when: enableBPF is not defined
-  include_tasks: calico.yaml
+  ansible.builtin.include_tasks: calico.yaml
 
 - name: Install Calico with BPF
   when: enableBPF is defined
-  include_tasks: calico-bpf.yaml
+  ansible.builtin.include_tasks: calico-bpf.yaml
 
 # Почему то в 1.25 на AlmaLinux 8 не ставится enabled
 - name: Kubelet enable
-  service:
+  ansible.builtin.service:
     name: kubelet
     state: started
-    enabled: yes
+    enabled: true

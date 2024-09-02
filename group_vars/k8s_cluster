@@ -1,5 +1,13 @@
 ansible_user: root
 
+# CRI parameters
+# cri = container runtime
+# crio или containerd
+cri: containerd
+
+# Если используется crio, необходимо указаьб его версию.
+crio_version: v1.31
+
 # Kubernetes parameters
 
 # Versions: 1.27.x to 1.31.x

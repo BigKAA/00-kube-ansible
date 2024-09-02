@@ -4,5 +4,5 @@
 
   tasks:
     - name: Poweroff
-      shell: poweroff
-      
+      ansible.builtin.command: poweroff
+      changed_when: true

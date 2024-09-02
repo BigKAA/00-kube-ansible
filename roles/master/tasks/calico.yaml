@@ -8,7 +8,7 @@
 - name: Check for installed tigera-operator
   shell: kubectl get ns tigera-operator
   register: tigera_operator_out
-  ignore_errors: yes
+  ignore_errors: true
 
 - name: Install tigera-operator
   when: tigera_operator_out.rc == 1

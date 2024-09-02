@@ -1,6 +1,6 @@
 ---
 - name: Check if kubeadm has already run
-  stat:
+  ansible.builtin.stat:
     path: "/etc/kubernetes/pki/ca.key"
   register: kubeadm_ca
 
@@ -16,19 +16,19 @@
 # Add link
 
 - name: Add directory for config file
-  file:
+  ansible.builtin.file:
     path: /root/.kube
     state: directory
 
 - name: Add link for config file
-  file:
+  ansible.builtin.file:
     src: /etc/kubernetes/admin.conf
     dest: /root/.kube/config
     state: link
 
 # Почему то в 1.25 на AlmaLinux 8 не ставится enabled
 - name: Kubelet enable
-  service:
+  ansible.builtin.service:
     name: kubelet
     state: started
-    enabled: yes
+    enabled: true

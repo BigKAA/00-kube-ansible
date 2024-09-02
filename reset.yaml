@@ -5,61 +5,84 @@
   vars:
     ansible_python_interpreter: /usr/bin/python3
   tasks:
-
   - name: Reset k8s cluster
-    shell: kubeadm reset --force
-    ignore_errors: yes
+    ansible.builtin.command: kubeadm reset --force
+    ignore_errors: true
 
   - name: Disable keepalived and haproxy services
     when: 
       - ha_cluster_virtual_ip is defined
       - ha_cluster_virtual_ip != ""
       - inventory_hostname in groups['k8s_masters']
-    service:
+    ansible.builtin.service:
       name: "{{ item }}"
       state: stopped
-      enabled: no
+      enabled: false
     with_items:
       - keepalived
       - haproxy
-    ignore_errors: yes
-  
+    ignore_errors: true
+
   - name: Uninstall HA packages RedHat
-    when: 
-      - ha_cluster_virtual_ip is defined 
+    when:
+      - ha_cluster_virtual_ip is defined
       - ha_cluster_virtual_ip != ""
       - inventory_hostname in groups['k8s_masters']
       - ansible_os_family == "RedHat"
-    dnf:
+    ansible.builtin.dnf:
       name:
         - keepalived
         - haproxy
       state: absent
-  
+
   - name: Disabled containerd service
-    service:
+    when: cri == "containerd"
+    ansible.builtin.service:
       name: containerd
       state: stopped
-      enabled: no
+      enabled: false
+
+  - name: Disabled CRI-O service
+    when: cri == "crio"
+    ansible.builtin.service:
+      name: crio
+      state: stopped
+      enabled: false
 
   - name: Uninstall Kubernetes packages RedHat
-    when: 
+    when:
       - ansible_os_family == "RedHat"
-    dnf:
+    ansible.builtin.dnf:
       name:
         - kubectl
         - kubeadm
         - kubelet
+      state: absent
+
+  - name: Uninstall containerd
+    when:
+      - ansible_os_family == "RedHat" and cri == "containerd"
+    ansible.builtin.dnf:
+      name:
         - containerd
       state: absent
 
+  - name: Uninstall CRI-O
+    when:
+      - ansible_os_family == "RedHat" and cri == "crio"
+    ansible.builtin.dnf:
+      name:
+        - crio
+      state: absent
+
   - name: Copy clear fw script
-    copy:
+    ansible.builtin.copy:
       src: clear_fw.sh
       dest: /root/clear_fw.sh
       owner: root
-      mode: 777
+      mode: '0777'
 
 
   - name: Clear firewall
-    shell: /root/clear_fw.sh
+    ansible.builtin.command: /root/clear_fw.sh
+    ignore_errors: true

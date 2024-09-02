@@ -2,13 +2,14 @@
 ---
 - name: Test playbook
   hosts: k8s_cluster
-  #become: yes
+  # become: yes
 
   vars:
     ansible_python_interpreter: /usr/bin/python3
   tasks:
 
-    - debug:
+    - name: Debug ansible_fqdn
+      ansible.builtin.debug:
         var=ansible_fqdn
     # - name: Get coredns service IP address
     #   shell: kubectl -n kube-system get svc kube-dns -o jsonpath='{.spec.clusterIP}'
@@ -18,8 +19,7 @@
     #     msg: "Abort"
     #   #when: groups['k8s_masters'] | length | int is divisibleby 2
     #   failed_when: groups['k8s_masters'] | length | int is divisibleby 2
-    
-    
+    #
     # - name: facts
     #   debug:
     #     var=ansible_facts

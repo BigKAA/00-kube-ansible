@@ -1,12 +1,13 @@
+---
 # Add link
-
 - name: Add directory for config file
-  file:
+  ansible.builtin.file:
     path: /root/.kube
     state: directory
+    mode: '0700'
 
 - name: Add link for config file
-  file:
+  ansible.builtin.file:
     src: /etc/kubernetes/admin.conf
     dest: /root/.kube/config
     state: link
@@ -21,7 +22,6 @@
   retries: 10 
   delay: 30
 
-
 # Nodelocaldns
 
 - name: Get coredns service IP address
@@ -32,7 +32,7 @@
     coredns_ip: "{{ dns_ip.stdout }}"
 
 - name: Copy nodelocaldns manifest
-  template:
+  ansible.builtin.template:
     src: nodelocaldns-daemonset.j2
     dest: /etc/kubernetes/nodelocaldns-daemonset.yaml
 

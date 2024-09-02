@@ -3,50 +3,38 @@
   sysctl:
     name: "net.ipv4.ip_nonlocal_bind"
     value: "1"
-    sysctl_set: yes
+    sysctl_set: true
     state: present
-    ignoreerrors: yes
+    ignoreerrors: true
 
 - name: Install packages RedHat
   when: ansible_os_family == "RedHat"
-  dnf:
+  ansible.builtin.dnf:
     name:
       - keepalived
       - haproxy
     state: present
 
-#- name: Install packages Debian
-#  when: ansible_os_family == "Debian"
-
 - name: Copy keepalived.conf to master
-  template:
+  ansible.builtin.template:
     src: keepalived.j2
     dest: /etc/keepalived/keepalived.conf
-  register: keepalived_conf
+    mode: '0600'
+  notify: restart keepalived
 
 - name: Copy haproxy haproxy.cfg
-  template:
+  ansible.builtin.template:
     src: haproxy.j2
     dest: /etc/haproxy/haproxy.cfg
+    mode: '0600'
   register: haproxy_conf
+  notify: restart haproxy
 
 - name: Enable keepalived and haproxy
-  service:
+  ansible.builtin.service:
     name: "{{ item }}"
-    state: started
-    enabled: yes
+    state: enabled
+    enabled: true
   with_items:
     - keepalived
     - haproxy
-
-- name: Restart keepalived
-  service:
-    name: keepalived
-    state: restarted
-  when: keepalived_conf.changed
-
-- name: Restart haproxy
-  service:
-    name: haproxy
-    state: restarted
-  when: haproxy_conf.changed

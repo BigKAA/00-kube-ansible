@@ -1,9 +1,9 @@
 ---
 - name: Prepare to Join
-  include_tasks: prepare.yaml
+  ansible.builtin.include_tasks: prepare.yaml
   when: inventory_hostname == groups['k8s_masters'][0]
 
 
 - name: Join another control nodes
-  include_tasks: join.yaml
+  ansible.builtin.include_tasks: join.yaml
   when: inventory_hostname != groups['k8s_masters'][0]

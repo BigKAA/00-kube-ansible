@@ -1,33 +1,57 @@
 ---
 - name: Remove repository kubernetes
   when: ansible_facts['os_family'] == "RedHat"
-  yum_repository:
+  ansible.builtin.yum_repository:
     name: kubernetes
     state: absent
 
-- name: Add repo kubernetes
-  when: ansible_facts['os_family'] == "RedHat"
-  yum_repository:
-    name: kubernetes
-    description: "Base programs for k8s, version: v{{ kube_version[:4] }}"
-    baseurl: "https://pkgs.k8s.io/core:/stable:/v{{ kube_version[:4] }}/rpm/"
-    gpgcheck: yes
-    gpgkey: 
-      - "https://pkgs.k8s.io/core:/stable:/v{{ kube_version[:4] }}/rpm/repodata/repomd.xml.key"
+- name: Remove CRI-O repository
+  when: ansible_facts['os_family'] == "RedHat" and cri == "crio"
+  ansible.builtin.yum_repository:
+    name: cri-o
+    state: absent
+
+- name: Remove docker repository
+  when: ansible_facts['os_family'] == "RedHat" and cri = "containerd"
+  ansible.builtin.yum_repository:
+    name: docker
+    state: absent
+
+- name: Add CRI-O repository
+  when: ansible_facts['os_family'] == "RedHat" and cri == "crio"
+  ansible.builtin.yum_repository:
+    name: cri-o
+    description: CRI-O repository for version {{ crio_version }}
+    baseurl: https://pkgs.k8s.io/addons:/cri-o:/stable:/{{ crio_version }}/rpm/
+    gpgcheck: true
+    gpgkey:
+      - https://pkgs.k8s.io/addons:/cri-o:/stable:/{{ crio_version }}/rpm/repodata/repomd.xml.key
+    state: present
 
 - name: Docker repository for containerd
   when: ansible_facts['os_family'] == "RedHat"
-  yum_repository:
+  ansible.builtin.yum_repository:
     name: docker
-    enabled: yes
+    enabled: true
     baseurl: "https://download.docker.com/linux/centos/$releasever/$basearch/stable"
     description: 'Docker'
-    gpgcheck: yes
+    gpgcheck: true
     gpgkey:
       - 'https://download.docker.com/linux/centos/gpg'
 
+- name: Add kubernetes repository
+  when: ansible_facts['os_family'] == "RedHat"
+  ansible.builtin.yum_repository:
+    name: kubernetes
+    description: "Base programs for k8s, version: v{{ kube_version[:4] }}"
+    baseurl: "https://pkgs.k8s.io/core:/stable:/v{{ kube_version[:4] }}/rpm/"
+    gpgcheck: true
+    gpgkey:
+      - "https://pkgs.k8s.io/core:/stable:/v{{ kube_version[:4] }}/rpm/repodata/repomd.xml.key"
+    state: present
+
 - name: Install packages dnf
-  dnf:
+  ansible.builtin.dnf:
     name:
       - net-tools
       - mc
@@ -40,62 +64,61 @@
       - tar
       - rsyslog
       - chrony
-      - containerd
       - jq
       - kubectl
       - kubelet
       - kubeadm
       - ipvsadm
-    state: latest
+    state: present
   when: ansible_facts['os_family'] == "RedHat"
 
-- name: Install packages apt
-  apt:
+- name: Install CRI-O
+  ansible.builtin.dnf:
     name:
-      - net-tools
-      - mc
-      - vim
-      - git
-      - bash-completion
-      - nfs-utils
-      - python3
-      - tar
-      - rsyslog
-      - chrony
+      - cri-o
+      - cri-tools
+    state: present
+  when: ansible_facts['os_family'] == "RedHat" and cri == "crio"
+
+- name: Install containerd
+  ansible.builtin.dnf:
+    name:
       - containerd
-    state: latest
-  when: ansible_facts['os_family'] == "Debian"
+    state: present
+  when: ansible_facts['os_family'] == "RedHat" and cri == "containerd"
 
 - name: Enable NTP server
-  service:
+  ansible.builtin.service:
     name: chronyd
     state: started
-    enabled: yes
+    enabled: true
 
 - name: Enable rsyslog
-  service:
+  ansible.builtin.service:
     name: rsyslog
     state: started
-    enabled: yes
+    enabled: true
 
 - name: Disable firewalld
-  service:
+  ansible.builtin.service:
     name: firewalld
     state: stopped
-    enabled: no
+    enabled: false
 
 - name: Check is swap enable
-  shell: swapon
+  ansible.builtin.mount:
+    path: swap
+    state: mounted
   register: swap_present
-  changed_when: false
   ignore_errors: true
 
 - name: If swap is enabled - disable it
-  shell: swapoff -a
-  when: swap_present.stdout != ""
+  ansible.builtin.swapoff:
+    name: swap
+  when: swap_present.state == 'mounted'
 
 - name: Disable SWAP in fstab
-  replace:
+  ansible.builtin.replace:
     path: /etc/fstab
     regexp: '^([^#].*\s*swap\s*.*)$'
     replace: '# \1'
@@ -106,37 +129,48 @@
   register: selinux_ret
 
 - name: Disable SELinux
-  shell: setenforce 0
-  when: selinux_ret.reboot_required
+  selinux:
+    state: disabled
+    persist: true
 
-- name: Remove containerd config.toml 
-  when: ansible_facts['os_family'] == "RedHat"
-  file:
+- name: Remove containerd config.toml
+  when: ansible_facts['os_family'] == "RedHat" and cri == "containerd"
+  ansible.builtin.file:
     path: /etc/containerd/config.toml
-    state: absent 
+    state: absent
 
-
-- name: Containerd
-  service:
+- name: Enable and start Containerd service
+  when: ansible_facts['os_family'] == "RedHat" and cri == "containerd"
+  ansible.builtin.service:
     name: containerd
     state: started
-    enabled: yes
+    enabled: true
+
+- name: Enable and start CRI-O service
+  when: ansible_facts['os_family'] == "RedHat" and cri == "crio"
+  ansible.builtin.service:
+    name: containerd
+    state: started
+    enabled: true
 
 - name: Set crictl.yaml
-  copy: 
-    src: crictl.yaml
+  when: ansible_facts['os_family'] == "RedHat"
+  ansible.builtin.template:
+    src: crictl.j2
     dest: /etc/crictl.yaml
     owner: root
-    mode: 644
+    mode: u=rw,g=r,o=r
 
 - name: Load modules
   modprobe:
     name: br_netfilter
 
 - name: Load module permanet
-  copy:
+  ansible.builtin.copy:
     src: modules-kubernetes.conf
     dest: /etc/modules-load.d/modules-kubernetes.conf
+    owner: root
+    mode: u=rw,g=r,o=r
 
 - name: Set Sysctl on all nodes
   sysctl:
@@ -164,7 +198,7 @@
       value: 1
 
 - name: Add PS1
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /root/.bashrc
     state: present
     line: "PS1='\\[\\e[44;36m\\]\\t:[\\w]\\[\\e[0;0m\\]\\n\\[\\e[0;31;04m\\]\\u\\[\\e[0;0m\\]@\\[\\e[0;32m\\]\\h\\[\\e[0;0m\\] \\$ '"
