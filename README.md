@@ -2,21 +2,21 @@
 
 В данный момент поддерживает:
 
-* Установку одной или несколько control nodes.
-* HA доступ к API kubernetes.
-* containerd.
-* calico.
-* В KubeProxyConfiguration установлены параметры для работы Metallb.
-* nodelocaldns - кеширующий DNS сервер на каждой ноде кластера.
+- Kubernetes v1.31. Предыдущие версии не поддерживаются.
+- Установку одной или несколько control nodes.
+- HA доступ к API kubernetes.
+- containerd, CRI-O.
+- calico.
+- В KubeProxyConfiguration установлены параметры для работы Metallb.
+- nodelocaldns - кеширующий DNS сервер на каждой ноде кластера.
 
-Не оттестировано на дистрибутивах Debian.
+По идее, работает только с RedHat версиями дистрибутивов. Оттестировано на Rocky Linux 9.
 
 ## Установка ansible
 
 Так получилось, что у меня в WSL2 стоит Ubuntu:
 
 ```shell
-apt install python3.10-venv
 python3 -m venv venv
 . ~/venv/bin/activate
 python3 -m pip install ansible
@@ -37,7 +37,6 @@ ssh-copy-id root@control3.kryukov.local
 ssh-copy-id root@worker1.kryukov.local
 ssh-copy-id root@worker2.kryukov.local
 ssh-copy-id root@worker3.kryukov.local
-ssh-copy-id root@db1.kryukov.local
 ```
 
 ## Конфигурационные параметры
