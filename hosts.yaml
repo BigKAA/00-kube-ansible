@@ -8,12 +8,12 @@ k8s_masters:
 k8s_workers:
   hosts:
     # Worker nodes
-    ws1.kryukov.local:
-      ansible_host: 192.168.218.174
-    ws2.kryukov.local:
-      ansible_host: 192.168.218.175
-    ws3.kryukov.local:
-      ansible_host: 192.168.218.176
+    # ws1.kryukov.local:
+    #   ansible_host: 192.168.218.174
+    # ws2.kryukov.local:
+    #   ansible_host: 192.168.218.175
+    # ws3.kryukov.local:
+    #   ansible_host: 192.168.218.176
     # ws4.kryukov.local:
     #   ansible_host: 192.168.218.177
 k8s_cluster:

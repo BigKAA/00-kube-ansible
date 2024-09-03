@@ -8,7 +8,7 @@
     ignore_errors: true
 
   - name: Disable keepalived and haproxy services
-    when: 
+    when:
       - ha_cluster_virtual_ip is defined
       - ha_cluster_virtual_ip != ""
       - inventory_hostname in groups['k8s_masters']
@@ -39,6 +39,12 @@
       name: containerd
       state: stopped
       enabled: false
+
+  - name: Delete config.toml file
+    when: cri == "containerd"
+    ansible.builtin.file:
+      path: /etc/containerd/config.toml
+      state: absent
 
   - name: Disabled CRI-O service
     when: cri == "crio"
@@ -79,7 +85,6 @@
       dest: /root/clear_fw.sh
       owner: root
       mode: '0700'
-
 
   - name: Clear firewall
     ansible.builtin.shell: /root/clear_fw.sh

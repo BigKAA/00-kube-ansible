@@ -1,6 +1,7 @@
 ---
 - name: Prepare hosts
   hosts: k8s_cluster
-
+  become: true
+  become_user: root
   roles:
-    - { role: ../roles/prepare-hosts }
+    - { role: prepare-hosts }

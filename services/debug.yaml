@@ -8,9 +8,13 @@
     ansible_python_interpreter: /usr/bin/python3
   tasks:
 
-    - name: Debug ansible_fqdn
-      ansible.builtin.debug:
-        var=ansible_fqdn
+    - name: Delete config.toml file
+      ansible.builtin.file:
+        path: /etc/containerd/config.toml
+        state: absent
+    # - name: Debug ansible_fqdn
+    #   ansible.builtin.debug:
+    #     var=ansible_fqdn
     # - name: Get coredns service IP address
     #   shell: kubectl -n kube-system get svc kube-dns -o jsonpath='{.spec.clusterIP}'
     #   register: coreds_ip

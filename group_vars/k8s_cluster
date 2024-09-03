@@ -1,12 +1,16 @@
-ansible_user: root
+ansible_user: artur
 
 # Kubernetes parameters
 
 # k8s.gcr.io image registry is gradually being redirected to registry.k8s.io (since 2023 Monday March 20th).
 imageRepository: registry.k8s.io
+# Enable dockerhub mirror
+dockerhubMirror: true
+dockerhubMirrorURL: "mirror.gcr.io"
 
-# Versions: только 1.31.x
-kube_version: 1.31.0
+# Versions: 1.28 - 1.30.4. 
+# 1.31.x еще сырой и работать не будет.
+kube_version: 1.30.4
 
 kube_domain_name: cluster.local
 service_cidr: "10.233.0.0/18"
@@ -14,11 +18,11 @@ pod_network_cidr: "10.233.64.0/18"
 
 # CRI parameters
 # crio или containerd
-cri: crio
+cri: containerd
 
 # Необходимо указать путь к сокету.
-# cri_socket: unix:///var/run/containerd/containerd.sock
-cri_socket: unix:///var/run/crio/crio.sock
+cri_socket: unix:///run/containerd/containerd.sock
+# cri_socket: unix:///var/run/crio/crio.sock
 
 # Если используется crio, необходимо указать его версию.
 crio_version: v1.30
@@ -36,7 +40,7 @@ stage: stable
 # Work only install without eBPF
 encapsulation: "IPIPCrossSubnet"
 # https://github.com/projectcalico/calico
-tigera_operator_version: v3.27.4
+tigera_operator_version: v3.28.1
 ### To install ePBF uncomment next line
 # enableBPF: yes
 
@@ -46,7 +50,7 @@ tigera_operator_version: v3.27.4
 system_reserved: true
 system_memory_reserved: 512Mi
 system_cpu_reserved: 500m
-system_ephemeral_storage_reserved: 2Gi
+## system_ephemeral_storage_reserved: 5Gi
 ## Default: "10Mi"
 container_log_max_size: 1Mi
 ## Default: 5
