@@ -47,6 +47,7 @@
     description: "Base programs for k8s, version: v{{ kube_version[:4] }}"
     baseurl: "https://pkgs.k8s.io/core:/stable:/v{{ kube_version[:4] }}/rpm/"
     gpgcheck: true
+    enabled: true
     gpgkey:
       - "https://pkgs.k8s.io/core:/stable:/v{{ kube_version[:4] }}/rpm/repodata/repomd.xml.key"
     state: present
@@ -86,6 +87,18 @@
       - containerd
     state: present
   when: ansible_facts['os_family'] == "RedHat" and cri == "containerd"
+
+# - name: Set containerd config.toml
+#   when: ansible_facts['os_family'] == "RedHat" and cri == "containerd"
+#   ansible.builtin.shell: |
+#     containerd config default > /etc/containerd/config.toml
+
+# - name: enable systemd cgroups
+#   when: ansible_facts['os_family'] == "RedHat" and cri == "containerd"
+#   ansible.builtin.replace:
+#     path: /etc/containerd/config.toml
+#     regexp: '.*systemd_cgroup = false'
+#     replace: '    systemd_cgroup = true'
 
 - name: Enable NTP server
   ansible.builtin.service:
@@ -128,6 +141,10 @@
 - name: Disable SELinux
   ansible.posix.selinux:
     state: disabled
+
+- name: Setenforce 0
+  ansible.builtin.command:
+    cmd: setenforce 0
 
 - name: Remove containerd config.toml
   when: ansible_facts['os_family'] == "RedHat" and cri == "containerd"

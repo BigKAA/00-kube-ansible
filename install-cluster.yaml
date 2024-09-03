@@ -15,8 +15,7 @@
 
 - name: Install Control nodes
   hosts: k8s_masters
-  vars:
-    ansible_python_interpreter: /usr/bin/python3
+
   roles:
     - role: ha
       when: ha_cluster_virtual_ip is defined and ha_cluster_virtual_ip != ""

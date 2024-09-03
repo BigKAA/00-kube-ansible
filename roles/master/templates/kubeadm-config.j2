@@ -15,9 +15,9 @@ nodeRegistration:
   criSocket: {{ cri_socket }}
   imagePullPolicy: IfNotPresent
   name: {{ ansible_facts.nodename }}
-  taints:
-  - effect: NoSchedule
-    key: node-role.kubernetes.io/master
+  taints: null
+  {# - effect: NoSchedule
+    key: node-role.kubernetes.io/master #}
 
 ---
 apiVersion: kubeadm.k8s.io/v1beta4
@@ -32,9 +32,10 @@ dns: {}
 proxy: {}
 etcd:
   local:
+    dataDir: "/var/lib/etcd"
     {# imageRepository: "{{ imageRepository }}"
     imageTag: "3.5.15-0" #}
-    dataDir: "/var/lib/etcd"
+    
 networking:
   serviceSubnet: {{ service_cidr }}
   podSubnet: {{ pod_network_cidr }}
@@ -45,20 +46,21 @@ controlPlaneEndpoint: {{ ha_cluster_virtual_ip }}:{{ ha_cluster_virtual_port }}
 {% else %}
 controlPlaneEndpoint: {{ hostvars[groups['k8s_masters'][0]].ansible_facts.default_ipv4.address }}:6443
 {% endif %}
-apiServer:
-  extraArgs:
+apiServer: {}
+  {# extraArgs:
   - name: authorization-mode
     value: "Node,RBAC"
-  - name: bind-address
-    value: 0.0.0.0
   - name: service-cluster-ip-range
     value: {{ service_cidr }}
+  - name: bind-address
+    value: 0.0.0.0
   - name: service-node-port-range
-    value: 30000-32767
+    value: 30000-32767 #}
 
 ---
 apiVersion: kubelet.config.k8s.io/v1beta1
 kind: KubeletConfiguration
+cgroupDriver: systemd
 clusterDNS:
 - {{ nodelocaldns_local_ip }}
 {% if system_reserved is defined and system_reserved %}
@@ -88,3 +90,4 @@ clusterCIDR: {{ pod_network_cidr }}
 ipvs:
   strictARP: True
 mode: ipvs
+{# nodePortAddresses: [{{ pod_network_cidr }}] #}
