@@ -45,7 +45,7 @@
 - name: Add CRI-O repository Ubuntu
   when: ansible_facts['os_family'] == "Debian" and cri == "crio"
   ansible.builtin.apt_repository:
-    repo: "deb [signed-by=/etc/apt/trusted.gpg.d/crio.gpg arch={{ ansible_architecture }}] https://pkgs.k8s.io/addons:/cri-o:/{{ stage }}:/{{ crio_version }}/deb/ {{ ansible_distribution_release }} stable"
+    repo: "deb [signed-by=/etc/apt/trusted.gpg.d/crio.gpg] https://pkgs.k8s.io/addons:/cri-o:/{{ stage }}:/{{ crio_version }}/deb/ /"
     state: present
     filename: "cri-o"
     update_cache: true
@@ -65,10 +65,10 @@
 - name: Docker repository for containerd RedHat
   when: ansible_facts['os_family'] == "RedHat" and cri == "containerd"
   ansible.builtin.yum_repository:
-    name: docker
+    name: docker-ce-stable
     enabled: true
     baseurl: "https://download.docker.com/linux/centos/$releasever/$basearch/stable"
-    description: 'Docker'
+    description: 'Docker CE Stable - $basearch'
     gpgcheck: true
     gpgkey:
       - 'https://download.docker.com/linux/centos/gpg'
@@ -88,14 +88,14 @@
     filename: docker
 
 - name: K8s repository for Ubuntu [Key]
-  when: ansible_facts['os_family'] == "Debian" and cri == "containerd"
+  when: ansible_facts['os_family'] == "Debian"
   ansible.builtin.apt_key:
     url: "https://pkgs.k8s.io/core:/stable:/v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}/deb/Release.key"
     state: present
     keyring: /etc/apt/trusted.gpg.d/k8s.gpg
 
 - name: K8s repository for Ubuntu
-  when: ansible_facts['os_family'] == "Debian" and cri == "containerd"
+  when: ansible_facts['os_family'] == "Debian"
   ansible.builtin.apt_repository:
     repo: "deb [signed-by=/etc/apt/trusted.gpg.d/k8s.gpg] https://pkgs.k8s.io/core:/stable:/v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}/deb/ /"
     state: present
@@ -219,9 +219,14 @@
     regexp: '^([^#].*\s*swap\s*.*)$'
     replace: '# \1'
 
+# - name: Check Disable SELinux
+#   when: ansible_facts['os_family'] == "RedHat"
+#   ansible.posix.selinux:
+#     state: disabled
+#   register: selinux_ret
 - name: Check Disable SELinux
   when: ansible_facts['os_family'] == "RedHat"
-  ansible.posix.selinux:
+  selinux:
     state: disabled
   register: selinux_ret
 
@@ -229,6 +234,91 @@
   when: ansible_facts['os_family'] == "RedHat" and selinux_ret.changed 
   ansible.builtin.command:
     cmd: setenforce 0
+
+- name: detect apparmor mode
+  ansible.builtin.stat:
+    path: /sys/module/apparmor/parameters/mode
+  register: stat_apparmor_mode
+
+- name: apparmor mode
+  when:
+    - stat_apparmor_mode.stat is defined
+    - stat_apparmor_mode.stat.exists
+  block:
+    - name: detect activated apparmor
+      ansible.builtin.slurp:
+        src: /sys/module/apparmor/parameters/mode
+      register: _apparmor_mode
+
+    - name: define apparmor_mode
+      ansible.builtin.set_fact:
+        apparmor_mode: "{{ _apparmor_mode.content | b64decode | lower }}"
+
+    - name: apparmor mode
+      ansible.builtin.debug:
+        msg: "{{ apparmor_mode }}"
+
+    - name: enable complain mode
+      when:
+        - apparmor_mode == "enforce"
+      ansible.builtin.shell:
+        cmd: echo -n complain > /sys/module/apparmor/parameters/mode
+      register: apparmor_complain_mode
+      failed_when: false
+      changed_when: false
+
+- name: detect apparmor libs
+  ansible.builtin.stat:
+    path: /usr/lib/apparmor
+  register: stat_apparmor_libs
+
+- name: disable apparmor profiles and teardown all profiles
+  when:
+    - stat_apparmor_libs.stat is defined
+    - stat_apparmor_libs.stat.exists
+  block:
+
+    - name: detect apparmor utils
+      ansible.builtin.stat:
+        path: /usr/sbin/aa-teardown
+      register: stat_apparmor_utils
+
+    - name: install apparmor-utils
+      ansible.builtin.package:
+        name:
+          - apparmor-utils
+        state: present
+      when:
+        - stat_apparmor_utils.stat is defined
+        - not stat_apparmor_utils.stat.exists
+
+    - name: apparmor_status
+      ansible.builtin.command:
+        cmd: /usr/sbin/apparmor_status
+      register: output_apparmor_status
+      failed_when: false
+      changed_when: false
+
+    - name: disable apparmor profiles
+      ansible.builtin.command:
+        cmd: aa-disable /etc/apparmor.d/*
+      register: teardown
+      failed_when: false
+      changed_when: false
+
+    - name: teardown apparmor
+      ansible.builtin.command:
+        cmd: aa-teardown
+      register: teardown
+      failed_when: false
+      changed_when: false
+
+- name: Disable apparmor
+  when: ansible_facts['os_family'] == "Debian"
+  ansible.builtin.service:
+    name: apparmor
+    state: stopped
+    enabled: false
 
 - name: Enable dockerhub mirror on containerd [mkdir]
   when: cri == "containerd"
@@ -252,19 +342,19 @@
     owner: root
     mode: u=rw,g=r,o=r
 
-- name: Set containerd config.toml
-  when: cri == "containerd"
-  ansible.builtin.copy:
-    src: config.toml
-    dest: /etc/containerd/config.toml
-    owner: root
-    mode: u=rw,g=r,o=r
+# - name: Set containerd config.toml
+#   when: cri == "containerd"
+#   ansible.builtin.copy:
+#     src: config.toml
+#     dest: /etc/containerd/config.toml
+#     owner: root
+#     mode: u=rw,g=r,o=r
 
-# # - name: Delete config.toml file
-# #   when: cri == "containerd"
-# #   ansible.builtin.file:
-# #     path: /etc/containerd/config.toml
-# #     state: absent
+- name: Delete config.toml file
+  when: cri == "containerd"
+  ansible.builtin.file:
+    path: /etc/containerd/config.toml
+    state: absent
 
 - name: Enable and start Containerd service
   when: cri == "containerd"
@@ -273,16 +363,17 @@
     state: started
     enabled: true
 
+# https://github.com/containers/image/blob/main/docs/containers-registries.conf.5.md
 - name: Enable dockerhub mirror on CRI-O
   when: cri == "crio" and dockerhubMirror is true
   ansible.builtin.template:
     src: cri-o-mirrors.j2
-    dest: /etc/crio/crio.conf.d/10-dockerhub-mirror.conf
+    dest: /etc/containers/registries.conf
     owner: root
     mode: u=rw,g=r,o=r
 
 - name: Enable and start CRI-O service
-  when: ansible_facts['os_family'] == "RedHat" and cri == "crio"
+  when: cri == "crio"
   ansible.builtin.service:
     name: crio
     state: started

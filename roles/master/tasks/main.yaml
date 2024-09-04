@@ -21,11 +21,11 @@
     dest: /etc/kubernetes/kubeadm-config.yaml
     mode: '0600'
 
-- name: Install Calicoctl
-  ansible.builtin.get_url:
-    url: https://github.com/projectcalico/calico/releases/download/{{ tigera_operator_version }}/calicoctl-linux-amd64
-    dest: /usr/local/bin/calicoctl
-    mode: '0755'
+# - name: Install Calicoctl
+#   ansible.builtin.get_url:
+#     url: https://github.com/projectcalico/calico/releases/download/{{ tigera_operator_version }}/calicoctl-linux-amd64
+#     dest: /usr/local/bin/calicoctl
+#     mode: '0755'
 
 - name: Install Calico
   when: enableBPF is not defined

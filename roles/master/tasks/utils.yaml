@@ -13,8 +13,7 @@
     state: link
 
 - name: Wait for coredns started
-  ansible.builtin.shell: |
-    "kubectl -n kube-system get svc kube-dns -o jsonpath='{.spec.clusterIP}'"
+  ansible.builtin.command: "kubectl -n kube-system get svc kube-dns -o jsonpath='{.spec.clusterIP}'"
   changed_when: false
   check_mode: false
   register: result

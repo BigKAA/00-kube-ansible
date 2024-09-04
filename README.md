@@ -19,7 +19,7 @@
 ```shell
 python3 -m venv venv
 . ~/venv/bin/activate
-python3 -m pip install ansible
+pip3 install "ansible-core<2.17"
 ```
 
 Генерируем ssh ключ:

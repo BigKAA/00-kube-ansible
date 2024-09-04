@@ -1,6 +1,8 @@
 ---
 - name: Poweroff k8s_cluster
   hosts: k8s_cluster
+  become: true
+  become_user: root
 
   tasks:
     - name: Poweroff

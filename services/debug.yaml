@@ -4,14 +4,17 @@
   hosts: k8s_cluster
   # become: yes
 
-  vars:
-    ansible_python_interpreter: /usr/bin/python3
+  # vars:
+  #   ansible_python_interpreter: /usr/bin/python3
   tasks:
 
-    - name: Delete config.toml file
-      ansible.builtin.file:
-        path: /etc/containerd/config.toml
-        state: absent
+    - name: Install packages dnf
+      when: ansible_facts['os_family'] == "RedHat"
+      ansible.builtin.dnf:
+        name:
+          - vim
+          - mc
+        state: present
     # - name: Debug ansible_fqdn
     #   ansible.builtin.debug:
     #     var=ansible_fqdn
