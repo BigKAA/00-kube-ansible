@@ -1,4 +1,4 @@
-ansible_user: root
+#ansible_user: artur
 
 # Kubernetes parameters
 
@@ -10,7 +10,7 @@ dockerhubMirrorURL: "mirror.gcr.io"
 
 # Versions: 1.28 - 1.30.4. 
 # 1.31.x гдето работает, где то нет.
-kube_version: 1.30.4
+kube_version: 1.31.0
 
 kube_domain_name: cluster.local
 service_cidr: "10.233.0.0/18"
@@ -23,6 +23,9 @@ cri: containerd
 # Необходимо указать путь к сокету.
 cri_socket: unix:///run/containerd/containerd.sock
 # cri_socket: unix:///var/run/crio/crio.sock
+
+# Sanbox image
+sandbox_image: registry.k8s.io/pause:3.10
 
 # Если используется crio, необходимо указать его версию.
 crio_version: v1.30
