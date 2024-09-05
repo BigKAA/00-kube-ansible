@@ -1,4 +1,4 @@
-ansible_user: artur
+ansible_user: root
 
 # Kubernetes parameters
 
@@ -10,7 +10,7 @@ dockerhubMirrorURL: "mirror.gcr.io"
 
 # Versions: 1.28 - 1.30.4. 
 # 1.31.x гдето работает, где то нет.
-kube_version: 1.31.0
+kube_version: 1.30.4
 
 kube_domain_name: cluster.local
 service_cidr: "10.233.0.0/18"
@@ -18,14 +18,14 @@ pod_network_cidr: "10.233.64.0/18"
 
 # CRI parameters
 # crio или containerd
-cri: crio
+cri: containerd
 
 # Необходимо указать путь к сокету.
-# cri_socket: unix:///run/containerd/containerd.sock
-cri_socket: unix:///var/run/crio/crio.sock
+cri_socket: unix:///run/containerd/containerd.sock
+# cri_socket: unix:///var/run/crio/crio.sock
 
 # Если используется crio, необходимо указать его версию.
-crio_version: v1.31
+crio_version: v1.30
 
 # Внимательно смотрим в какой состоянии находится требуемая версия CRI-O.
 # https://cri-o.io/
@@ -33,7 +33,7 @@ crio_version: v1.31
 # stable, prerelease
 #
 # На данный момент версия 1.31 находтся в состоянии prerelease
-stage: prerelease
+stage: stable
 
 # calico
 # One of: IPIP, VXLAN, IPIPCrossSubnet, VXLANCrossSubnet, None

@@ -86,90 +86,91 @@
   ansible.builtin.command:
     cmd: setenforce 0
 
-- name: detect apparmor mode
-  ansible.builtin.stat:
-    path: /sys/module/apparmor/parameters/mode
-  register: stat_apparmor_mode
+# - name: detect apparmor mode
+#   ansible.builtin.stat:
+#     path: /sys/module/apparmor/parameters/mode
+#   register: stat_apparmor_mode
 
-- name: apparmor mode
-  when:
-    - stat_apparmor_mode.stat is defined
-    - stat_apparmor_mode.stat.exists
-  block:
-    - name: detect activated apparmor
-      ansible.builtin.slurp:
-        src: /sys/module/apparmor/parameters/mode
-      register: _apparmor_mode
+# - name: apparmor mode
+#   when:
+#     - stat_apparmor_mode.stat is defined
+#     - stat_apparmor_mode.stat.exists
+#   block:
 
-    - name: define apparmor_mode
-      ansible.builtin.set_fact:
-        apparmor_mode: "{{ _apparmor_mode.content | b64decode | lower }}"
+#     - name: detect activated apparmor
+#       ansible.builtin.slurp:
+#         src: /sys/module/apparmor/parameters/mode
+#       register: _apparmor_mode
 
-    - name: apparmor mode
-      ansible.builtin.debug:
-        msg: "{{ apparmor_mode }}"
+#     - name: define apparmor_mode
+#       ansible.builtin.set_fact:
+#         apparmor_mode: "{{ _apparmor_mode.content | b64decode | lower }}"
 
-    - name: enable complain mode
-      when:
-        - apparmor_mode == "enforce"
-      ansible.builtin.shell:
-        cmd: echo -n complain > /sys/module/apparmor/parameters/mode
-      register: apparmor_complain_mode
-      failed_when: false
-      changed_when: false
+#     - name: apparmor mode
+#       ansible.builtin.debug:
+#         msg: "{{ apparmor_mode }}"
 
-- name: detect apparmor libs
-  ansible.builtin.stat:
-    path: /usr/lib/apparmor
-  register: stat_apparmor_libs
+#     - name: enable complain mode
+#       when:
+#         - apparmor_mode == "enforce"
+#       ansible.builtin.shell:
+#         cmd: echo -n complain > /sys/module/apparmor/parameters/mode
+#       register: apparmor_complain_mode
+#       failed_when: false
+#       changed_when: false
 
-- name: disable apparmor profiles and teardown all profiles
-  when:
-    - stat_apparmor_libs.stat is defined
-    - stat_apparmor_libs.stat.exists
-  block:
+# - name: detect apparmor libs
+#   ansible.builtin.stat:
+#     path: /usr/lib/apparmor
+#   register: stat_apparmor_libs
 
-    - name: detect apparmor utils
-      ansible.builtin.stat:
-        path: /usr/sbin/aa-teardown
-      register: stat_apparmor_utils
+# - name: disable apparmor profiles and teardown all profiles
+#   when:
+#     - stat_apparmor_libs.stat is defined
+#     - stat_apparmor_libs.stat.exists
+#   block:
 
-    - name: install apparmor-utils
-      ansible.builtin.package:
-        name:
-          - apparmor-utils
-        state: present
-      when:
-        - stat_apparmor_utils.stat is defined
-        - not stat_apparmor_utils.stat.exists
+#     - name: detect apparmor utils
+#       ansible.builtin.stat:
+#         path: /usr/sbin/aa-teardown
+#       register: stat_apparmor_utils
 
-    - name: apparmor_status
-      ansible.builtin.command:
-        cmd: /usr/sbin/apparmor_status
-      register: output_apparmor_status
-      failed_when: false
-      changed_when: false
+#     - name: install apparmor-utils
+#       ansible.builtin.package:
+#         name:
+#           - apparmor-utils
+#         state: present
+#       when:
+#         - stat_apparmor_utils.stat is defined
+#         - not stat_apparmor_utils.stat.exists
 
-    - name: disable apparmor profiles
-      ansible.builtin.command:
-        cmd: aa-disable /etc/apparmor.d/*
-      register: teardown
-      failed_when: false
-      changed_when: false
+#     - name: apparmor_status
+#       ansible.builtin.command:
+#         cmd: /usr/sbin/apparmor_status
+#       register: output_apparmor_status
+#       failed_when: false
+#       changed_when: false
 
-    - name: teardown apparmor
-      ansible.builtin.command:
-        cmd: aa-teardown
-      register: teardown
-      failed_when: false
-      changed_when: false
+#     - name: disable apparmor profiles
+#       ansible.builtin.command:
+#         cmd: aa-disable /etc/apparmor.d/*
+#       register: teardown
+#       failed_when: false
+#       changed_when: false
 
-- name: Disable apparmor
-  when: ansible_facts['os_family'] == "Debian"
-  ansible.builtin.service:
-    name: apparmor
-    state: stopped
-    enabled: false
+#     - name: teardown apparmor
+#       ansible.builtin.command:
+#         cmd: aa-teardown
+#       register: teardown
+#       failed_when: false
+#       changed_when: false
+
+# - name: Disable apparmor
+#   when: ansible_facts['os_family'] == "Debian"
+#   ansible.builtin.service:
+#     name: apparmor
+#     state: stopped
+#     enabled: false
 
 - name: Set crictl.yaml
   ansible.builtin.template:
