@@ -1,12 +1,24 @@
-- name: Load k8s containers
-  ansible.builtin.command: kubeadm config images pull
-
 - name: Init master control node
   ansible.builtin.command: kubeadm init --config /etc/kubernetes/kubeadm-config.yaml
+  when: k8s_middle_version < '31'
+  register: kubeadm_init
+
+- set_fact:
+    cpEndpoint: "{{ ha_cluster_virtual_ip }}:{{ ha_cluster_virtual_port }}"
+  when: ha_cluster_virtual_ip is defined and ha_cluster_virtual_ip != ""
+
+- set_fact:
+    cpEndpoint: "{{ hostvars[groups['k8s_masters'][0]].ansible_facts.default_ipv4.address }}:6443"
+  when: ha_cluster_virtual_ip is undefined
+
+- name: Init master control node no dns
+  ansible.builtin.command: kubeadm init --config /etc/kubernetes/kubeadm-config.yaml 
+
+  when: k8s_middle_version >= '31'
   register: kubeadm_init
 
 - name: Install Utils
-  include_tasks: utils.yaml
+  ansible.builtin.include_tasks: utils.yaml
 
 - name: Check for installed tigera-operator
   ansible.builtin.command: kubectl get ns tigera-operator

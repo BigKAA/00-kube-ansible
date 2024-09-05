@@ -1,118 +1,4 @@
 ---
-- name: Remove repository kubernetes RedHat
-  when: ansible_facts['os_family'] == "RedHat"
-  ansible.builtin.yum_repository:
-    name: kubernetes
-    state: absent
-
-- name: Remove repository kubernetes Ubuntu
-  when: ansible_facts['os_family'] == "Debian"
-  ansible.builtin.apt:
-    name: kubernetes
-    state: absent
-
-- name: Remove CRI-O repository RedHat
-  when: ansible_facts['os_family'] == "RedHat"
-  ansible.builtin.yum_repository:
-    name: cri-o
-    state: absent
-
-- name: Remove CRI-O repository Ubuntu
-  when: ansible_facts['os_family'] == "Debian"
-  ansible.builtin.apt:
-    name: cri-o
-    state: absent
-
-- name: Remove docker repository RedHat
-  when: ansible_facts['os_family'] == "RedHat"
-  ansible.builtin.yum_repository:
-    name: docker
-    state: absent
-
-- name: Remove docker repository Ubuntu
-  when: ansible_facts['os_family'] == "Debian"
-  ansible.builtin.apt:
-    name: docker
-    state: absent
-
-- name: Add CRI-O repository Ubuntu key
-  when: ansible_facts['os_family'] == "Debian" and cri == "crio"
-  ansible.builtin.apt_key:
-    url: "https://pkgs.k8s.io/addons:/cri-o:/{{ stage }}:/{{ crio_version }}/deb/Release.key"
-    state: present
-    keyring: /etc/apt/trusted.gpg.d/crio.gpg
-
-- name: Add CRI-O repository Ubuntu
-  when: ansible_facts['os_family'] == "Debian" and cri == "crio"
-  ansible.builtin.apt_repository:
-    repo: "deb [signed-by=/etc/apt/trusted.gpg.d/crio.gpg] https://pkgs.k8s.io/addons:/cri-o:/{{ stage }}:/{{ crio_version }}/deb/ /"
-    state: present
-    filename: "cri-o"
-    update_cache: true
-
-- name: Add CRI-O repository RedHat
-  when: ansible_facts['os_family'] == "RedHat" and cri == "crio"
-  ansible.builtin.yum_repository:
-    name: cri-o
-    description: CRI-O repository for version {{ crio_version }}
-    baseurl: https://pkgs.k8s.io/addons:/cri-o:/{{ stage }}:/{{ crio_version }}/rpm/
-    gpgcheck: true
-    enabled: true
-    gpgkey:
-      - https://pkgs.k8s.io/addons:/cri-o:/{{ stage }}:/{{ crio_version }}/rpm/repodata/repomd.xml.key
-    state: present
-
-- name: Docker repository for containerd RedHat
-  when: ansible_facts['os_family'] == "RedHat" and cri == "containerd"
-  ansible.builtin.yum_repository:
-    name: docker-ce-stable
-    enabled: true
-    baseurl: "https://download.docker.com/linux/centos/$releasever/$basearch/stable"
-    description: 'Docker CE Stable - $basearch'
-    gpgcheck: true
-    gpgkey:
-      - 'https://download.docker.com/linux/centos/gpg'
-
-- name: Docker repository for Ubuntu [Key]
-  when: ansible_facts['os_family'] == "Debian" and cri == "containerd"
-  ansible.builtin.apt_key:
-    url: "https://download.docker.com/linux/ubuntu/gpg"
-    state: present
-    keyring: /etc/apt/trusted.gpg.d/docker.gpg
-
-- name: Docker repository for Ubuntu
-  when: ansible_facts['os_family'] == "Debian" and cri == "containerd"
-  ansible.builtin.apt_repository:
-    repo: "deb [signed-by=/etc/apt/trusted.gpg.d/docker.gpg] https://download.docker.com/linux/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable"
-    state: present
-    filename: docker
-
-- name: K8s repository for Ubuntu [Key]
-  when: ansible_facts['os_family'] == "Debian"
-  ansible.builtin.apt_key:
-    url: "https://pkgs.k8s.io/core:/stable:/v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}/deb/Release.key"
-    state: present
-    keyring: /etc/apt/trusted.gpg.d/k8s.gpg
-
-- name: K8s repository for Ubuntu
-  when: ansible_facts['os_family'] == "Debian"
-  ansible.builtin.apt_repository:
-    repo: "deb [signed-by=/etc/apt/trusted.gpg.d/k8s.gpg] https://pkgs.k8s.io/core:/stable:/v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}/deb/ /"
-    state: present
-    filename: kubernetes
-
-- name: Add kubernetes repository RedHat
-  when: ansible_facts['os_family'] == "RedHat"
-  ansible.builtin.yum_repository:
-    name: kubernetes
-    description: "Base programs for k8s, version: v{{ kube_version[:4] }}"
-    baseurl: "https://pkgs.k8s.io/core:/stable:/v{{ kube_version[:4] }}/rpm/"
-    gpgcheck: true
-    enabled: true
-    gpgkey:
-      - "https://pkgs.k8s.io/core:/stable:/v{{ kube_version[:4] }}/rpm/repodata/repomd.xml.key"
-    state: present
-
 - name: Install packages dnf
   when: ansible_facts['os_family'] == "RedHat"
   ansible.builtin.dnf:
@@ -128,9 +14,6 @@
       - rsyslog
       - chrony
       - jq
-      - kubectl
-      - kubelet
-      - kubeadm
       - ipvsadm
     state: present
 
@@ -150,39 +33,7 @@
       - rsyslog
       - chrony
       - jq
-      - kubectl
-      - kubelet
-      - kubeadm
       - ipvsadm
-    state: present
-
-- name: Install CRI-O rpm
-  when: ansible_facts['os_family'] == "RedHat" and cri == "crio"
-  ansible.builtin.dnf:
-    name:
-      - cri-o
-      - cri-tools
-    state: present
-
-- name: Install CRI-O deb
-  when: ansible_facts['os_family'] == "Debian" and cri == "crio"
-  ansible.builtin.apt:
-    name:
-      - cri-o
-    state: present
-
-- name: Install containerd rpm
-  when: ansible_facts['os_family'] == "RedHat" and cri == "containerd"
-  ansible.builtin.dnf:
-    name:
-      - containerd
-    state: present
-
-- name: Install containerd deb
-  when: ansible_facts['os_family'] == "Debian" and cri == "containerd"
-  ansible.builtin.apt:
-    name:
-      - containerd
     state: present
 
 - name: Enable NTP server
@@ -320,65 +171,6 @@
     state: stopped
     enabled: false
 
-- name: Enable dockerhub mirror on containerd [mkdir]
-  when: cri == "containerd"
-  ansible.builtin.file:
-    path: /etc/containerd/certs.d
-    state: directory
-    mode: u=rw,g=r,o=r
-
-- name: Enable dockerhub mirror on containerd [mkdir]
-  when: cri == "containerd" and dockerhubMirror is true
-  ansible.builtin.file:
-    path: /etc/containerd/certs.d/docker.io
-    state: directory
-    mode: u=rw,g=r,o=r
-
-- name: Enable dockerhub mirror on containerd [file]
-  when: cri == "containerd" and dockerhubMirror is true
-  ansible.builtin.template:
-    src: hosts.j2
-    dest: /etc/containerd/certs.d/docker.io/hosts.toml
-    owner: root
-    mode: u=rw,g=r,o=r
-
-# - name: Set containerd config.toml
-#   when: cri == "containerd"
-#   ansible.builtin.copy:
-#     src: config.toml
-#     dest: /etc/containerd/config.toml
-#     owner: root
-#     mode: u=rw,g=r,o=r
-
-- name: Delete config.toml file
-  when: cri == "containerd"
-  ansible.builtin.file:
-    path: /etc/containerd/config.toml
-    state: absent
-
-- name: Enable and start Containerd service
-  when: cri == "containerd"
-  ansible.builtin.service:
-    name: containerd
-    state: started
-    enabled: true
-
-# https://github.com/containers/image/blob/main/docs/containers-registries.conf.5.md
-- name: Enable dockerhub mirror on CRI-O
-  when: cri == "crio" and dockerhubMirror is true
-  ansible.builtin.template:
-    src: cri-o-mirrors.j2
-    dest: /etc/containers/registries.conf
-    owner: root
-    mode: u=rw,g=r,o=r
-
-- name: Enable and start CRI-O service
-  when: cri == "crio"
-  ansible.builtin.service:
-    name: crio
-    state: started
-    enabled: true
-
 - name: Set crictl.yaml
   ansible.builtin.template:
     src: crictl.j2
@@ -427,3 +219,213 @@
     path: ~/.bashrc
     state: present
     line: "PS1='\\[\\e[44;36m\\]\\t:[\\w]\\[\\e[0;0m\\]\\n\\[\\e[0;31;04m\\]\\u\\[\\e[0;0m\\]@\\[\\e[0;32m\\]\\h\\[\\e[0;0m\\] \\$ '"
+
+- name: Install CRI-O
+  when: cri == "crio"
+  block:
+
+    - name: Add CRI-O repository Ubuntu key
+      when: ansible_facts['os_family'] == "Debian"
+      ansible.builtin.apt_key:
+        url: "https://pkgs.k8s.io/addons:/cri-o:/{{ stage }}:/{{ crio_version }}/deb/Release.key"
+        state: present
+        keyring: /etc/apt/trusted.gpg.d/crio.gpg
+
+    - name: Add CRI-O repository Ubuntu
+      when: ansible_facts['os_family'] == "Debian"
+      ansible.builtin.apt_repository:
+        repo: "deb [signed-by=/etc/apt/trusted.gpg.d/crio.gpg] https://pkgs.k8s.io/addons:/cri-o:/{{ stage }}:/{{ crio_version }}/deb/ /"
+        state: present
+        filename: "cri-o"
+        update_cache: true
+
+    - name: Add CRI-O repository RedHat
+      when: ansible_facts['os_family'] == "RedHat"
+      ansible.builtin.yum_repository:
+        name: cri-o
+        description: CRI-O repository for version {{ crio_version }}
+        baseurl: https://pkgs.k8s.io/addons:/cri-o:/{{ stage }}:/{{ crio_version }}/rpm/
+        gpgcheck: true
+        enabled: true
+        gpgkey:
+          - https://pkgs.k8s.io/addons:/cri-o:/{{ stage }}:/{{ crio_version }}/rpm/repodata/repomd.xml.key
+        state: present
+
+    - name: Install CRI-O [rpm]
+      when: ansible_facts['os_family'] == "RedHat"
+      ansible.builtin.dnf:
+        name:
+          - cri-o
+          - cri-tools
+        state: present
+
+    - name: Install CRI-O [deb]
+      when: ansible_facts['os_family'] == "Debian"
+      ansible.builtin.apt:
+        name:
+          - cri-o
+        state: present
+
+    - name: CRI-O /etc/cni/net.d [del dir]
+      ansible.builtin.file:
+        path: /etc/cni/net.d
+        state: absent
+
+    - name: CRI-O /etc/cni/net.d [create dir]
+      ansible.builtin.file:
+        path: /etc/cni/net.d
+        state: directory
+
+    # - name: Set CRI-O net file
+    #   ansible.builtin.template:
+    #     src: crio-net.j2
+    #     dest: /etc/cni/net.d/11-crio-ipv4-bridge.conflist
+    #     owner: root
+    #     mode: u=rw,g=r,o=r
+
+    # https://github.com/containers/image/blob/main/docs/containers-registries.conf.5.md
+    # /etc/containers/registries.conf.d
+    - name: Enable dockerhub mirror on CRI-O
+      when: dockerhubMirror is true
+      ansible.builtin.template:
+        src: cri-o-mirrors.j2
+        dest: /etc/containers/registries.conf
+        owner: root
+        mode: u=rw,g=r,o=r
+
+    - name: Enable and start CRI-O service
+      ansible.builtin.service:
+        name: crio
+        state: started
+        enabled: true
+
+- name: Install containerd
+  when: cri == "containerd"
+  block:
+
+    - name: Docker repository for containerd RedHat
+      when: ansible_facts['os_family'] == "RedHat"
+      ansible.builtin.yum_repository:
+        name: docker-ce-stable
+        enabled: true
+        baseurl: "https://download.docker.com/linux/centos/$releasever/$basearch/stable"
+        description: 'Docker CE Stable - $basearch'
+        gpgcheck: true
+        gpgkey:
+          - 'https://download.docker.com/linux/centos/gpg'
+
+    - name: Docker repository for Ubuntu [Key]
+      when: ansible_facts['os_family'] == "Debian"
+      ansible.builtin.apt_key:
+        url: "https://download.docker.com/linux/ubuntu/gpg"
+        state: present
+        keyring: /etc/apt/trusted.gpg.d/docker.gpg
+
+    - name: Docker repository for Ubuntu
+      when: ansible_facts['os_family'] == "Debian"
+      ansible.builtin.apt_repository:
+        repo: "deb [signed-by=/etc/apt/trusted.gpg.d/docker.gpg] https://download.docker.com/linux/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable"
+        state: present
+        filename: docker-ce-stable
+
+    - name: Install containerd [rpm]
+      when: ansible_facts['os_family'] == "RedHat"
+      ansible.builtin.dnf:
+        name:
+          - containerd
+        state: present
+
+    - name: Install containerd [deb]
+      when: ansible_facts['os_family'] == "Debian"
+      ansible.builtin.apt:
+        name:
+          - containerd
+        state: present
+
+    - name: Enable dockerhub mirror on containerd [mkdir]
+      when: cri == "containerd"
+      ansible.builtin.file:
+        path: /etc/containerd/certs.d
+        state: directory
+        mode: u=rw,g=r,o=r
+
+    - name: Enable dockerhub mirror on containerd [mkdir]
+      when: dockerhubMirror is true
+      ansible.builtin.file:
+        path: /etc/containerd/certs.d/docker.io
+        state: directory
+        mode: u=rw,g=r,o=r
+
+    - name: Enable dockerhub mirror on containerd [file]
+      when: dockerhubMirror is true
+      ansible.builtin.template:
+        src: hosts.j2
+        dest: /etc/containerd/certs.d/docker.io/hosts.toml
+        owner: root
+        mode: u=rw,g=r,o=r
+
+    # - name: Set containerd config.toml
+    #   ansible.builtin.copy:
+    #     src: config.toml
+    #     dest: /etc/containerd/config.toml
+    #     owner: root
+    #     mode: u=rw,g=r,o=r
+
+    - name: Delete config.toml file
+      ansible.builtin.file:
+        path: /etc/containerd/config.toml
+        state: absent
+
+    - name: Enable and start Containerd service
+      ansible.builtin.service:
+        name: containerd
+        state: started
+        enabled: true
+
+- name: Install k8s files
+  block:
+
+    - name: K8s repository for Ubuntu [Key]
+      when: ansible_facts['os_family'] == "Debian"
+      ansible.builtin.apt_key:
+        url: "https://pkgs.k8s.io/core:/stable:/v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}/deb/Release.key"
+        state: present
+        keyring: /etc/apt/trusted.gpg.d/k8s.gpg
+
+    - name: K8s repository for Ubuntu
+      when: ansible_facts['os_family'] == "Debian"
+      ansible.builtin.apt_repository:
+        repo: "deb [signed-by=/etc/apt/trusted.gpg.d/k8s.gpg] https://pkgs.k8s.io/core:/stable:/v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}/deb/ /"
+        state: present
+        filename: kubernetes
+
+    - name: Add kubernetes repository RedHat
+      when: ansible_facts['os_family'] == "RedHat"
+      ansible.builtin.yum_repository:
+        name: kubernetes
+        description: "Base programs for k8s, version: v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}"
+        baseurl: "https://pkgs.k8s.io/core:/stable:/v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}/rpm/"
+        gpgcheck: true
+        enabled: true
+        gpgkey:
+          - "https://pkgs.k8s.io/core:/stable:/v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}/rpm/repodata/repomd.xml.key"
+        state: present
+
+    - name: Install k8s utils [rpm]
+      when: ansible_facts['os_family'] == "RedHat"
+      ansible.builtin.dnf:
+        name:
+          - kubectl
+          - kubelet
+          - kubeadm
+          - ipvsadm
+        state: present
+
+    - name: Install k8s utils [deb]
+      when: ansible_facts['os_family'] == "Debian"
+      ansible.builtin.apt:
+        pkg:
+          - kubectl
+          - kubelet
+          - kubeadm
+        state: present
