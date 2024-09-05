@@ -1,0 +1,26 @@
+# Nodelocaldns
+
+- name: Wait for coredns started
+  ansible.builtin.command: "kubectl -n kube-system get svc kube-dns -o jsonpath='{.spec.clusterIP}'"
+  changed_when: false
+  check_mode: false
+  register: result
+  until: result.rc == 0
+  retries: 10
+  delay: 30
+
+- name: Get coredns service IP address
+  ansible.builtin.shell: |
+    kubectl -n kube-system get svc kube-dns -o jsonpath='{.spec.clusterIP}'
+  register: dns_ip
+
+- set_fact:
+    coredns_ip: "{{ dns_ip.stdout }}"
+
+- name: Copy nodelocaldns manifest
+  ansible.builtin.template:
+    src: nodelocaldns-daemonset.j2
+    dest: /etc/kubernetes/nodelocaldns-daemonset.yaml
+
+- name: Deploy nodelocaldns
+  ansible.builtin.command: kubectl apply -f /etc/kubernetes/nodelocaldns-daemonset.yaml

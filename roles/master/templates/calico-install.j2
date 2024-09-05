@@ -10,7 +10,8 @@ spec:
   calicoNetwork:
     # Note: The ipPools section cannot be modified post-install.
     ipPools:
-    - blockSize: 26
+    - name: default
+      blockSize: 26
       cidr: {{ pod_network_cidr }}
       encapsulation: {{ encapsulation }}
       natOutgoing: Enabled

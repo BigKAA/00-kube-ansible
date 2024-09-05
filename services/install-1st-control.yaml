@@ -1,7 +1,9 @@
 ---
-- name: Install HA on control nodes
+- name: Install 1-st control node
   hosts: k8s_masters[0]
+  become: true
+  become_user: root
   vars:
     ansible_python_interpreter: /usr/bin/python3
   roles:
-    - { role: ../roles/master }
+    - { role: master }

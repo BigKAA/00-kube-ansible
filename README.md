@@ -1,16 +1,20 @@
 # Ansible playbook для установки тестового кластера k8s
 
-В данный момент поддерживает:
+Новая версия плейбука проверена на:
 
-- Kubernetes v1.31. Предыдущие версии не поддерживаются.
+- Ubuntu 22.04.4 LTS
+
+Остальные дистрибутивы проверю, когда до них руки дойдут.
+
+Поддерживает:
+
+- Kubernetes v1.31.
 - Установку одной или несколько control nodes.
 - HA доступ к API kubernetes.
-- containerd, CRI-O.
+- CRI-O.
 - calico.
 - В KubeProxyConfiguration установлены параметры для работы Metallb.
 - nodelocaldns - кеширующий DNS сервер на каждой ноде кластера.
-
-По идее, работает только с RedHat версиями дистрибутивов. Оттестировано на Rocky Linux 9.
 
 ## Установка ansible
 
@@ -19,7 +23,7 @@
 ```shell
 python3 -m venv venv
 . ~/venv/bin/activate
-python3 -m pip install ansible
+pip3 install "ansible-core<2.17"
 ```
 
 Генерируем ssh ключ:

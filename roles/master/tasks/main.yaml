@@ -15,17 +15,32 @@
     state: directory
     mode: '0700'
 
-- name: Copy kubeadm-config.yaml
+- name: Set kube kube middle version
+  ansible.builtin.set_fact:
+    k8s_middle_version: "{{ kube_version[2:4] | int }}"
+
+- name: Copy kubeadm-config.yaml < 1.31
   ansible.builtin.template:
     src: kubeadm-config.j2
     dest: /etc/kubernetes/kubeadm-config.yaml
     mode: '0600'
+  when: k8s_middle_version < '31'
 
-- name: Install Calicoctl
-  ansible.builtin.get_url:
-    url: https://github.com/projectcalico/calico/releases/download/{{ tigera_operator_version }}/calicoctl-linux-amd64
-    dest: /usr/local/bin/calicoctl
-    mode: '0755'
+- name: Copy kubeadm-config.yaml >= 1.31
+  ansible.builtin.template:
+    src: kubeadm-config.v4.j2
+    dest: /etc/kubernetes/kubeadm-config.yaml
+    mode: '0600'
+  when: k8s_middle_version >= '31'
+
+# - name: Install Calicoctl
+#   ansible.builtin.get_url:
+#     url: https://github.com/projectcalico/calico/releases/download/{{ tigera_operator_version }}/calicoctl-linux-amd64
+#     dest: /usr/local/bin/calicoctl
+#     mode: '0755'
+
+- name: Load k8s containers
+  ansible.builtin.command: kubeadm config images pull
 
 - name: Install Calico
   when: enableBPF is not defined
@@ -34,6 +49,9 @@
 - name: Install Calico with BPF
   when: enableBPF is defined
   ansible.builtin.include_tasks: calico-bpf.yaml
+
+- name: Setup DNS
+  ansible.builtin.include_tasks: dns.yaml
 
 # Почему то в 1.25 на AlmaLinux 8 не ставится enabled
 - name: Kubelet enable

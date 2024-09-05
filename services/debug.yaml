@@ -4,13 +4,10 @@
   hosts: k8s_cluster
   # become: yes
 
-  vars:
-    ansible_python_interpreter: /usr/bin/python3
+  # vars:
+  #   ansible_python_interpreter: /usr/bin/python3
   tasks:
 
-    - name: Debug ansible_fqdn
-      ansible.builtin.debug:
-        var=ansible_fqdn
     # - name: Get coredns service IP address
     #   shell: kubectl -n kube-system get svc kube-dns -o jsonpath='{.spec.clusterIP}'
     #   register: coreds_ip

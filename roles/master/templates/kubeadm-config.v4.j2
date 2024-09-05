@@ -1,31 +1,44 @@
-apiVersion: kubeadm.k8s.io/v1beta3
+# На будщее, потом пригодится.
+---
+apiVersion: kubeadm.k8s.io/v1beta4
 kind: InitConfiguration
 localAPIEndpoint:
   advertiseAddress: {{ hostvars[groups['k8s_masters'][0]].ansible_facts.default_ipv4.address }}
   bindPort: 6443
 nodeRegistration:
-  criSocket: {{ cri_socket }}
+  criSocket: "{{ cri_socket }}"
   imagePullPolicy: IfNotPresent
-  name: {{ ansible_facts.nodename }}
+  # name: {{ ansible_facts.nodename }}
+  name: {{ ansible_facts.fqdn }}
 ---
-apiVersion: kubeadm.k8s.io/v1beta3
+apiVersion: kubeadm.k8s.io/v1beta4
 kind: ClusterConfiguration
+apiServer: {}
 certificatesDir: /etc/kubernetes/pki
 clusterName: {{ kube_domain_name }}
-imageRepository: {{ imageRepository }}
 kubernetesVersion: {{ kube_version }}
+controllerManager: {}
+dns: {}
+encryptionAlgorithm: RSA-2048
+etcd:
+  local:
+    dataDir: /var/lib/etcd
+imageRepository: {{ imageRepository }}
+networking:
+  dnsDomain: {{ kube_domain_name }}
+  serviceSubnet: {{ service_cidr }}
+  podSubnet: {{ pod_network_cidr }}
+proxy: {}
+scheduler: {}
 {% if ha_cluster_virtual_ip is defined and ha_cluster_virtual_ip != "" %}
 controlPlaneEndpoint: {{ ha_cluster_virtual_ip }}:{{ ha_cluster_virtual_port }}
 {% else %}
 controlPlaneEndpoint: {{ hostvars[groups['k8s_masters'][0]].ansible_facts.default_ipv4.address }}:6443
 {% endif %}
-networking:
-  dnsDomain: {{ kube_domain_name }}
-  podSubnet: {{ pod_network_cidr }}
-  serviceSubnet: {{ service_cidr }}
 ---
 apiVersion: kubeproxy.config.k8s.io/v1alpha1
 kind: KubeProxyConfiguration
+bindAddress: 0.0.0.0
 clusterCIDR: {{ pod_network_cidr }}
 ipvs:
   strictARP: True
@@ -47,6 +60,7 @@ systemReserved:
   ephemeral-storage: {{ system_ephemeral_storage_reserved }}
 {% endif %}
 {% endif %}
+# Default: "10Mi"
 {% if container_log_max_size is defined %}
 containerLogMaxSize: {{ container_log_max_size }}
 {% endif %}
