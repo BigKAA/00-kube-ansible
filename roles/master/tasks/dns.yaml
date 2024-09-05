@@ -1,18 +1,3 @@
-# - name: Manual start CoreDNS
-#   when: k8s_middle_version >= '31'
-#   block:
-#     - name: Install CoreDNS copy file
-#       ansible.builtin.copy:
-#         src: coredns.yaml
-#         dest: /etc/kubernetes/coredns.yaml
-#         owner: root
-#         group: root
-#         mode: '0644'
-
-#     - name: Install CoreDNS
-#       ansible.builtin.command:
-#         cmd: kubectl apply -f /etc/kubernetes/coredns.yaml
-
 # Nodelocaldns
 
 - name: Wait for coredns started
