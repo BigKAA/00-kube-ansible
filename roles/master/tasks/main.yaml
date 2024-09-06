@@ -42,13 +42,21 @@
 - name: Load k8s containers
   ansible.builtin.command: kubeadm config images pull
 
-- name: Install Calico
-  when: enableBPF is not defined
-  ansible.builtin.include_tasks: calico.yaml
+- name: Calico
+  when: cni == 'calico'
+  block:
 
-- name: Install Calico with BPF
-  when: enableBPF is defined
-  ansible.builtin.include_tasks: calico-bpf.yaml
+  - name: Install Calico
+    when: enableBPF is not defined
+    ansible.builtin.include_tasks: calico.yaml
+
+  - name: Install Calico with BPF
+    when: enableBPF is defined
+    ansible.builtin.include_tasks: calico-bpf.yaml
+
+- name: Flannel
+  when: cni == 'flannel'
+  ansible.builtin.include_tasks: flannel.yaml
 
 - name: Setup DNS
   ansible.builtin.include_tasks: dns.yaml

@@ -1,0 +1,74 @@
+- name: Add CRI-O repository Ubuntu key
+  when: ansible_facts['os_family'] == "Debian"
+  ansible.builtin.apt_key:
+    url: "https://pkgs.k8s.io/addons:/cri-o:/{{ stage }}:/{{ crio_version }}/deb/Release.key"
+    state: present
+    keyring: /etc/apt/trusted.gpg.d/crio.gpg
+
+- name: Add CRI-O repository Ubuntu
+  when: ansible_facts['os_family'] == "Debian"
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/etc/apt/trusted.gpg.d/crio.gpg] https://pkgs.k8s.io/addons:/cri-o:/{{ stage }}:/{{ crio_version }}/deb/ /"
+    state: present
+    filename: "cri-o"
+    update_cache: true
+
+- name: Add CRI-O repository RedHat
+  when: ansible_facts['os_family'] == "RedHat"
+  ansible.builtin.yum_repository:
+    name: cri-o
+    description: CRI-O repository for version {{ crio_version }}
+    baseurl: https://pkgs.k8s.io/addons:/cri-o:/{{ stage }}:/{{ crio_version }}/rpm/
+    gpgcheck: true
+    enabled: true
+    gpgkey:
+      - https://pkgs.k8s.io/addons:/cri-o:/{{ stage }}:/{{ crio_version }}/rpm/repodata/repomd.xml.key
+    state: present
+
+- name: Install CRI-O [rpm]
+  when: ansible_facts['os_family'] == "RedHat"
+  ansible.builtin.dnf:
+    name:
+      - cri-o
+      - cri-tools
+    state: present
+
+- name: Install CRI-O [deb]
+  when: ansible_facts['os_family'] == "Debian"
+  ansible.builtin.apt:
+    name:
+      - cri-o
+    state: present
+
+- name: CRI-O /etc/cni/net.d [del dir]
+  ansible.builtin.file:
+    path: /etc/cni/net.d
+    state: absent
+
+- name: CRI-O /etc/cni/net.d [create dir]
+  ansible.builtin.file:
+    path: /etc/cni/net.d
+    state: directory
+
+# - name: Set CRI-O net file
+#   ansible.builtin.template:
+#     src: crio-net.j2
+#     dest: /etc/cni/net.d/11-crio-ipv4-bridge.conflist
+#     owner: root
+#     mode: u=rw,g=r,o=r
+
+# https://github.com/containers/image/blob/main/docs/containers-registries.conf.5.md
+# /etc/containers/registries.conf.d
+- name: Enable dockerhub mirror on CRI-O
+  when: dockerhubMirror is true
+  ansible.builtin.template:
+    src: cri-o-mirrors.j2
+    dest: /etc/containers/registries.conf
+    owner: root
+    mode: u=rw,g=r,o=r
+
+- name: Enable and start CRI-O service
+  ansible.builtin.service:
+    name: crio
+    state: started
+    enabled: true

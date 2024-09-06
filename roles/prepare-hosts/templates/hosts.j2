@@ -1,4 +1,7 @@
-server = "https://registry-1.docker.io"
+server = "https://registry-1.docker.io/v2"
+capabilities = ["pull", "resolve", "push"]
 
+{% for dockerhubMirrorURL in dockerhubMirrorURLs %}
 [host."https://{{ dockerhubMirrorURL }}"]
   capabilities = ["pull", "resolve"]
+{% endfor %}

@@ -2,6 +2,26 @@
   ansible.builtin.command: kubeadm init --config /etc/kubernetes/kubeadm-config.yaml
   register: kubeadm_init
 
+# - name: Set cpEndpoint
+#   set_fact:
+#     cpEndpoint: "{% if ha_cluster_virtual_ip is defined and ha_cluster_virtual_ip != \"\" %}{{ ha_cluster_virtual_ip }}:{{ ha_cluster_virtual_port }}{% else %}{{ hostvars[groups['k8s_masters'][0]].ansible_facts.default_ipv4.address }}:6443{% endif %}"
+
+# - name: Init master control node
+#   ansible.builtin.shell: |
+#     kubeadm init \
+#         --apiserver-advertise-address "{{ hostvars[groups['k8s_masters'][0]].ansible_facts.default_ipv4.address }}" \
+#         --control-plane-endpoint "{{ cpEndpoint }}" \
+#         --pod-network-cidr "{{ pod_network_cidr }}" \
+#         --service-cidr "{{ service_cidr }}" \
+#         --service-dns-domain "{{ kube_domain_name }}" \
+#         --apiserver-bind-port 6443 \
+#         --cert-dir /etc/kubernetes/pki \
+#         --cri-socket "{{ cri_socket }}" \
+#         --image-repository "{{ imageRepository }}" \
+#         --kubernetes-version "{{ kube_version }}" \
+#         --node-name "{{ ansible_facts.nodename }}" \
+#         --upload-certs
+
 
 - name: Install Utils
   ansible.builtin.include_tasks: utils.yaml

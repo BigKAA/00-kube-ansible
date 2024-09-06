@@ -11,7 +11,6 @@
       - bash-completion
       - nfs-utils
       - tar
-      - rsyslog
       - chrony
       - jq
       - ipvsadm
@@ -23,6 +22,7 @@
     pkg:
       - net-tools
       - mc
+      - gpg
       - iproute2
       - iptables
       - vim
@@ -30,21 +30,22 @@
       - bash-completion
       - nfs-common
       - tar
-      - rsyslog
-      - chrony
+      - ntp
       - jq
       - ipvsadm
     state: present
 
-- name: Enable NTP server
+- name: Enable NTP server chrony
+  when: ansible_facts['os_family'] == "RedHat"
   ansible.builtin.service:
     name: chronyd
     state: started
     enabled: true
 
-- name: Enable rsyslog
+- name: Enable NTP server
+  when: ansible_facts['os_family'] == "Debian"
   ansible.builtin.service:
-    name: rsyslog
+    name: ntp
     state: started
     enabled: true
 
@@ -70,11 +71,6 @@
     regexp: '^([^#].*\s*swap\s*.*)$'
     replace: '# \1'
 
-# - name: Check Disable SELinux
-#   when: ansible_facts['os_family'] == "RedHat"
-#   ansible.posix.selinux:
-#     state: disabled
-#   register: selinux_ret
 - name: Check Disable SELinux
   when: ansible_facts['os_family'] == "RedHat"
   selinux:
@@ -86,92 +82,6 @@
   ansible.builtin.command:
     cmd: setenforce 0
 
-# - name: detect apparmor mode
-#   ansible.builtin.stat:
-#     path: /sys/module/apparmor/parameters/mode
-#   register: stat_apparmor_mode
-
-# - name: apparmor mode
-#   when:
-#     - stat_apparmor_mode.stat is defined
-#     - stat_apparmor_mode.stat.exists
-#   block:
-
-#     - name: detect activated apparmor
-#       ansible.builtin.slurp:
-#         src: /sys/module/apparmor/parameters/mode
-#       register: _apparmor_mode
-
-#     - name: define apparmor_mode
-#       ansible.builtin.set_fact:
-#         apparmor_mode: "{{ _apparmor_mode.content | b64decode | lower }}"
-
-#     - name: apparmor mode
-#       ansible.builtin.debug:
-#         msg: "{{ apparmor_mode }}"
-
-#     - name: enable complain mode
-#       when:
-#         - apparmor_mode == "enforce"
-#       ansible.builtin.shell:
-#         cmd: echo -n complain > /sys/module/apparmor/parameters/mode
-#       register: apparmor_complain_mode
-#       failed_when: false
-#       changed_when: false
-
-# - name: detect apparmor libs
-#   ansible.builtin.stat:
-#     path: /usr/lib/apparmor
-#   register: stat_apparmor_libs
-
-# - name: disable apparmor profiles and teardown all profiles
-#   when:
-#     - stat_apparmor_libs.stat is defined
-#     - stat_apparmor_libs.stat.exists
-#   block:
-
-#     - name: detect apparmor utils
-#       ansible.builtin.stat:
-#         path: /usr/sbin/aa-teardown
-#       register: stat_apparmor_utils
-
-#     - name: install apparmor-utils
-#       ansible.builtin.package:
-#         name:
-#           - apparmor-utils
-#         state: present
-#       when:
-#         - stat_apparmor_utils.stat is defined
-#         - not stat_apparmor_utils.stat.exists
-
-#     - name: apparmor_status
-#       ansible.builtin.command:
-#         cmd: /usr/sbin/apparmor_status
-#       register: output_apparmor_status
-#       failed_when: false
-#       changed_when: false
-
-#     - name: disable apparmor profiles
-#       ansible.builtin.command:
-#         cmd: aa-disable /etc/apparmor.d/*
-#       register: teardown
-#       failed_when: false
-#       changed_when: false
-
-#     - name: teardown apparmor
-#       ansible.builtin.command:
-#         cmd: aa-teardown
-#       register: teardown
-#       failed_when: false
-#       changed_when: false
-
-# - name: Disable apparmor
-#   when: ansible_facts['os_family'] == "Debian"
-#   ansible.builtin.service:
-#     name: apparmor
-#     state: stopped
-#     enabled: false
-
 - name: Set crictl.yaml
   ansible.builtin.template:
     src: crictl.j2
@@ -179,9 +89,13 @@
     owner: root
     mode: u=rw,g=r,o=r
 
-- name: Load modules
+- name: Load modules br_netfilter
   community.general.modprobe:
     name: br_netfilter
+
+- name: Load modules overlay
+  community.general.modprobe:
+    name: overlay
 
 - name: Load module permanet
   ansible.builtin.copy:
@@ -205,16 +119,6 @@
     - name: vm.max_map_count # for opensearch & elasticserarch
       value: 262144
 
-# - name: Set Sysctl on master node(s)
-#   when: inventory_hostname in groups['k8s_masters']
-#   ansible.posix.sysctl:
-#     name: "{{ item.name }}"
-#     value: "{{ item.value }}"
-#     state: present
-#   with_items:
-#     - name: net.ipv4.ip_nonlocal_bind
-#       value: 1
-
 - name: Add PS1
   ansible.builtin.lineinfile:
     path: ~/.bashrc
@@ -223,184 +127,23 @@
 
 - name: Install CRI-O
   when: cri == "crio"
-  block:
-
-    - name: Add CRI-O repository Ubuntu key
-      when: ansible_facts['os_family'] == "Debian"
-      ansible.builtin.apt_key:
-        url: "https://pkgs.k8s.io/addons:/cri-o:/{{ stage }}:/{{ crio_version }}/deb/Release.key"
-        state: present
-        keyring: /etc/apt/trusted.gpg.d/crio.gpg
-
-    - name: Add CRI-O repository Ubuntu
-      when: ansible_facts['os_family'] == "Debian"
-      ansible.builtin.apt_repository:
-        repo: "deb [signed-by=/etc/apt/trusted.gpg.d/crio.gpg] https://pkgs.k8s.io/addons:/cri-o:/{{ stage }}:/{{ crio_version }}/deb/ /"
-        state: present
-        filename: "cri-o"
-        update_cache: true
-
-    - name: Add CRI-O repository RedHat
-      when: ansible_facts['os_family'] == "RedHat"
-      ansible.builtin.yum_repository:
-        name: cri-o
-        description: CRI-O repository for version {{ crio_version }}
-        baseurl: https://pkgs.k8s.io/addons:/cri-o:/{{ stage }}:/{{ crio_version }}/rpm/
-        gpgcheck: true
-        enabled: true
-        gpgkey:
-          - https://pkgs.k8s.io/addons:/cri-o:/{{ stage }}:/{{ crio_version }}/rpm/repodata/repomd.xml.key
-        state: present
-
-    - name: Install CRI-O [rpm]
-      when: ansible_facts['os_family'] == "RedHat"
-      ansible.builtin.dnf:
-        name:
-          - cri-o
-          - cri-tools
-        state: present
-
-    - name: Install CRI-O [deb]
-      when: ansible_facts['os_family'] == "Debian"
-      ansible.builtin.apt:
-        name:
-          - cri-o
-        state: present
-
-    - name: CRI-O /etc/cni/net.d [del dir]
-      ansible.builtin.file:
-        path: /etc/cni/net.d
-        state: absent
-
-    - name: CRI-O /etc/cni/net.d [create dir]
-      ansible.builtin.file:
-        path: /etc/cni/net.d
-        state: directory
-
-    # - name: Set CRI-O net file
-    #   ansible.builtin.template:
-    #     src: crio-net.j2
-    #     dest: /etc/cni/net.d/11-crio-ipv4-bridge.conflist
-    #     owner: root
-    #     mode: u=rw,g=r,o=r
-
-    # https://github.com/containers/image/blob/main/docs/containers-registries.conf.5.md
-    # /etc/containers/registries.conf.d
-    - name: Enable dockerhub mirror on CRI-O
-      when: dockerhubMirror is true
-      ansible.builtin.template:
-        src: cri-o-mirrors.j2
-        dest: /etc/containers/registries.conf
-        owner: root
-        mode: u=rw,g=r,o=r
-
-    - name: Enable and start CRI-O service
-      ansible.builtin.service:
-        name: crio
-        state: started
-        enabled: true
+  ansible.builtin.include_tasks: crio.yaml
 
 - name: Install containerd
   when: cri == "containerd"
-  block:
-
-    - name: Docker repository for containerd RedHat
-      when: ansible_facts['os_family'] == "RedHat"
-      ansible.builtin.yum_repository:
-        name: docker-ce-stable
-        enabled: true
-        baseurl: "https://download.docker.com/linux/centos/$releasever/$basearch/stable"
-        description: 'Docker CE Stable - $basearch'
-        gpgcheck: true
-        gpgkey:
-          - 'https://download.docker.com/linux/centos/gpg'
-
-    - name: Docker repository for Ubuntu [Key]
-      when: ansible_facts['os_family'] == "Debian"
-      ansible.builtin.apt_key:
-        url: "https://download.docker.com/linux/ubuntu/gpg"
-        state: present
-        keyring: /etc/apt/trusted.gpg.d/docker.gpg
-
-    - name: Docker repository for Ubuntu
-      when: ansible_facts['os_family'] == "Debian"
-      ansible.builtin.apt_repository:
-        repo: "deb [signed-by=/etc/apt/trusted.gpg.d/docker.gpg] https://download.docker.com/linux/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable"
-        state: present
-        filename: docker-ce-stable
-
-    - name: Install containerd [rpm]
-      when: ansible_facts['os_family'] == "RedHat"
-      ansible.builtin.dnf:
-        name:
-          - containerd
-        state: present
-
-    - name: Install containerd [deb]
-      when: ansible_facts['os_family'] == "Debian"
-      ansible.builtin.apt:
-        name:
-          - containerd
-        state: present
-
-    - name: Enable dockerhub mirror on containerd [mkdir]
-      when: cri == "containerd"
-      ansible.builtin.file:
-        path: /etc/containerd/certs.d
-        state: directory
-        mode: u=rw,g=r,o=r
-
-    - name: Enable dockerhub mirror on containerd [mkdir]
-      when: dockerhubMirror is true
-      ansible.builtin.file:
-        path: /etc/containerd/certs.d/docker.io
-        state: directory
-        mode: u=rw,g=r,o=r
-
-    - name: Enable dockerhub mirror on containerd [file]
-      when: dockerhubMirror is true
-      ansible.builtin.template:
-        src: hosts.j2
-        dest: /etc/containerd/certs.d/docker.io/hosts.toml
-        owner: root
-        mode: u=rw,g=r,o=r
-
-    - name: Set containerd config.toml
-      ansible.builtin.template:
-        src: containerd-config.j2
-        dest: /etc/containerd/config.toml
-        owner: root
-        mode: u=rw,g=r,o=r
-
-    # - name: Set containerd config.toml
-    #   ansible.builtin.copy:
-    #     src: config.toml
-    #     dest: /etc/containerd/config.toml
-    #     owner: root
-    #     mode: u=rw,g=r,o=r
-
-    # - name: Delete config.toml file
-    #   ansible.builtin.file:
-    #     path: /etc/containerd/config.toml
-    #     state: absent
-
-    - name: Enable and start Containerd service
-      ansible.builtin.service:
-        name: containerd
-        state: started
-        enabled: true
+  ansible.builtin.include_tasks: containerd.yaml
 
 - name: Install k8s files
   block:
 
-    - name: K8s repository for Ubuntu [Key]
+    - name: K8s repository for Ubuntu|Debian [Key]
       when: ansible_facts['os_family'] == "Debian"
       ansible.builtin.apt_key:
         url: "https://pkgs.k8s.io/core:/stable:/v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}/deb/Release.key"
         state: present
         keyring: /etc/apt/trusted.gpg.d/k8s.gpg
 
-    - name: K8s repository for Ubuntu
+    - name: K8s repository for Ubuntu|Debian
       when: ansible_facts['os_family'] == "Debian"
       ansible.builtin.apt_repository:
         repo: "deb [signed-by=/etc/apt/trusted.gpg.d/k8s.gpg] https://pkgs.k8s.io/core:/stable:/v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}/deb/ /"

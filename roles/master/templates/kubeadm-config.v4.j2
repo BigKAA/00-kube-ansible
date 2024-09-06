@@ -58,7 +58,7 @@ kind: KubeProxyConfiguration
 bindAddress: 0.0.0.0
 clusterCIDR: {{ pod_network_cidr }}
 ipvs:
-  strictARP: True
+  strictARP: true
 mode: ipvs
 ---
 apiVersion: kubelet.config.k8s.io/v1beta1

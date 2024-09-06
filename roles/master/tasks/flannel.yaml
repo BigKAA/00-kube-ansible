@@ -1,0 +1,16 @@
+- name: Init master control node
+  ansible.builtin.command: kubeadm init --config /etc/kubernetes/kubeadm-config.yaml
+  register: kubeadm_init
+
+
+- name: Install Utils
+  ansible.builtin.include_tasks: utils.yaml
+
+- name: Add flannel.yaml
+  ansible.builtin.template:
+    src: flannel.j2
+    dest: /etc/kubernetes/flannel.yaml
+    mode: '0644'
+    
+- name: Install Flannel
+  ansible.builtin.command: kubectl apply -f /etc/kubernetes/flannel.yaml

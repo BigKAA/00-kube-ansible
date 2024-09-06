@@ -8,6 +8,17 @@
   #   ansible_python_interpreter: /usr/bin/python3
   tasks:
 
+    - name: Set cpEndpoint
+      ansible.builtin.set_fact:
+        cp_endpoint: |
+          "{% if ha_cluster_virtual_ip is defined and ha_cluster_virtual_ip != "" %}
+          {{ ha_cluster_virtual_ip }}:{{ ha_cluster_virtual_port }}
+          {% else %}
+          {{ hostvars[groups['k8s_masters'][0]].ansible_facts.default_ipv4.address }}:6443{% endif %}"
+
+    - name: Print operating system
+      ansible.builtin.debug:
+        msg: "{{ cp_endpoint }}"
     # - name: Get coredns service IP address
     #   shell: kubectl -n kube-system get svc kube-dns -o jsonpath='{.spec.clusterIP}'
     #   register: coreds_ip

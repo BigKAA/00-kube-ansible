@@ -1,0 +1,84 @@
+- name: Docker repository for containerd RedHat
+  when: ansible_facts['os_family'] == "RedHat"
+  ansible.builtin.yum_repository:
+    name: docker-ce-stable
+    enabled: true
+    baseurl: "https://download.docker.com/linux/centos/$releasever/$basearch/stable"
+    description: 'Docker CE Stable - $basearch'
+    gpgcheck: true
+    gpgkey:
+      - 'https://download.docker.com/linux/centos/gpg'
+
+- name: Docker repository for Ubuntu [Key]
+  when: ansible_facts['os_family'] == "Debian"
+  ansible.builtin.apt_key:
+    url: "https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg"
+    state: present
+    keyring: /etc/apt/trusted.gpg.d/docker.gpg
+
+- name: Docker repository for Ubuntu
+  when: ansible_facts['os_family'] == "Debian" and ansible_facts['distribution'] == "Ubuntu"
+  ansible.builtin.apt_repository:
+    repo: >
+      deb [signed-by=/etc/apt/trusted.gpg.d/docker.gpg]
+      https://download.docker.com/linux/{{ ansible_distribution | lower }}
+      {{ ansible_distribution_release }} stable"
+    state: present
+    filename: docker-ce-stable
+
+- name: Install containerd [rpm]
+  when: ansible_facts['os_family'] == "RedHat"
+  ansible.builtin.dnf:
+    name:
+      - containerd
+    state: present
+
+- name: Install containerd [deb]
+  when: ansible_facts['os_family'] == "Debian"
+  ansible.builtin.apt:
+    name:
+      - containerd
+    state: present
+
+- name: Enable dockerhub mirror on containerd [mkdir certs.d]
+  ansible.builtin.file:
+    path: /etc/containerd/certs.d
+    state: directory
+    mode: u=rw,g=r,o=r
+
+- name: Enable dockerhub mirror on containerd [mkdir docker.io]
+  when: dockerhubMirror is true
+  ansible.builtin.file:
+    path: /etc/containerd/certs.d/docker.io
+    state: directory
+    mode: u=rw,g=r,o=r
+
+- name: Enable dockerhub mirror on containerd [file hosts.toml]
+  when: dockerhubMirror is true
+  ansible.builtin.template:
+    src: hosts.j2
+    dest: /etc/containerd/certs.d/docker.io/hosts.toml
+    owner: root
+    mode: u=rw,g=r,o=r
+
+- name: Create containerd config.toml
+  ansible.builtin.shell: containerd config default > /etc/containerd/config.toml
+
+- name: Add cgroup v2 [config.toml]
+  ansible.builtin.shell: |
+    sed -i 's|SystemdCgroup = false|SystemdCgroup = true|' /etc/containerd/config.toml
+
+- name: Add conf dir /etc/containerd/certs.d [config.toml]
+  ansible.builtin.shell: |
+    sed -i 's|config_path = ""|config_path = "/etc/containerd/certs.d"|' /etc/containerd/config.toml
+
+- name: Add change Sandbox Image [config.toml]
+  when: sandbox_image is undefined
+  ansible.builtin.shell: |
+    sed -i 's|sandbox_image = ".*"|sandbox_image = "{{ sandbox_image }}"|' /etc/containerd/config.toml
+
+- name: Enable and start Containerd service
+  ansible.builtin.service:
+    name: containerd
+    state: restarted
+    enabled: true
