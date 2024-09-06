@@ -73,7 +73,7 @@
     sed -i 's|config_path = ""|config_path = "/etc/containerd/certs.d"|' /etc/containerd/config.toml
 
 - name: Add change Sandbox Image [config.toml]
-  when: sandbox_image is undefined
+  when: sandbox_image is defined
   ansible.builtin.shell: |
     sed -i 's|sandbox_image = ".*"|sandbox_image = "{{ sandbox_image }}"|' /etc/containerd/config.toml
 
