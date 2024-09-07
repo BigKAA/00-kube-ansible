@@ -1,3 +1,4 @@
+# https://github.com/containers/image/blob/main/docs/containers-registries.conf.5.md
 [[registry]]
 prefix = "docker.io"
 
@@ -5,5 +6,3 @@ prefix = "docker.io"
 [[registry.mirror]]
 location = "{{ dockerhubMirrorURL }}"
 {% endfor %}
-
-# /etc/containers/registries.conf
