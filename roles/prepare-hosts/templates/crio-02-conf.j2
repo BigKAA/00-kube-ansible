@@ -1,0 +1,7 @@
+[crio.runtime]
+conmon_cgroup = "pod"
+cgroup_manager = "cgroupfs"
+{% if sandbox_image is defined %}
+[crio.image]
+pause_image="{{ sandbox_image }}"
+{% endif %}

@@ -34,7 +34,7 @@ cri_socket: unix:///var/run/crio/crio.sock
 # k8s v3.11 -> registry.k8s.io/pause:3.10
 # k8s v3.10 -> registry.k8s.io/pause:3.9
 # Если сомневаетесь - закоментируйте строку ниже
-sandbox_image: ""
+sandbox_image: "registry.k8s.io/pause:3.10"
 
 # Если используется crio, необходимо указать его версию.
 crio_version: v1.31

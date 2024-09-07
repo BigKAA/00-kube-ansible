@@ -30,7 +30,6 @@
   ansible.builtin.dnf:
     name:
       - cri-o
-      - cri-tools
     state: present
 
 - name: Install CRI-O [deb]
@@ -50,20 +49,30 @@
     path: /etc/cni/net.d
     state: directory
 
+- name: CRI-O add cgroups V2 and pause image
+  ansible.builtin.template:
+    src: cri-o-mirrors.j2
+    dest: /etc/cni/net.d/02-crio-cgroups.conf
+
 # - name: Set CRI-O net file
 #   ansible.builtin.template:
 #     src: crio-net.j2
-#     dest: /etc/cni/net.d/11-crio-ipv4-bridge.conflist
+#     dest: /etc/cni/net.d/11-crio-ipv4-bridge.conf
 #     owner: root
 #     mode: u=rw,g=r,o=r
 
 # https://github.com/containers/image/blob/main/docs/containers-registries.conf.5.md
 # /etc/containers/registries.conf.d
+- name: Directory /etc/containers/registries.conf.d/
+  ansible.builtin.file:
+    path: /etc/containers/registries.conf.d/
+    state: directory
+
 - name: Enable dockerhub mirror on CRI-O
   when: dockerhubMirror is true
   ansible.builtin.template:
     src: cri-o-mirrors.j2
-    dest: /etc/containers/registries.conf
+    dest: /etc/containers/registries.conf.d/registries.conf
     owner: root
     mode: u=rw,g=r,o=r
 
