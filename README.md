@@ -2,13 +2,12 @@
 
 Плейбук проверяется на наборе [приложений](https://github.com/BigKAA/youtube/tree/master/1.31).
 
-
 | k8s ver         | Distributive    | CRI             | Notes           |
 |-----------------|-----------------|-----------------|-----------------|
 | 1.31            | Ubuntu 22.04.4 LTS | CRI-O           |  (_Не стартует harbor. Не монтируется emptyDir._) |
 | 1.3x            | Ubuntu 22.04.4 LTS | containerd 1.7.12  | С последним обновление должен работать. _На проверке_ |
 | 1.31            | Rocky Linux 8.10 | CRI-O | **OK**  |
-| 1.31            | Rocky Linux 8.10 | containerd 1.6.32 | **OK** *Приложения пока не тестил* |
+| 1.31            | Rocky Linux 8.10 | containerd 1.6.32 | **OK** _Приложения пока не тестил_ |
 | 1.30            | Rocky Linux 8.10 | containerd 1.6.32 | **OK** |
 | 1.31            | Debian 12 | containerd.io 1.7.21 | Кластер стартует. Не работает metallb. |
 | 1.30            | Debian 12 | containerd.io 1.7.21 | **Ok** |
@@ -54,8 +53,8 @@ ssh-copy-id root@worker3.kryukov.local
 
 ## Конфигурационные параметры
 
-* [Инвентори](hosts.yaml).
-* [Общая конфигурация](group_vars/k8s_cluster).
+- [Инвентори](hosts.yaml).
+- [Общая конфигурация](group_vars/k8s_cluster).
 
 ## Установка
 
@@ -84,8 +83,8 @@ ansible-playbook install-cluster.yaml
 
 В конфигурационном файле определите параметры доступа к API :
 
-* `ha_cluster_virtual_ip` - виртуальный IP адрес.
-* `ha_cluster_virtual_port` - порт. Не должен быть равен 6443.
+- `ha_cluster_virtual_ip` - виртуальный IP адрес.
+- `ha_cluster_virtual_port` - порт. Не должен быть равен 6443.
 
 ## Удалить кластер
 
