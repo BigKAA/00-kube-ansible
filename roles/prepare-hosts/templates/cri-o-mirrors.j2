@@ -1,6 +1,9 @@
 [[registry]]
 prefix = "docker.io"
-location = "docker.io"
+
+{% for dockerhubMirrorURL in dockerhubMirrorURLs %}
 [[registry.mirror]]
 location = "{{ dockerhubMirrorURL }}"
+{% endfor %}
+
 # /etc/containers/registries.conf
