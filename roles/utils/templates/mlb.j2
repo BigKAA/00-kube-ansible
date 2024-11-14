@@ -1,0 +1,19 @@
+---
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: first-pool
+spec:
+  addresses:
+  {% for item in metallbAddresses %}
+  - {{ item }}
+  {% endfor %}
+
+---
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: base
+spec:
+  ipAddressPools:
+  - first-pool

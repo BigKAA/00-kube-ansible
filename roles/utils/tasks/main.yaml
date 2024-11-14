@@ -1,0 +1,157 @@
+### Helm
+- name: "Install Helm"
+  ansible.builtin.unarchive:
+    src: "https://get.helm.sh/helm-{{ helmVersion }}-linux-amd64.tar.gz"
+    dest: /root/
+    remote_src: true
+    creates: /root/linux-amd64
+  register: helm
+
+- name: "Move helm in /usr/local/bin"
+  ansible.builtin.command: mv /root/linux-amd64/helm /usr/local/bin/helm
+  when: helm.changed
+
+- name: Create utils manifests directory
+  ansible.builtin.file:
+    path: /etc/kubernetes/utils
+    state: directory
+    mode: '0700'
+
+### Priority classes
+- name: Copy priority classes manifest
+  ansible.builtin.copy:
+    src: priorityclass.yaml
+    dest: /etc/kubernetes/utils/priorityclass.yaml
+    mode: '0600'
+  register: priority_class
+
+- name: Apply priority classes manifest
+  ansible.builtin.command: kubectl apply -f /etc/kubernetes/utils/priorityclass.yaml
+  when: priority_class.changed
+
+### Cert-manager
+- name: Install cert-manager
+  when: certManagerEnable
+  block:
+    - name: Add a cert-manager manifest
+      ansible.builtin.get_url:
+        url: https://github.com/cert-manager/cert-manager/releases/download/{{ certManagerVersion }}/cert-manager.yaml
+        dest: /etc/kubernetes/utils/cert-manager.yaml
+        mode: '0600'
+      register: cert_manager
+
+    - name: Install cert-manager
+      when: cert_manager.changed
+      block:
+        - name: Apply manifest cert-manager
+          ansible.builtin.command: kubectl apply -f /etc/kubernetes/utils/cert-manager.yaml
+
+        - name: Sorry, but I need sleep to 2 minutes. Wait cert manager running.
+          ansible.builtin.wait_for:
+            timeout: 120
+
+    - name: Add Issuer manifests
+      ansible.builtin.copy:
+        src: certs.yaml
+        dest: /etc/kubernetes/utils/certs.yaml
+        mode: '0600'
+      register: issuer
+
+    - name: Apply Issuer manifests
+      ansible.builtin.command: kubectl apply -f /etc/kubernetes/utils/certs.yaml
+      when: issuer.changed
+
+### Metrics server
+- name: Copy metrics server manifest
+  ansible.builtin.template:
+    src: metrics-server.j2
+    dest: /etc/kubernetes/utils/metrics-server.yaml
+    mode: '0600'
+  when: metricsServerEnable
+  register: metrics_server
+
+- name: Apply metrics server manifest
+  ansible.builtin.command: kubectl apply -f /etc/kubernetes/utils/metrics-server.yaml
+  when: metrics_server.changed
+
+### Nfs provisioner
+- name: Nfs provisioner
+  ansible.builtin.template:
+    src: nfs.j2
+    dest: /etc/kubernetes/utils/nfs-provisioner.yaml
+    mode: '0600'
+  when: nfsEnable
+  register: nfs
+
+- name: Apply nfs provisioner manifest
+  ansible.builtin.command: kubectl apply -f /etc/kubernetes/utils/nfs-provisioner.yaml
+  when: nfs.changed
+
+### MetalLB
+- name: MetalLB
+  when: metallbEnable
+  block:
+    - name: Add a metallb repository
+      kubernetes.core.helm_repository:
+        name: metallb
+        repo_url: https://metallb.github.io/metallb
+
+    - name: Install metallb helm chart
+      kubernetes.core.helm:
+        name: metallb
+        chart_ref: metallb/metallb
+        chart_version: "{{ metallbChartVersion }}"
+        release_namespace: metallb
+        create_namespace: true
+        values:
+          controller:
+            image:
+              pullPolicy: IfNotPresent
+          speaker:
+            image:
+              pullPolicy: IfNotPresent
+
+    - name: Check metallb status
+      ansible.builtin.command: kubectl -n metallb get deployment.apps/metallb-controller -o jsonpath='{.status.readyReplicas}'
+      register: metallb_controller_status
+      until: metallb_controller_status.stdout | int > 0
+      retries: 10
+      delay: 10
+
+    - name: Copy metallb pool manifest
+      ansible.builtin.template:
+        src: mlb.j2
+        dest: /etc/kubernetes/utils/mlb.yaml
+        mode: '0600'
+      register: mlb_pool
+
+    - name: Apply metallb pool manifest
+      ansible.builtin.command: kubectl -n metallb apply -f /etc/kubernetes/utils/mlb.yaml
+      when: mlb_pool.changed
+
+### Ingress controller
+- name: Ingress controller
+  when: ingressControllerEnable
+  block:
+    - name: Add an ingress-nginx repository
+      kubernetes.core.helm_repository:
+        name: ingress-nginx
+        repo_url: https://kubernetes.github.io/ingress-nginx
+
+    - name: Copy values file
+      ansible.builtin.template:
+        src: ingress-controller-values.j2
+        dest: /etc/kubernetes/utils/ingress-controller-values.yaml
+        mode: '0600'
+      register: ingress_controller_values
+
+    - name: Install ingress-nginx helm chart
+      when: ingress_controller_values.changed
+      kubernetes.core.helm:
+        name: ingress-nginx
+        chart_ref: ingress-nginx/ingress-nginx
+        chart_version: "{{ ingressControllerChartVersion }}"
+        release_namespace: ingress-nginx
+        create_namespace: true
+        values_files:
+          - /etc/kubernetes/utils/ingress-controller-values.yaml

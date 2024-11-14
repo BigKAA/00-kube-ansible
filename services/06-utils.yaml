@@ -1,0 +1,6 @@
+---
+- name: Install Utils
+  hosts: k8s_masters[0]
+
+  roles:
+    - role: utils

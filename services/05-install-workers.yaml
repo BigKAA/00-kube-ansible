@@ -1,0 +1,6 @@
+---
+- name: Install worker nodes
+  hosts: k8s_masters[0],k8s_workers
+
+  roles:
+    - role: workers

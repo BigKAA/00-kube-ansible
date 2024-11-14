@@ -1,0 +1,6 @@
+---
+- name: Install 1-st control node
+  hosts: k8s_masters[0]
+
+  roles:
+    - role: master

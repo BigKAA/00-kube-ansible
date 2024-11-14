@@ -1,7 +1,0 @@
----
-- name: Install HA on control nodes
-  hosts: k8s_masters
-  vars:
-    ansible_python_interpreter: /usr/bin/python3
-  roles:
-    - { role: ../roles/ha }

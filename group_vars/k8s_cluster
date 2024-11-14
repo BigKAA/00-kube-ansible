@@ -1,4 +1,4 @@
-#ansible_user: artur
+ansible_python_interpreter: /usr/bin/python3
 
 # Kubernetes parameters
 
@@ -89,3 +89,53 @@ nodelocaldns_local_ip: 169.254.25.10
 # If you need disable HA, undefine ha_cluster_virtual_ip
 # ha_cluster_virtual_ip: 192.168.218.189
 # ha_cluster_virtual_port: 7443
+
+############################################################
+####  UTILS                                  ###############
+#### Запускаются как отдельный playbook      ###############
+#### ansible-playbook services/06-utils.yaml ###############
+############################################################
+
+### Helm
+### Install only on 1-st control node
+helmVersion: v3.16.3
+
+### Nfs provisioner
+### https://github.com/kubernetes-sigs/nfs-subdir-external-provisioner
+nfsEnable: true
+nfsServerContainer: "gcr.io/k8s-staging-sig-storage/nfs-subdir-external-provisioner@sha256:b1450f94a3610b9fb1cc9cb29ef528b7b5608db6f17a039ea9ba73f0aca0d1a2"
+nfsServerHost: "192.168.218.170"
+nfsServerPath: "/var/nfs-disk"
+
+### Cert-manager 
+### https://github.com/cert-manager/cert-manager
+certManagerEnable: true
+certManagerVersion: "v1.16.1"
+
+### Metrics server
+### https://github.com/kubernetes-sigs/metrics-server
+metricsServerEnable: true
+metricsServerImage: "gcr.io/k8s-staging-metrics-server/metrics-server:v0.7.2"
+
+### MetalLB
+### https://metallb.universe.tf/
+### Важно! Перед использованием закажите кластерные IP адреса,
+### которые будут переданы в управление MetalLB.
+metallbEnable: true
+metallbChartVersion: "v0.14.8"
+# Массив IP адресов, сетей и/или диапазонов IP
+# Примеры:
+# Один IP - 192.168.1.1/32
+# Диапазон IP - 192.168.218.180-192.168.218.185
+# Сеть - 192.168.1.64/30
+metallbAddresses:
+- 192.168.218.180-192.168.218.185
+
+### Ingress controller
+### https://github.com/kubernetes/ingress-nginx
+### TODO: add helm chart
+ingressControllerEnable: true
+ingressControllerChartVersion: "4.11.3"
+ingressControllerClasName: "system-ingress"
+ingressControllerServiceType: "LoadBalancer"
+ingressControllerReplicaCount: 1

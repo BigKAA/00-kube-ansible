@@ -2,7 +2,6 @@
 ---
 - name: Test playbook
   hosts: k8s_cluster
-  # become: yes
 
   # vars:
   #   ansible_python_interpreter: /usr/bin/python3

@@ -6,3 +6,7 @@
 - name: Join another control nodes
   ansible.builtin.include_tasks: join.yaml
   when: inventory_hostname != groups['k8s_masters'][0]
+
+- name: Shake coredns
+  ansible.builtin.command: kubectl -n kube-system rollout restart deployment/coredns
+  when: inventory_hostname == groups['k8s_masters'][0]

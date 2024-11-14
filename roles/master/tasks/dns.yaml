@@ -24,6 +24,3 @@
 
 - name: Deploy nodelocaldns
   ansible.builtin.command: kubectl apply -f /etc/kubernetes/nodelocaldns-daemonset.yaml
-
-- name: Shake coredns
-  ansible.builtin.command: kubectl -n kube-system rollout restart deployment/coredns

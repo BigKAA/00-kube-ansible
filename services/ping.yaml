@@ -3,5 +3,5 @@
   hosts: k8s_cluster
 
   tasks:
-  - name: Ping my servers
-    ping:
+    - name: Ping my servers
+      ansible.builtin.ping:

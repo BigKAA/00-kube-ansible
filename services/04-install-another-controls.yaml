@@ -1,0 +1,6 @@
+---
+- name: Install HA on control nodes
+  hosts: k8s_masters
+
+  roles:
+    - role: second_controls

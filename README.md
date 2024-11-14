@@ -6,7 +6,7 @@
 |-----------------|-----------------|-----------------|-----------------|
 | 1.31            | Ubuntu 22.04.4 LTS | CRI-O 1.31   |  _Не стартует harbor. Не монтируется emptyDir._ |
 | 1.3x            | Ubuntu 22.04.4 LTS | containerd 1.7.12  | С последним обновление должен работать. _На проверке_ |
-| 1.30            | Rocky Linux 9.4 | containerd 1.7.21 | **OK** |
+| 1.31.2          | Rocky Linux 9.4 | containerd 1.7.23-3.1 | **OK** |
 | 1.31            | Rocky Linux 8.10 | CRI-O 1.31 | _Не стартует harbor. Не монтируется emptyDir._  |
 | 1.31            | Rocky Linux 8.10 | containerd 1.6.32 | **OK** _Приложения пока не тестил_ |
 | 1.30            | Rocky Linux 8.10 | containerd 1.6.32 | **OK** |
@@ -110,6 +110,14 @@ ansible-playbook reset.yaml
 
 ```shell
 ansible-playbook upgrade.yaml
+```
+
+## Utils playbook
+
+Playbook с утилитами. [Обычный набор утилит](https://github.com/BigKAA/youtube/tree/master/1.31), который я ставлю в тестовых кластерах. Раньше ставил руками. Надоело, решил автоматизировать.
+
+```shell
+ansible-playbook services/06-utils.yaml
 ```
 
 ## Сервисные функции
