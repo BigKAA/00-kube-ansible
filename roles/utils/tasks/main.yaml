@@ -11,6 +11,15 @@
   ansible.builtin.command: mv /root/linux-amd64/helm /usr/local/bin/helm
   when: helm.changed
 
+- name: Check is helm-diff plugin installed
+  ansible.builtin.shell: helm plugin list | grep -q diff
+  register: helm_diff
+  ignore_errors: true
+
+- name: "Helm, install plugin helm-diff"
+  command: helm plugin install https://github.com/databus23/helm-diff
+  when: helm_diff.rc != 0
+
 - name: Create utils manifests directory
   ansible.builtin.file:
     path: /etc/kubernetes/utils
