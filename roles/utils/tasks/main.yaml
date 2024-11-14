@@ -164,3 +164,30 @@
         create_namespace: true
         values_files:
           - /etc/kubernetes/utils/ingress-controller-values.yaml
+
+## ArgoCD
+- name: ArgoCD
+  when: argoCDEnable
+  block:
+    - name: Add an ArgoCD repository
+      kubernetes.core.helm_repository:
+        name: argocd
+        repo_url: https://argoproj.github.io/argo-helm
+
+    - name: Copy ArgoCD values file
+      ansible.builtin.copy:
+        src: argo-values.yaml
+        dest: /etc/kubernetes/utils/argo-values.yaml
+        mode: '0600'
+      register: argo_values
+
+    - name: Install argo helm chart
+      when: argo_values.changed
+      kubernetes.core.helm:
+        name: argocd
+        chart_ref: argocd/argo-cd
+        chart_version: "{{ argoCDChartVersion }}"
+        release_namespace: argocd
+        create_namespace: true
+        values_files:
+          - /etc/kubernetes/utils/argo-values.yaml

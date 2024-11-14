@@ -139,3 +139,8 @@ ingressControllerChartVersion: "4.11.3"
 ingressControllerClasName: "system-ingress"
 ingressControllerServiceType: "LoadBalancer"
 ingressControllerReplicaCount: 1
+
+### ArgoCD
+### https://github.com/argoproj/argo-cd
+argoCDEnable: true
+argoCDChartVersion: "7.7.3"
