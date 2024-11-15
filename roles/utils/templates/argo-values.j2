@@ -5,12 +5,16 @@ global:
   logging:
     format: json
     # -- Set the global logging level. One of: `debug`, `info`, `warn` or `error`
-    level: info
+    level: {{ argoCDLoglevel }}
 
 controller:
-  replicas: 1
+  replicas: {{ argoCDControllerReplicaCount }}
 
 configs:
+  cm:
+    application.resourceTrackingMethod: {{ argoCDTrackingMethod }}
+    controller.diff.server.side: "{{ argoCDEnableServerSideDiff }}"
+
   params:
     server.insecure: true
 
@@ -24,7 +28,7 @@ configs:
     # -- Bcrypt hashed admin password
     ## Argo expects the password in the secret to be bcrypt hashed. You can create this hash with
     ## `htpasswd -nbBC 10 "" $ARGO_PWD | tr -d ':\n' | sed 's/$2y/$2a/'`
-    argocdServerAdminPassword: "$2a$10$L8OqGEFh3a0yxwfIha4DLuyq6GIYP119hlFM5wlSEsI.nviVAv/zq"
+    argocdServerAdminPassword: "{{ argoCDAdminPassword }}"
 
 ## Redis
 redis:
@@ -33,7 +37,7 @@ redis:
 ## Server
 server:
   name: server
-  replicas: 1
+  replicas: {{ argoCDServerReplicaCount }}
   certificate:
     enabled: true
     domain: "argocd.kryukov.local"

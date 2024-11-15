@@ -175,8 +175,8 @@
         repo_url: https://argoproj.github.io/argo-helm
 
     - name: Copy ArgoCD values file
-      ansible.builtin.copy:
-        src: argo-values.yaml
+      ansible.builtin.template:
+        src: argo-values.j2
         dest: /etc/kubernetes/utils/argo-values.yaml
         mode: '0600'
       register: argo_values
