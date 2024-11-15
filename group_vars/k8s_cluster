@@ -145,7 +145,7 @@ ingressControllerReplicaCount: 1
 argoCDEnable: true
 argoCDChartVersion: "7.7.3"
 ### debug, info, warn or error
-argoCDLoglevel: info
+argoCDLoglevel: "info"
 argoCDControllerReplicaCount: 1
 argoCDServerReplicaCount: 1
 ### -- Bcrypt hashed admin password
@@ -155,8 +155,8 @@ argoCDServerReplicaCount: 1
 argoCDAdminPassword: "$2a$10$L8OqGEFh3a0yxwfIha4DLuyq6GIYP119hlFM5wlSEsI.nviVAv/zq"
 ### Default: false
 ### https://argo-cd.readthedocs.io/en/latest/user-guide/diff-strategies/#server-side-diff
-argoCDEnableServerSideDiff: true
+argoCDEnableServerSideDiff: "true"
 ### Возможные значения: annotation, label, annotation+label 
 ### https://argo-cd.readthedocs.io/en/latest/user-guide/resource_tracking/#additional-tracking-methods-via-an-annotation
 ### (default: label)
-argoCDTrackingMethod: annotation
+argoCDTrackingMethod: "annotation"
