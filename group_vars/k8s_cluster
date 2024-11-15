@@ -148,6 +148,7 @@ argoCDChartVersion: "7.7.3"
 argoCDLoglevel: "info"
 argoCDControllerReplicaCount: 1
 argoCDServerReplicaCount: 1
+argoCDURL: "argocd.kryukov.local"
 ### -- Bcrypt hashed admin password
 ### Argo expects the password in the secret to be bcrypt hashed. You can create this hash with
 ### ARGO_PWD=password

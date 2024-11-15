@@ -15,6 +15,7 @@ configs:
     application.resourceTrackingMethod: {{ argoCDTrackingMethod }}
     controller.diff.server.side: "{{ argoCDEnableServerSideDiff }}"
     ignoreAggregatedRoles: {{ argoCDIgnoreAggregateRoles}}
+    url: https://{{ argoCDURL }}
 
   params:
     server.insecure: true
@@ -41,7 +42,7 @@ server:
   replicas: {{ argoCDServerReplicaCount }}
   certificate:
     enabled: true
-    domain: "argocd.kryukov.local"
+    domain: "{{ argoCDURL }}"
     duration: "9125h"
     renewBefore: "360h"
     issuer:
@@ -61,10 +62,10 @@ server:
     enabled: true
     controller: generic
     annotations:
-      cert-manager.io/cluster-issuer: "argocd-issuer"
+      cert-manager.io/cluster-issuer: "dev-ca-issuer"
       nginx.ingress.kubernetes.io/ssl-redirect: "false"
     ingressClassName: "system-ingress"
-    hostname: "argocd.kryukov.local"
+    hostname: "{{ argoCDURL }}"
     paths:
       - /
     pathType: Prefix
