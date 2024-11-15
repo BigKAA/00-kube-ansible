@@ -14,6 +14,7 @@ configs:
   cm:
     application.resourceTrackingMethod: {{ argoCDTrackingMethod }}
     controller.diff.server.side: "{{ argoCDEnableServerSideDiff }}"
+    ignoreAggregatedRoles: {{ argoCDIgnoreAggregateRoles}}
 
   params:
     server.insecure: true

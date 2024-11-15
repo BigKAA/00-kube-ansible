@@ -40,7 +40,7 @@ pip3 install "ansible-core<2.17"
 ```shell
 docker pull alpine/ansible:2.17.0
 mkdir -p ~/.ansible
-alias ansible-playbook="docker run -ti --rm -v ~/.ssh:/root/.ssh -v ~/.ansible:/root/.ansible  -v $(pwd):/apps   -w /apps alpine/ansible:2.17.0 ansible-playbook"
+alias ansible-playbook="docker run -ti --rm -v ~/.ssh:/root/.ssh -v ~/.ansible:/root/.ansible -v $(pwd):/apps -w /apps alpine/ansible:2.17.0 ansible-playbook"
 ansible-playbook --version
 ```
 

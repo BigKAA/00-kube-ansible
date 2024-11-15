@@ -160,3 +160,6 @@ argoCDEnableServerSideDiff: "true"
 ### https://argo-cd.readthedocs.io/en/latest/user-guide/resource_tracking/#additional-tracking-methods-via-an-annotation
 ### (default: label)
 argoCDTrackingMethod: "annotation"
+### Ignoring RBAC changes made by AggregateRoles
+### https://argo-cd.readthedocs.io/en/stable/user-guide/diffing/#ignoring-rbac-changes-made-by-aggregateroles
+argoCDIgnoreAggregateRoles: "true"
