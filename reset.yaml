@@ -89,3 +89,8 @@
   - name: Clear firewall
     ansible.builtin.shell: /root/clear_fw.sh
     ignore_errors: true
+
+  - name: Delete k8s utils manifests
+    file:
+      path: /etc/kubernetes/utils
+      state: absent
