@@ -110,7 +110,7 @@ nfsServerPath: "/var/nfs-disk"
 ### Cert-manager 
 ### https://github.com/cert-manager/cert-manager
 certManagerEnable: true
-certManagerVersion: "v1.16.1"
+certManagerChartVersion: "v1.16.1"
 
 ### Metrics server
 ### https://github.com/kubernetes-sigs/metrics-server
