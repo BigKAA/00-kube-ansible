@@ -1,14 +1,14 @@
 ---
 - name: Upgrade 1st master
   when: inventory_hostname == groups['k8s_masters'][0]
-  include_tasks: upgrade-1st-master.yaml
+  ansible.builtin.include_tasks: upgrade-1st-master.yaml
 
 - name: Upgrade other master
-  when: 
+  when:
     - inventory_hostname != groups['k8s_masters'][0]
     - inventory_hostname in groups['k8s_masters']
-  include_tasks: upgrade-other-masters.yaml
+  ansible.builtin.include_tasks: upgrade-other-masters.yaml
 
 - name: Upgrade worker nodes
   when: inventory_hostname in groups['k8s_workers']
-  include_tasks: upgrade-workers.yaml
+  ansible.builtin.include_tasks: upgrade-workers.yaml
