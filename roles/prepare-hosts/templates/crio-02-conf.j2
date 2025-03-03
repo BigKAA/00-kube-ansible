@@ -1,6 +1,6 @@
 [crio.runtime]
 conmon_cgroup = "pod"
-cgroup_manager = "cgroupfs"
+cgroup_manager = "systemd"
 [crio.image]
 image_volumes = {{ crio_image_volumes }}
 {% if sandbox_image is defined %}
