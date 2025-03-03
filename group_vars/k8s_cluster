@@ -38,6 +38,10 @@ sandbox_image: "registry.k8s.io/pause:3.10"
 
 # Если используется crio, необходимо указать его версию.
 crio_version: v1.31
+# Enable cri-o image volumes
+# value: mkdir, bind or ignore
+crio_image_volumes: ignore
+
 
 # Внимательно смотрим в какой состоянии находится требуемая версия CRI-O.
 # https://cri-o.io/
