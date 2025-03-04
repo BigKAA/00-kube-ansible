@@ -1,2 +1,2 @@
 extraArgs:
-- --enable-gateway-api
+  - --enable-gateway-api

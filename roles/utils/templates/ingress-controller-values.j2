@@ -2,7 +2,7 @@ controller:
   # This section refers to the creation of the IngressClass resource
   # IngressClass resources are supported since k8s >= 1.18 and required since k8s >= 1.19
   ingressClassResource:
-    name: "{{ ingressControllerClasName }}"
+    name: "{{ ingressControllerClassName }}"
     enabled: true
     default: true
     controllerValue: "k8s.io/ingress-nginx"

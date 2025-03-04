@@ -4,16 +4,16 @@ ansible_python_interpreter: /usr/bin/python3
 
 # k8s.gcr.io image registry is gradually being redirected to registry.k8s.io (since 2023 Monday March 20th).
 imageRepository: registry.k8s.io
+
 # Enable dockerhub mirror
 dockerhubMirror: false
 dockerhubMirrorURLs: 
   - "https://mirror.gcr.io/v2"
   - "https://daocloud.io/v2"
 
-
-# Versions: 1.28 - 1.30.4. 
-# 1.31.x гдето работает, где то нет.
-kube_version: 1.32.0
+# Versions: 1.28 - 1.32.2
+# https://kubernetes.io/releases/
+kube_version: 1.32.2
 
 kube_domain_name: cluster.local
 service_cidr: "10.233.0.0/18"
@@ -22,36 +22,32 @@ pod_network_cidr: "10.233.64.0/18"
 ##################################################
 # CRI parameters
 # crio или containerd
-cri: containerd
+cri: crio
 
 # Необходимо указать путь к сокету.
 # containerd
-cri_socket: unix:///run/containerd/containerd.sock
+# cri_socket: unix:///run/containerd/containerd.sock
 # crio
-# cri_socket: unix:///var/run/crio/crio.sock
+cri_socket: unix:///var/run/crio/crio.sock
 
 # Sanbox image
 # k8s v3.11 -> registry.k8s.io/pause:3.10
 # k8s v3.10 -> registry.k8s.io/pause:3.9
 # Если сомневаетесь - закоментируйте строку ниже
-sandbox_image: "registry.k8s.io/pause:3.10"
+# sandbox_image: "registry.k8s.io/pause:3.10"
 
 # Если используется crio, необходимо указать его версию.
-crio_version: v1.31
+crio_version: v1.32
 
 # Enable cri-o image volumes
 # https://github.com/cri-o/cri-o/blob/main/docs/crio.conf.5.md#crioimage-table
-# value: mkdir, bind or ignore
-crio_image_volumes: ignore
-
+# value: mkdir (default), bind or ignore
+crio_image_volumes: mkdir
 
 # Внимательно смотрим в какой состоянии находится требуемая версия CRI-O.
-# https://cri-o.io/
-#
-# stable, prerelease
-#
-# На данный момент версия 1.31 находтся в состоянии prerelease
-stage: prerelease
+# https://cri-o.io/#
+# value: stable or prerelease
+stage: stable
 
 ###################################
 # CNI 
@@ -116,7 +112,8 @@ nfsServerPath: "/var/nfs-disk"
 ### Cert-manager 
 ### https://github.com/cert-manager/cert-manager
 certManagerEnable: true
-certManagerChartVersion: "v1.16.1"
+certManagerVersion: "v1.17.1"
+certManagerEnableGatewayAPI: false
 
 ### Metrics server
 ### https://github.com/kubernetes-sigs/metrics-server
@@ -141,15 +138,15 @@ metallbAddresses:
 ### https://github.com/kubernetes/ingress-nginx
 ### TODO: add helm chart
 ingressControllerEnable: true
-ingressControllerChartVersion: "4.11.3"
-ingressControllerClasName: "system-ingress"
+ingressControllerChartVersion: "4.12.0"
+ingressControllerClassName: "system-ingress"
 ingressControllerServiceType: "LoadBalancer"
 ingressControllerReplicaCount: 1
 
 ### ArgoCD
 ### https://github.com/argoproj/argo-cd
 argoCDEnable: true
-argoCDChartVersion: "7.7.3"
+argoCDChartVersion: "7.8.7"
 ### debug, info, warn or error
 argoCDLoglevel: "info"
 argoCDControllerReplicaCount: 1

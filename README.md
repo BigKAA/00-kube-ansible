@@ -4,11 +4,12 @@
 
 | k8s ver         | Distributive    | CRI             | Notes           |
 |-----------------|-----------------|-----------------|-----------------|
-| 1.31            | Ubuntu 22.04.4 LTS | CRI-O 1.31   |  _Не стартует harbor. Не монтируется emptyDir._ |
-| 1.3x            | Ubuntu 22.04.4 LTS | containerd 1.7.12  | С последним обновление должен работать. _На проверке_ |
+| 1.32            | Debian 12 | CRI-O 1.32   | *Не стартует harbor.* |
+| 1.31            | Ubuntu 22.04.4 LTS | CRI-O 1.31   |  *Не стартует harbor. Не монтируется emptyDir.* |
+| 1.3x            | Ubuntu 22.04.4 LTS | containerd 1.7.12  | С последним обновление должен работать. *На проверке* |
 | 1.31.2          | Rocky Linux 9.4 | containerd 1.7.23-3.1 | **OK** |
-| 1.31            | Rocky Linux 8.10 | CRI-O 1.31 | _Не стартует harbor. Не монтируется emptyDir._  |
-| 1.31            | Rocky Linux 8.10 | containerd 1.6.32 | **OK** _Приложения пока не тестил_ |
+| 1.31            | Rocky Linux 8.10 | CRI-O 1.31 | *Не стартует harbor. Не монтируется emptyDir.*  |
+| 1.31            | Rocky Linux 8.10 | containerd 1.6.32 | **OK** *Приложения пока не тестил* |
 | 1.30            | Rocky Linux 8.10 | containerd 1.6.32 | **OK** |
 | 1.31            | Debian 12 | containerd.io 1.7.21 | Кластер стартует. Не работает metallb. |
 | 1.30            | Debian 12 | containerd.io 1.7.21 | **Ok** |

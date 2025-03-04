@@ -1,9 +1,5 @@
-[crio.runtime]
-# deprecated 
-# conmon_cgroup = "pod"
-cgroup_manager = "systemd"
 [crio.image]
-image_volumes = {{ crio_image_volumes }}
+image_volumes = "{{ crio_image_volumes }}"
 {% if sandbox_image is defined %}
-pause_image="{{ sandbox_image }}"
+pause_image = "{{ sandbox_image }}"
 {% endif %}
