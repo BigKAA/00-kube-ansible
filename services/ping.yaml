@@ -1,6 +1,7 @@
 ---
+# ansible-playbook -b services/ping.yaml -e "target=rocky"
 - name: Test playbook
-  hosts: k8s_cluster
+  hosts: "{{ target | default([]) }}"
 
   tasks:
     - name: Ping my servers

@@ -1,5 +1,6 @@
 ---
+# ansible-playbook -b services/01-prepare-hosts.yaml -e "target=rocky"
 - name: Prepare hosts
-  hosts: k8s_cluster
+  hosts: "{{ target | default([]) }}"
   roles:
     - role: prepare-hosts

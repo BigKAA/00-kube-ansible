@@ -1,0 +1,4 @@
+---
+- name: Selinux setenforce
+  ansible.builtin.command:
+    cmd: setenforce 0

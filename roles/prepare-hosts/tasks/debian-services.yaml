@@ -1,0 +1,71 @@
+---
+- name: Install packages apt
+  when: ansible_facts['os_family'] == "Debian"
+  ansible.builtin.apt:
+    pkg: "{{ item }}"
+    state: present
+  loop:
+    - net-tools
+    - mc
+    - gpg
+    - iproute2
+    - iptables
+    - vim
+    - git
+    - bash-completion
+    - nfs-common
+    - tar
+    - ntp
+    - jq
+    - ipvsadm
+    - python3-yaml
+
+- name: Enable NTP server
+  ansible.builtin.service:
+    name: ntp
+    state: started
+    enabled: true
+
+- name: K8s repository for Ubuntu|Debian [Key]
+  ansible.builtin.apt_key:
+    url: "https://prod-cdn.packages.k8s.io/repositories/isv:/kubernetes:/core:/stable:/v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}/deb/Release.key"
+    state: present
+    keyring: /etc/apt/trusted.gpg.d/k8s.gpg
+
+- name: K8s repository for Ubuntu|Debian
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/etc/apt/trusted.gpg.d/k8s.gpg] https://prod-cdn.packages.k8s.io/repositories/isv:/kubernetes:/core:/stable:/v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}/deb/ /"
+    state: present
+    filename: kubernetes
+
+- name: Install k8s utils [deb]
+  ansible.builtin.apt:
+    pkg:
+      - kubectl
+      - kubelet
+      - kubeadm
+    state: present
+
+- name: Docker repository for Debian [Key]
+  when: cri == "containerd"
+  ansible.builtin.apt_key:
+    url: "https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg"
+    state: present
+    keyring: /etc/apt/trusted.gpg.d/docker.gpg
+
+- name: Docker repository for Debian
+  when: cri == "containerd"
+  ansible.builtin.apt_repository:
+    repo: >
+      deb [signed-by=/etc/apt/trusted.gpg.d/docker.gpg]
+      https://download.docker.com/linux/{{ ansible_distribution | lower }}
+      {{ ansible_distribution_release }} stable"
+    state: present
+    filename: docker-ce-stable
+
+- name: Install containerd [deb]
+  when: cri == "containerd"
+  ansible.builtin.apt:
+    name:
+      - containerd
+    state: present

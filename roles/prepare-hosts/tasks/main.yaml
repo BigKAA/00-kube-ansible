@@ -1,62 +1,11 @@
 ---
-- name: Install packages dnf
+- name: RedHat
   when: ansible_facts['os_family'] == "RedHat"
-  ansible.builtin.dnf:
-    name:
-      - net-tools
-      - mc
-      - iproute-tc
-      - vim
-      - git
-      - bash-completion
-      - nfs-utils
-      - tar
-      - chrony
-      - jq
-      - ipvsadm
-      - python3-pyyaml
-    state: present
+  ansible.builtin.include_tasks: redhat-services.yaml
 
-- name: Install packages apt
+- name: Debian
   when: ansible_facts['os_family'] == "Debian"
-  ansible.builtin.apt:
-    pkg:
-      - net-tools
-      - mc
-      - gpg
-      - iproute2
-      - iptables
-      - vim
-      - git
-      - bash-completion
-      - nfs-common
-      - tar
-      - ntp
-      - jq
-      - ipvsadm
-      - python3-yaml
-    state: present
-
-- name: Enable NTP server chrony
-  when: ansible_facts['os_family'] == "RedHat"
-  ansible.builtin.service:
-    name: chronyd
-    state: started
-    enabled: true
-
-- name: Enable NTP server
-  when: ansible_facts['os_family'] == "Debian"
-  ansible.builtin.service:
-    name: ntp
-    state: started
-    enabled: true
-
-- name: Disable firewalld
-  when: ansible_facts['os_family'] == "RedHat"
-  ansible.builtin.service:
-    name: firewalld
-    state: stopped
-    enabled: false
+  ansible.builtin.include_tasks: debian-services.yaml
 
 - name: Test swap
   ansible.builtin.shell: "swapon --show --noheadings | wc -l"
@@ -72,17 +21,6 @@
     path: /etc/fstab
     regexp: '^([^#].*\s*swap\s*.*)$'
     replace: '# \1'
-
-- name: Check Disable SELinux
-  when: ansible_facts['os_family'] == "RedHat"
-  selinux:
-    state: disabled
-  register: selinux_ret
-
-- name: Setenforce 0
-  when: ansible_facts['os_family'] == "RedHat" and selinux_ret.changed 
-  ansible.builtin.command:
-    cmd: setenforce 0
 
 - name: Set crictl.yaml
   ansible.builtin.template:
@@ -134,53 +72,3 @@
 - name: Install containerd
   when: cri == "containerd"
   ansible.builtin.include_tasks: containerd.yaml
-
-- name: Install k8s files
-  block:
-
-    - name: K8s repository for Ubuntu|Debian [Key]
-      when: ansible_facts['os_family'] == "Debian"
-      ansible.builtin.apt_key:
-        # url: "https://pkgs.k8s.io/core:/stable:/v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}/deb/Release.key"
-        url: "https://prod-cdn.packages.k8s.io/repositories/isv:/kubernetes:/core:/stable:/v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}/deb/Release.key"
-        state: present
-        keyring: /etc/apt/trusted.gpg.d/k8s.gpg
-
-    - name: K8s repository for Ubuntu|Debian
-      when: ansible_facts['os_family'] == "Debian"
-      ansible.builtin.apt_repository:
-        # repo: "deb [signed-by=/etc/apt/trusted.gpg.d/k8s.gpg] https://pkgs.k8s.io/core:/stable:/v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}/deb/ /"
-        repo: "deb [signed-by=/etc/apt/trusted.gpg.d/k8s.gpg] https://prod-cdn.packages.k8s.io/repositories/isv:/kubernetes:/core:/stable:/v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}/deb/ /"
-        state: present
-        filename: kubernetes
-
-    - name: Add kubernetes repository RedHat
-      when: ansible_facts['os_family'] == "RedHat"
-      ansible.builtin.yum_repository:
-        name: kubernetes
-        description: "Base programs for k8s, version: v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}"
-        baseurl: "https://pkgs.k8s.io/core:/stable:/v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}/rpm/"
-        gpgcheck: true
-        enabled: true
-        gpgkey:
-          - "https://pkgs.k8s.io/core:/stable:/v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}/rpm/repodata/repomd.xml.key"
-        state: present
-
-    - name: Install k8s utils [rpm]
-      when: ansible_facts['os_family'] == "RedHat"
-      ansible.builtin.dnf:
-        name:
-          - kubectl
-          - kubelet
-          - kubeadm
-          - ipvsadm
-        state: present
-
-    - name: Install k8s utils [deb]
-      when: ansible_facts['os_family'] == "Debian"
-      ansible.builtin.apt:
-        pkg:
-          - kubectl
-          - kubelet
-          - kubeadm
-        state: present

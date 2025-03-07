@@ -15,27 +15,6 @@
     filename: "cri-o"
     update_cache: true
 
-- name: Add CRI-O repository RedHat
-  when: ansible_facts['os_family'] == "RedHat"
-  ansible.builtin.yum_repository:
-    name: cri-o
-    description: CRI-O repository for version {{ crio_version }}
-    #baseurl: https://pkgs.k8s.io/addons:/cri-o:/{{ stage }}:/{{ crio_version }}/rpm/
-    baseurl: https://download.opensuse.org/repositories/isv:/cri-o:/{{ stage }}:/{{ crio_version }}/rpm/
-    gpgcheck: true
-    enabled: true
-    gpgkey:
-      # - https://pkgs.k8s.io/addons:/cri-o:/{{ stage }}:/{{ crio_version }}/rpm/repodata/repomd.xml.key
-      - https://download.opensuse.org/repositories/isv:/cri-o:/{{ stage }}:/{{ crio_version }}/rpm/repodata/repomd.xml.key
-    state: present
-
-- name: Install CRI-O [rpm]
-  when: ansible_facts['os_family'] == "RedHat"
-  ansible.builtin.dnf:
-    name:
-      - cri-o
-    state: present
-
 - name: Install CRI-O [deb]
   when: ansible_facts['os_family'] == "Debian"
   ansible.builtin.apt:

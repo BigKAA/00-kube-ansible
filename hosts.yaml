@@ -1,22 +1,98 @@
-k8s_masters:
+servers:
   hosts:
-    # Control nodes
-    control1.kryukov.local:
-      ansible_host: 192.168.218.171
-    # control2.kryukov.local:
-    # control3.kryukov.local:
-k8s_workers:
-  hosts:
-    # Worker nodes
+    # Rocky
+    cr1.kryukov.local:
+      ansible_host: 192.168.218.131
+    cr2.kryukov.local:
+      ansible_host: 192.168.218.132
+    cr3.kryukov.local:
+      ansible_host: 192.168.218.133
+    wr1.kryukov.local:
+      ansible_host: 192.168.218.134
+    wr2.kryukov.local:
+      ansible_host: 192.168.218.135
+    wr3.kryukov.local:
+      ansible_host: 192.168.218.136
+    wr4.kryukov.local:
+      ansible_host: 192.168.218.137
+    # Debian
+    cd1.kryukov.local:
+      ansible_host: 192.168.218.141
+    cd2.kryukov.local:
+      ansible_host: 192.168.218.142
+    cd3.kryukov.local:
+      ansible_host: 192.168.218.143
+    wd1.kryukov.local:
+      ansible_host: 192.168.218.144
+    wd2.kryukov.local:
+      ansible_host: 192.168.218.145
+    wd3.kryukov.local:
+      ansible_host: 192.168.218.146
+    wd4.kryukov.local:
+      ansible_host: 192.168.218.147
+    # SuSE
+    cs1.kryukov.local:
+      ansible_host: 192.168.218.151
+    cs2.kryukov.local:
+      ansible_host: 192.168.218.152
+    cs3.kryukov.local:
+      ansible_host: 192.168.218.153
     ws1.kryukov.local:
-      ansible_host: 192.168.218.174
+      ansible_host: 192.168.218.154
     ws2.kryukov.local:
-      ansible_host: 192.168.218.175
-    # ws3.kryukov.local:
-    #   ansible_host: 192.168.218.176
-    # ws4.kryukov.local:
-    #   ansible_host: 192.168.218.177
-k8s_cluster:
+      ansible_host: 192.168.218.155
+    ws3.kryukov.local:
+      ansible_host: 192.168.218.156
+    ws4.kryukov.local:
+      ansible_host: 192.168.218.157
+
+rocky:
   children:
-    k8s_masters:
-    k8s_workers:
+   rocky_k8s_masters:
+   rocky_k8s_workers:
+
+rocky_k8s_masters:
+  hosts:
+    cr1.kryukov.local:
+    # cr2.kryukov.local:
+    # cr3.kryukov.local:
+rocky_k8s_workers:
+  hosts:      
+    wr1.kryukov.local:
+    wr2.kryukov.local:
+    # wr3.kryukov.local:
+    # wr4.kryukov.local:
+
+debian:
+  children:
+   debian_k8s_masters:
+   debian_k8s_workers:
+
+debian_k8s_masters:
+  hosts:
+    cd1.kryukov.local:
+    # cd2.kryukov.local:
+    # cd3.kryukov.local:
+debian_k8s_workers:
+  hosts:      
+    wd1.kryukov.local:
+    wd2.kryukov.local:
+    # wd3.kryukov.local:
+    # wd4.kryukov.local:
+
+suse:
+  children:
+   suse_k8s_masters:
+   suse_k8s_workers:
+
+suse_k8s_masters:
+  hosts:
+    cs1.kryukov.local:
+    # cs2.kryukov.local:
+    # cs3.kryukov.local:
+suse_k8s_workers:
+  hosts:      
+    ws1.kryukov.local:
+    ws2.kryukov.local:
+    # ws3.kryukov.local:
+    # ws4.kryukov.local:

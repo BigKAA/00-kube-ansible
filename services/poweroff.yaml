@@ -1,6 +1,7 @@
 ---
+# ansible-playbook -b services/poweroff.yaml -e "target=rocky"
 - name: Poweroff k8s_cluster
-  hosts: k8s_cluster
+  hosts: "{{ tasks }}"
 
   tasks:
     - name: Poweroff

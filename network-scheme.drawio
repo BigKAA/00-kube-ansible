@@ -1,0 +1,124 @@
+<mxfile host="65bd71144e">
+    <diagram id="junhO2phF_EaJ6f84j_j" name="Страница — 1">
+        <mxGraphModel dx="1097" dy="1232" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="17" value="&lt;b&gt;Mikrotik&lt;br&gt;&lt;/b&gt;Main router&lt;br&gt;DNS server" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;arcSize=3;" vertex="1" parent="1">
+                    <mxGeometry x="90" y="-168" width="210" height="130" as="geometry"/>
+                </mxCell>
+                <mxCell id="18" value="192.168.218.1" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="232" y="-130" width="112" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="21" value="&lt;font style=&quot;font-size: 16px;&quot;&gt;&lt;b&gt;Internet&lt;/b&gt;&lt;/font&gt;" style="html=1;outlineConnect=0;fillColor=#CCCCCC;strokeColor=#6881B3;gradientColor=none;gradientDirection=north;strokeWidth=2;shape=mxgraph.networks.cloud;fontColor=#ffffff;" vertex="1" parent="1">
+                    <mxGeometry x="-168" y="-152" width="188" height="94" as="geometry"/>
+                </mxCell>
+                <mxCell id="22" style="edgeStyle=none;html=1;entryX=0.91;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="17" target="21">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="23" value="&lt;b&gt;Synology&lt;/b&gt;&lt;div&gt;NFS server&lt;br&gt;&lt;br&gt;/volume1/nfs&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;arcSize=3;" vertex="1" parent="1">
+                    <mxGeometry x="90" y="20" width="210" height="130" as="geometry"/>
+                </mxCell>
+                <mxCell id="25" value="192.168.218.13" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="232" y="56" width="112" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="35" value="" style="group" vertex="1" connectable="0" parent="1">
+                    <mxGeometry x="457" y="-172" width="167" height="306" as="geometry"/>
+                </mxCell>
+                <mxCell id="19" value="&lt;b&gt;Rocky Linux k8s&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=1;align=left;verticalAlign=top;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="35">
+                    <mxGeometry width="167" height="306" as="geometry"/>
+                </mxCell>
+                <mxCell id="26" value="&lt;div&gt;&lt;b&gt;cr1.kryukov.local&lt;/b&gt;&lt;/div&gt;192.168.218.131" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="35">
+                    <mxGeometry x="27" y="30" width="112" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="27" value="&lt;div&gt;&lt;b&gt;cr2.kryukov.local&lt;/b&gt;&lt;/div&gt;192.168.218.132" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;" vertex="1" parent="35">
+                    <mxGeometry x="27" y="68" width="112" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="28" value="&lt;div&gt;&lt;b&gt;cr3.kryukov.local&lt;/b&gt;&lt;/div&gt;192.168.218.133" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;" vertex="1" parent="35">
+                    <mxGeometry x="29" y="107" width="112" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="29" value="&lt;div&gt;&lt;b&gt;wr1.kryukov.local&lt;/b&gt;&lt;/div&gt;192.168.218.134" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="35">
+                    <mxGeometry x="29" y="146" width="112" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="30" value="&lt;div&gt;&lt;b&gt;wr2.kryukov.local&lt;/b&gt;&lt;/div&gt;192.168.218.135" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="35">
+                    <mxGeometry x="29" y="184" width="112" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="31" value="&lt;div&gt;&lt;b&gt;wr3.kryukov.local&lt;/b&gt;&lt;/div&gt;192.168.218.136" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;" vertex="1" parent="35">
+                    <mxGeometry x="29" y="224" width="112" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="32" value="&lt;div&gt;&lt;b&gt;wr1.kryukov.local&lt;/b&gt;&lt;/div&gt;192.168.218.137" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;" vertex="1" parent="35">
+                    <mxGeometry x="29" y="264" width="112" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="37" value="" style="group" vertex="1" connectable="0" parent="1">
+                    <mxGeometry x="646" y="-172" width="167" height="306" as="geometry"/>
+                </mxCell>
+                <mxCell id="38" value="&lt;b&gt;Debian Linux k8s&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=1;align=left;verticalAlign=top;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="37">
+                    <mxGeometry width="167" height="306" as="geometry"/>
+                </mxCell>
+                <mxCell id="39" value="&lt;div&gt;&lt;b&gt;cd1.kryukov.local&lt;/b&gt;&lt;/div&gt;192.168.218.141" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="37">
+                    <mxGeometry x="27" y="30" width="112" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="40" value="&lt;div&gt;&lt;b&gt;cd2.kryukov.local&lt;/b&gt;&lt;/div&gt;192.168.218.142" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;" vertex="1" parent="37">
+                    <mxGeometry x="27" y="68" width="112" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="41" value="&lt;div&gt;&lt;b&gt;cd3.kryukov.local&lt;/b&gt;&lt;/div&gt;192.168.218.143" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;" vertex="1" parent="37">
+                    <mxGeometry x="29" y="107" width="112" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="42" value="&lt;div&gt;&lt;b&gt;wd1.kryukov.local&lt;/b&gt;&lt;/div&gt;192.168.218.144" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="37">
+                    <mxGeometry x="29" y="146" width="112" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="43" value="&lt;div&gt;&lt;b&gt;wd2.kryukov.local&lt;/b&gt;&lt;/div&gt;192.168.218.145" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="37">
+                    <mxGeometry x="29" y="184" width="112" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="44" value="&lt;div&gt;&lt;b&gt;wd3.kryukov.local&lt;/b&gt;&lt;/div&gt;192.168.218.146" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;" vertex="1" parent="37">
+                    <mxGeometry x="29" y="224" width="112" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="45" value="&lt;div&gt;&lt;b&gt;wd1.kryukov.local&lt;/b&gt;&lt;/div&gt;192.168.218.147" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;" vertex="1" parent="37">
+                    <mxGeometry x="29" y="264" width="112" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="46" value="" style="group" vertex="1" connectable="0" parent="1">
+                    <mxGeometry x="832" y="-172" width="167" height="306" as="geometry"/>
+                </mxCell>
+                <mxCell id="47" value="&lt;b&gt;Open SuSE Linux k8s&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=1;align=left;verticalAlign=top;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="46">
+                    <mxGeometry width="167" height="306" as="geometry"/>
+                </mxCell>
+                <mxCell id="48" value="&lt;div&gt;&lt;b&gt;cs1.kryukov.local&lt;/b&gt;&lt;/div&gt;192.168.218.151" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="46">
+                    <mxGeometry x="27" y="30" width="112" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="49" value="&lt;div&gt;&lt;b&gt;cs2.kryukov.local&lt;/b&gt;&lt;/div&gt;192.168.218.152" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;" vertex="1" parent="46">
+                    <mxGeometry x="27" y="68" width="112" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="50" value="&lt;div&gt;&lt;b&gt;cs3.kryukov.local&lt;/b&gt;&lt;/div&gt;192.168.218.153" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;" vertex="1" parent="46">
+                    <mxGeometry x="29" y="107" width="112" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="51" value="&lt;div&gt;&lt;b&gt;ws1.kryukov.local&lt;/b&gt;&lt;/div&gt;192.168.218.154" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="46">
+                    <mxGeometry x="29" y="146" width="112" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="52" value="&lt;div&gt;&lt;b&gt;ws2.kryukov.local&lt;/b&gt;&lt;/div&gt;192.168.218.155" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="46">
+                    <mxGeometry x="29" y="184" width="112" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="53" value="&lt;div&gt;&lt;b&gt;ws3.kryukov.local&lt;/b&gt;&lt;/div&gt;192.168.218.156" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;" vertex="1" parent="46">
+                    <mxGeometry x="29" y="224" width="112" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="54" value="&lt;div&gt;&lt;b&gt;ws1.kryukov.local&lt;/b&gt;&lt;/div&gt;192.168.218.157" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;" vertex="1" parent="46">
+                    <mxGeometry x="29" y="264" width="112" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="57" value="&lt;b&gt;Load Balancer IP pool&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=1;align=left;verticalAlign=top;fillColor=#fff2cc;strokeColor=#d6b656;movable=1;resizable=1;rotatable=1;deletable=1;editable=1;locked=0;connectable=1;container=0;" vertex="1" parent="1">
+                    <mxGeometry x="458" y="151" width="167" height="171" as="geometry"/>
+                </mxCell>
+                <mxCell id="66" style="edgeStyle=none;html=1;endArrow=none;endFill=0;dashed=1;dashPattern=8 8;" edge="1" parent="1" source="58" target="65">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="58" value="&lt;div&gt;&lt;span style=&quot;background-color: transparent;&quot;&gt;192.168.218.180&lt;/span&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;movable=1;resizable=1;rotatable=1;deletable=1;editable=1;locked=0;connectable=1;container=0;" vertex="1" parent="1">
+                    <mxGeometry x="485" y="181" width="112" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="65" value="&lt;div&gt;&lt;span style=&quot;background-color: transparent;&quot;&gt;192.168.218.185&lt;/span&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;movable=1;resizable=1;rotatable=1;deletable=1;editable=1;locked=0;connectable=1;container=0;" vertex="1" parent="1">
+                    <mxGeometry x="484.5" y="275" width="112" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="67" value="Windows WS" style="fontColor=#0066CC;verticalAlign=top;verticalLabelPosition=bottom;labelPosition=center;align=center;html=1;outlineConnect=0;fillColor=#CCCCCC;strokeColor=#6881B3;gradientColor=none;gradientDirection=north;strokeWidth=2;shape=mxgraph.networks.pc;" vertex="1" parent="1">
+                    <mxGeometry x="128" y="205" width="100" height="70" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

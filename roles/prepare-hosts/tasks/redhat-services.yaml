@@ -1,0 +1,93 @@
+---
+- name: Install packages dnf
+  ansible.builtin.dnf:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - net-tools
+    - mc
+    - iproute-tc
+    - vim
+    - git
+    - bash-completion
+    - nfs-utils
+    - tar
+    - chrony
+    - jq
+    - ipvsadm
+    - python3-pyyaml
+
+- name: Add kubernetes repository RedHat
+  ansible.builtin.yum_repository:
+    name: kubernetes
+    description: "Base programs for k8s, version: v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}"
+    baseurl: "https://pkgs.k8s.io/core:/stable:/v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}/rpm/"
+    gpgcheck: true
+    enabled: true
+    gpgkey:
+      - "https://pkgs.k8s.io/core:/stable:/v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}/rpm/repodata/repomd.xml.key"
+    state: present
+
+- name: Install k8s utils [rpm]
+  ansible.builtin.dnf:
+    name: "{{ item  }}"
+    state: present
+  loop:
+    - kubectl
+    - kubelet
+    - kubeadm
+    - ipvsadm
+
+- name: Enable NTP server chrony
+  ansible.builtin.service:
+    name: chronyd
+    state: started
+    enabled: true
+
+- name: Disable firewalld
+  ansible.builtin.service:
+    name: firewalld
+    state: stopped
+    enabled: false
+
+- name: Check Disable SELinux
+  selinux:
+    state: disabled
+  notify: Selinux setenforce
+
+- name: Docker repository for containerd RedHat
+  when: cri == "containerd"
+  ansible.builtin.yum_repository:
+    name: docker-ce-stable
+    enabled: true
+    baseurl: "https://download.docker.com/linux/centos/$releasever/$basearch/stable"
+    description: 'Docker CE Stable - $basearch'
+    gpgcheck: true
+    gpgkey:
+      - 'https://download.docker.com/linux/centos/gpg'
+
+- name: Install containerd [rpm]
+  when: cri == "containerd"
+  ansible.builtin.dnf:
+    name:
+      - containerd
+    state: present
+
+- name: Add CRI-O repository RedHat
+  when: cri == "crio"
+  ansible.builtin.yum_repository:
+    name: cri-o
+    description: CRI-O repository for version {{ crio_version }}
+    baseurl: https://download.opensuse.org/repositories/isv:/cri-o:/{{ stage }}:/{{ crio_version }}/rpm/
+    gpgcheck: true
+    enabled: true
+    gpgkey:
+      - https://download.opensuse.org/repositories/isv:/cri-o:/{{ stage }}:/{{ crio_version }}/rpm/repodata/repomd.xml.key
+    state: present
+
+- name: Install CRI-O [rpm]
+  when: ansible_facts['os_family'] == "RedHat"
+  ansible.builtin.dnf:
+    name:
+      - cri-o
+    state: present
