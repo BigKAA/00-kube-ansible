@@ -22,19 +22,31 @@
 
 - name: Create containerd config.toml
   ansible.builtin.shell: containerd config default > /etc/containerd/config.toml
+  register: config_toml_output
+  changed_when: config_toml_output.rc != 0
 
 - name: Add cgroup v2 [config.toml]
-  ansible.builtin.shell: |
-    sed -i 's|SystemdCgroup = false|SystemdCgroup = true|' /etc/containerd/config.toml
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      sed -i 's|SystemdCgroup = false|SystemdCgroup = true|' /etc/containerd/config.toml
+  register: cgroup_toml_output
+  changed_when: cgroup_toml_output.rc != 0
 
 - name: Add conf dir /etc/containerd/certs.d [config.toml]
-  ansible.builtin.shell: |
-    sed -i 's|config_path = ""|config_path = "/etc/containerd/certs.d"|' /etc/containerd/config.toml
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      sed -i 's|config_path = ""|config_path = "/etc/containerd/certs.d"|' /etc/containerd/config.toml
+  register: conf_toml_output
+  changed_when: conf_toml_output.rc != 0
 
 - name: Add change Sandbox Image [config.toml]
   when: sandbox_image is defined
   ansible.builtin.shell: |
     sed -i 's|sandbox_image = ".*"|sandbox_image = "{{ sandbox_image }}"|' /etc/containerd/config.toml
+  register: config_toml_output
+  changed_when: config_toml_output.rc != 0
 
 - name: Enable and start Containerd service
   ansible.builtin.service:

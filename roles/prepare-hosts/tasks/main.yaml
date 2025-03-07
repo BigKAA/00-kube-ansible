@@ -8,12 +8,18 @@
   ansible.builtin.include_tasks: debian-services.yaml
 
 - name: Test swap
-  ansible.builtin.shell: "swapon --show --noheadings | wc -l"
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      swapon --show --noheadings | wc -l
   register: swap_ret
+  changed_when: swap_ret.rc != 0
 
 - name: If swap is enabled - disable it
   ansible.builtin.command: swapoff -a
   when: swap_ret.stdout != "0"
+  register: swapoff_output
+  changed_when: swapoff_output.rc != 0
 
 - name: Disable SWAP in fstab
   when: swap_ret.stdout != "0"

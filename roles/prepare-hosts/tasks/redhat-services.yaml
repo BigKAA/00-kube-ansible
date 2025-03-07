@@ -30,7 +30,7 @@
 
 - name: Install k8s utils [rpm]
   ansible.builtin.dnf:
-    name: "{{ item  }}"
+    name: "{{ item }}"
     state: present
   loop:
     - kubectl
@@ -51,7 +51,7 @@
     enabled: false
 
 - name: Check Disable SELinux
-  selinux:
+  ansible.posix.selinux:
     state: disabled
   notify: Selinux setenforce
 

@@ -2,3 +2,5 @@
 - name: Selinux setenforce
   ansible.builtin.command:
     cmd: setenforce 0
+  register: setenforce_output
+  changed_when: setenforce_output.rc != 0

@@ -31,6 +31,7 @@
   ansible.builtin.file:
     path: /etc/cni/net.d
     state: directory
+    mode: '0755'
 
 - name: CRI-O add cgroups V2 and pause image
   ansible.builtin.template:
@@ -52,6 +53,7 @@
   ansible.builtin.file:
     path: /etc/containers/registries.conf.d/
     state: directory
+    mode: '0755'
 
 - name: Enable dockerhub mirror on CRI-O
   when: dockerhubMirror
