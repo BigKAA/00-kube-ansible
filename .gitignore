@@ -2,3 +2,5 @@ k3s-playbook/files
 venv/
 .idea/
 .vscode/
+.serena/
+CLAUDE.md

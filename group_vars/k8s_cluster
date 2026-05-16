@@ -7,13 +7,13 @@ imageRepository: registry.k8s.io
 
 # Enable dockerhub mirror
 dockerhubMirror: false
-dockerhubMirrorURLs: 
+dockerhubMirrorURLs:
   - "https://mirror.gcr.io/v2"
   - "https://daocloud.io/v2"
 
-# Versions: 1.28 - 1.32.2
+# Versions: 1.28 - 1.36.1
 # https://kubernetes.io/releases/
-kube_version: 1.32.2
+kube_version: 1.36.1
 
 kube_domain_name: cluster.local
 service_cidr: "10.233.0.0/18"
@@ -22,13 +22,13 @@ pod_network_cidr: "10.233.64.0/18"
 ##################################################
 # CRI parameters
 # crio или containerd
-cri: crio
+cri: containerd
 
 # Необходимо указать путь к сокету.
 # containerd
-# cri_socket: unix:///run/containerd/containerd.sock
+cri_socket: unix:///run/containerd/containerd.sock
 # crio
-cri_socket: unix:///var/run/crio/crio.sock
+# cri_socket: unix:///var/run/crio/crio.sock
 
 # Sanbox image
 # k8s v3.11 -> registry.k8s.io/pause:3.10
@@ -50,7 +50,7 @@ crio_image_volumes: mkdir
 stage: stable
 
 ###################################
-# CNI 
+# CNI
 #
 # - calico
 # - flannel
@@ -89,8 +89,21 @@ nodelocaldns_local_ip: 169.254.25.10
 
 ## HA cluser
 # If you need disable HA, undefine ha_cluster_virtual_ip
-# ha_cluster_virtual_ip: 192.168.218.189
-# ha_cluster_virtual_port: 7443
+ha_cluster_virtual_ip: 192.168.218.130
+ha_cluster_virtual_port: 7443
+
+###################################
+# External etcd
+#
+# Режим etcd: stacked (встроенный) или external (внешний кластер)
+etcd_mode: "stacked"
+# etcd_mode: external  # раскомментировать для external etcd
+etcd_image: "registry.k8s.io/etcd:3.6.6-0"
+etcd_domain: ""        # домен etcd нод (например, kryukov.lan)
+etcd_initial_cluster_token: "external-etcd-cluster"
+etcd_quota_backend_bytes: 8589934592
+etcd_ca_days: 3650         # Срок жизни CA-сертификата (дней)
+etcd_cert_days: 365        # Срок жизни подписанных сертификатов: ноды, apiserver-client, admin
 
 ############################################################
 ####  UTILS                                  ###############
@@ -109,7 +122,7 @@ nfsServerContainer: "gcr.io/k8s-staging-sig-storage/nfs-subdir-external-provisio
 nfsServerHost: "192.168.218.170"
 nfsServerPath: "/var/nfs-disk"
 
-### Cert-manager 
+### Cert-manager
 ### https://github.com/cert-manager/cert-manager
 certManagerEnable: true
 certManagerVersion: "v1.17.1"
@@ -160,7 +173,7 @@ argoCDAdminPassword: "$2a$10$L8OqGEFh3a0yxwfIha4DLuyq6GIYP119hlFM5wlSEsI.nviVAv/
 ### Default: false
 ### https://argo-cd.readthedocs.io/en/latest/user-guide/diff-strategies/#server-side-diff
 argoCDEnableServerSideDiff: "true"
-### Возможные значения: annotation, label, annotation+label 
+### Возможные значения: annotation, label, annotation+label
 ### https://argo-cd.readthedocs.io/en/latest/user-guide/resource_tracking/#additional-tracking-methods-via-an-annotation
 ### (default: label)
 argoCDTrackingMethod: "annotation"

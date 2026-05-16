@@ -1,0 +1,13 @@
+ansible_python_interpreter: /usr/bin/python3
+
+###################################
+# External etcd nodes
+#
+
+# Пути etcd на нодах
+etcd_config_dir: /etc/etcd
+etcd_data_dir: /var/lib/etcd
+etcd_pki_dir: "{{ etcd_config_dir }}/pki"
+
+# Пользователь для Docker (для добавления в группу docker)
+etcd_docker_user: "{{ ansible_user | default('root') }}"

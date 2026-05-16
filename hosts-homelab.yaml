@@ -1,0 +1,31 @@
+k8s_masters:
+  hosts:
+    # Control nodes
+    r1.kryukov.lan:
+      ansible_host: 192.168.218.131
+    r2.kryukov.lan:
+      ansible_host: 192.168.218.132
+    r3.kryukov.lan:
+      ansible_host: 192.168.218.133
+k8s_workers:
+  hosts:
+    # Worker nodes
+    r4.kryukov.lan:
+      ansible_host: 192.168.218.134
+    r4.kryukov.lan:
+      ansible_host: 192.168.218.135
+k8s_cluster:
+  children:
+    k8s_masters:
+    k8s_workers:
+etcd_nodes:
+  hosts:
+    e1.kryukov.lan:
+      ansible_host: 192.168.218.141
+      etcd_short_name: e1
+    e2.kryukov.lan:
+      ansible_host: 192.168.218.142
+      etcd_short_name: e2
+    e3.kryukov.lan:
+      ansible_host: 192.168.218.143
+      etcd_short_name: e3

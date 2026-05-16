@@ -36,10 +36,12 @@
 - name: Install packages dnf
   dnf:
     name:
-      - kubectl
-      - kubelet
-      - kubeadm
-    state: latest
+      - "/tmp/k8s-rpms/kubeadm-{{ kube_version }}-150500.1.1.x86_64.rpm"
+      - "/tmp/k8s-rpms/kubelet-{{ kube_version }}-150500.1.1.x86_64.rpm"
+      - "/tmp/k8s-rpms/kubectl-{{ kube_version }}-150500.1.1.x86_64.rpm"
+    state: present
+    disable_gpg_check: true
+    allow_downgrade: true
   when: ansible_facts['os_family'] == "RedHat"
 
 - name: Drain worker node
