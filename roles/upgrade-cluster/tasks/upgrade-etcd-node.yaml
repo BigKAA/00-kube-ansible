@@ -1,0 +1,62 @@
+---
+# Upgrade одной ноды etcd
+# Вызывается из upgrade-etcd.yaml через include_tasks с loop
+# Переменные:
+#   _etcd_node — имя хоста текущей etcd ноды (из loop)
+#   _etcd_endpoints — список всех endpoints (set_fact из parent)
+#   etcd_resolved_image — целевой образ etcd (set_fact из parent)
+
+- name: "--- Rolling upgrade etcd: {{ _etcd_node }} ---"
+  ansible.builtin.debug:
+    msg: "Обновление ноды etcd: {{ _etcd_node }}"
+
+# 1. Обновляем ETCD_IMAGE в etcd.env на текущей ноде
+- name: Обновить etcd.env на ноде {{ _etcd_node }}
+  ansible.builtin.template:
+    src: "{{ playbook_dir }}/roles/etcd/templates/etcd.env.j2"
+    dest: "{{ etcd_config_dir }}/etcd.env"
+    mode: '0644'
+    owner: root
+    group: root
+  delegate_to: "{{ _etcd_node }}"
+
+# 2. Перезапускаем etcd сервис
+#    ExecStartPre=/usr/bin/docker pull ${ETCD_IMAGE} — автоматически загрузит новый образ
+- name: Перезапустить etcd на ноде {{ _etcd_node }}
+  ansible.builtin.systemd:
+    name: etcd
+    state: restarted
+    daemon_reload: true
+  delegate_to: "{{ _etcd_node }}"
+
+# 3. Ожидаем открытия порта 2379 на обновлённой ноде
+- name: Ожидание запуска etcd на ноде {{ _etcd_node }} (порт 2379)
+  ansible.builtin.wait_for:
+    port: 2379
+    host: "{{ hostvars[_etcd_node].ansible_host }}"
+    timeout: 120
+    delay: 5
+  delegate_to: "{{ _etcd_node }}"
+
+# 4. Проверяем health всего кластера после restart ноды
+- name: Проверка health кластера после upgrade ноды {{ _etcd_node }}
+  ansible.builtin.command: >
+    docker run --rm
+    --network host
+    --volume {{ etcd_pki_dir }}:/etc/etcd/pki:ro
+    {{ etcd_resolved_image }}
+    /usr/local/bin/etcdctl
+    --cacert=/etc/etcd/pki/ca.crt
+    --cert=/etc/etcd/pki/server.crt
+    --key=/etc/etcd/pki/server.key
+    --endpoints={{ _etcd_endpoints }}
+    endpoint health
+  register: _etcd_health_after_node
+  retries: 10
+  delay: 10
+  changed_when: false
+  delegate_to: "{{ groups['etcd_nodes'][0] }}"
+
+- name: Вывести результат проверки health после ноды {{ _etcd_node }}
+  ansible.builtin.debug:
+    msg: "{{ _etcd_health_after_node.stdout_lines }}"

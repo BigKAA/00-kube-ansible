@@ -108,17 +108,18 @@
 
 ## 5. Модификация роли `upgrade-cluster` — upgrade etcd + k8s
 
-- [ ] Создать `roles/upgrade-cluster/tasks/upgrade-etcd.yaml` — rolling upgrade etcd кластера:
+- [x] Создать `roles/upgrade-cluster/tasks/upgrade-etcd.yaml` — rolling upgrade etcd кластера:
   1. Определить текущую версию etcd (через etcdctl endpoint status)
   2. Определить целевую версию etcd (по матрице совместимости с kube_version)
   3. Если версия совпадает — пропустить
-  4. Скачать новый image на все etcd ноды
+  4. Скачать новый image на все etcd ноды (автоматически через ExecStartPre systemd unit)
   5. Обновлять по одной ноде: обновить `etcd_image` в etcd.env → перезапустить → проверить health
   6. После каждой ноды — проверять health всего кластера
   7. Финальная проверка
-- [ ] Модифицировать `roles/upgrade-cluster/tasks/main.yaml`:
+- [x] Создать `roles/upgrade-cluster/tasks/upgrade-etcd-node.yaml` — upgrade одной ноды etcd
+- [x] Модифицировать `roles/upgrade-cluster/tasks/main.yaml`:
   - Добавить шаг upgrade etcd перед upgrade k8s при `etcd_mode == "external"`
-  - Запускать upgrade etcd на etcd_nodes, затем upgrade k8s на k8s_cluster
+  - Запускать upgrade etcd на etcd_nodes (через delegate_to), затем upgrade k8s на k8s_cluster
 
 ## 6. Модификация `install-cluster.yaml` — добавить шаг etcd
 

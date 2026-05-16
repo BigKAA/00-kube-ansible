@@ -1,0 +1,185 @@
+---
+# Rolling upgrade внешнего etcd кластера
+# Выполняется на хостах k8s_cluster (run_once), задачи делегируются на etcd_nodes
+
+# ============================================================
+# 1. Подготовка: endpoints и целевая версия
+# ============================================================
+
+- name: Сформировать список endpoints кластера etcd
+  ansible.builtin.set_fact:
+    _etcd_endpoints: >-
+      {% for host in groups['etcd_nodes'] %}https://{{ hostvars[host].ansible_host }}:2379{% if not loop.last %},{% endif %}{% endfor %}
+  run_once: true
+
+- name: Установить _etcd_endpoints на всех etcd нодах (для delegate_to)
+  ansible.builtin.set_fact:
+    _etcd_endpoints: >-
+      {% for host in groups['etcd_nodes'] %}https://{{ hostvars[host].ansible_host }}:2379{% if not loop.last %},{% endif %}{% endfor %}
+  loop: "{{ groups['etcd_nodes'] }}"
+  loop_control:
+    loop_var: _etcd_set_node
+  delegate_to: "{{ _etcd_set_node }}"
+  run_once: true
+
+- name: Определить целевой образ etcd по матрице совместимости
+  ansible.builtin.set_fact:
+    etcd_resolved_image: "{{ etcd_version_matrix[kube_version] | default(etcd_image) }}"
+  run_once: true
+
+- name: Установить etcd_resolved_image на всех etcd нодах (для delegate_to)
+  ansible.builtin.set_fact:
+    etcd_resolved_image: "{{ etcd_version_matrix[kube_version] | default(etcd_image) }}"
+  loop: "{{ groups['etcd_nodes'] }}"
+  loop_control:
+    loop_var: _etcd_set_node
+  delegate_to: "{{ _etcd_set_node }}"
+  run_once: true
+
+- name: Вывести целевой образ etcd
+  ansible.builtin.debug:
+    msg: "Целевой образ etcd: {{ etcd_resolved_image }}"
+  run_once: true
+
+# ============================================================
+# 2. Определение текущей версии etcd
+# ============================================================
+
+- name: Определить текущую версию etcd (endpoint status)
+  ansible.builtin.command: >
+    docker run --rm
+    --network host
+    --volume {{ etcd_pki_dir }}:/etc/etcd/pki:ro
+    {{ etcd_resolved_image }}
+    /usr/local/bin/etcdctl
+    --cacert=/etc/etcd/pki/ca.crt
+    --cert=/etc/etcd/pki/server.crt
+    --key=/etc/etcd/pki/server.key
+    --endpoints={{ _etcd_endpoints }}
+    endpoint status -w json
+  register: _etcd_current_status
+  changed_when: false
+  run_once: true
+  delegate_to: "{{ groups['etcd_nodes'][0] }}"
+
+- name: Извлечь текущую версию etcd из JSON
+  ansible.builtin.set_fact:
+    _etcd_current_version: "{{ (_etcd_current_status.stdout | from_json)[0].Version }}"
+  run_once: true
+
+- name: Вывести текущую версию etcd
+  ansible.builtin.debug:
+    msg: "Текущая версия etcd: {{ _etcd_current_version }}"
+  run_once: true
+
+# ============================================================
+# 3. Извлечение целевой версии из образа
+# ============================================================
+
+- name: Извлечь версию из целевого образа
+  ansible.builtin.set_fact:
+    _etcd_target_version: "{{ etcd_resolved_image.split(':') | last }}"
+  run_once: true
+
+- name: Вывести целевую версию etcd
+  ansible.builtin.debug:
+    msg: "Целевая версия etcd: {{ _etcd_target_version }}"
+  run_once: true
+
+# ============================================================
+# 4. Сравнение версий — если совпадают, пропускаем upgrade
+# ============================================================
+
+- name: Проверка необходимости upgrade etcd
+  when: _etcd_current_version == _etcd_target_version
+  run_once: true
+  block:
+    - name: Версии совпадают — upgrade не требуется
+      ansible.builtin.debug:
+        msg: "Текущая версия etcd ({{ _etcd_current_version }}) совпадает с целевой ({{ _etcd_target_version }}). Upgrade не требуется."
+
+    - name: Пропуск upgrade etcd
+      meta: end_host
+
+# ============================================================
+# 5. Rolling upgrade — по одной ноде: update → restart → health check
+# ============================================================
+
+- name: Rolling upgrade ноды etcd
+  ansible.builtin.include_tasks: upgrade-etcd-node.yaml
+  loop: "{{ groups['etcd_nodes'] }}"
+  loop_control:
+    loop_var: _etcd_node
+  run_once: true
+
+# ============================================================
+# 6. Финальная проверка здоровья кластера
+# ============================================================
+
+- name: Финальная проверка health кластера etcd
+  ansible.builtin.command: >
+    docker run --rm
+    --network host
+    --volume {{ etcd_pki_dir }}:/etc/etcd/pki:ro
+    {{ etcd_resolved_image }}
+    /usr/local/bin/etcdctl
+    --cacert=/etc/etcd/pki/ca.crt
+    --cert=/etc/etcd/pki/server.crt
+    --key=/etc/etcd/pki/server.key
+    --endpoints={{ _etcd_endpoints }}
+    endpoint health
+  register: _etcd_final_health
+  retries: 10
+  delay: 10
+  changed_when: false
+  run_once: true
+  delegate_to: "{{ groups['etcd_nodes'][0] }}"
+
+- name: Вывести результат финальной проверки health
+  ansible.builtin.debug:
+    msg: "{{ _etcd_final_health.stdout_lines }}"
+  run_once: true
+
+- name: Финальный статус endpoints кластера etcd
+  ansible.builtin.command: >
+    docker run --rm
+    --network host
+    --volume {{ etcd_pki_dir }}:/etc/etcd/pki:ro
+    {{ etcd_resolved_image }}
+    /usr/local/bin/etcdctl
+    --cacert=/etc/etcd/pki/ca.crt
+    --cert=/etc/etcd/pki/server.crt
+    --key=/etc/etcd/pki/server.key
+    --endpoints={{ _etcd_endpoints }}
+    -w table endpoint status
+  register: _etcd_final_status
+  changed_when: false
+  run_once: true
+  delegate_to: "{{ groups['etcd_nodes'][0] }}"
+
+- name: Вывести финальный статус кластера
+  ansible.builtin.debug:
+    msg: "{{ _etcd_final_status.stdout_lines }}"
+  run_once: true
+
+- name: Финальный список членов кластера etcd
+  ansible.builtin.command: >
+    docker run --rm
+    --network host
+    --volume {{ etcd_pki_dir }}:/etc/etcd/pki:ro
+    {{ etcd_resolved_image }}
+    /usr/local/bin/etcdctl
+    --cacert=/etc/etcd/pki/ca.crt
+    --cert=/etc/etcd/pki/server.crt
+    --key=/etc/etcd/pki/server.key
+    --endpoints={{ _etcd_endpoints }}
+    member list
+  register: _etcd_final_members
+  changed_when: false
+  run_once: true
+  delegate_to: "{{ groups['etcd_nodes'][0] }}"
+
+- name: Вывести финальный список членов
+  ansible.builtin.debug:
+    msg: "{{ _etcd_final_members.stdout_lines }}"
+  run_once: true

@@ -1,4 +1,9 @@
 ---
+# Upgrade external etcd (before k8s upgrade)
+- name: Upgrade external etcd cluster
+  ansible.builtin.include_tasks: upgrade-etcd.yaml
+  when: etcd_mode is defined and etcd_mode == "external"
+
 - name: Upgrade 1st master
   when: inventory_hostname == groups['k8s_masters'][0]
   ansible.builtin.include_tasks: upgrade-1st-master.yaml
