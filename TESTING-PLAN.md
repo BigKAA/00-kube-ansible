@@ -57,13 +57,15 @@ ssh artur@e1.kryukov.lan "sudo whoami"  # должно вернуть root
 - [x] Проверить доступ: `ssh artur@e1.kryukov.lan "sudo whoami"` (должно вернуть `root`)
 - [x] Убедиться, что на всех целевых машинах есть Python 3 (`/usr/bin/python3`)
 - [x] Убедиться, что Docker запущен на MacOS (Orbstack)
-- [ ] Подготовить Docker-образ с Ansible для запуска playbooks
+- [x] Подготовить Docker-образ с Ansible для запуска playbooks
+- [x] Модифицировать playbook для offline-установки из RPM
 
 **Результаты проверки (2026-05-16):**
 - SSH: все 8 нод доступны, sudo работает без пароля
 - ОС: Rocky Linux 10.1 (Red Quartz) на всех нодах
 - Python: 3.12.12 (`/usr/bin/python3`)
 - Docker: v29.4.0 (Orbstack, MacOS)
+- Offline-режим: реализован через `k8s_install_mode: offline` (коммит `556f60d`)
 
 ### 2.2. Настройка переменных для external etcd
 
@@ -685,16 +687,13 @@ ssh artur@e1.kryukov.lan "sudo systemctl status etcd"  # должен быть i
 ### 8.1. Критические
 
 1. ~~**Дубликат в hosts-homelab.yaml**~~ — исправлено в коммите `81a977a`
-2. **Offline-пакеты**: Текущий playbook ожидает онлайн-репозитории. Необходимо:
-   - Либо модифицировать `prepare-hosts/tasks/main.yaml` для установки из локальных RPM
-   - Либо скопировать RPM на целевые машины перед запуском
-3. **Upgrade ожидает конкретное именование RPM**: В `upgrade-1st-master.yaml` указано:
-   ```
-   /tmp/k8s-rpms/kubeadm-{{ kube_version }}-150500.1.1.x86_64.rpm
-   ```
-   Это naming convention для SUSE/openSUSE. Фактические скачанные пакеты имеют
-   такое же именование (`150500.1.1`), поэтому проблем быть не должно.
-   **Проверено:** пакеты совместимы с Rocky Linux 10.
+2. ~~**Offline-пакеты**~~ — реализован offline-режим в коммите `556f60d`:
+   - Добавлена переменная `k8s_install_mode: offline`
+   - `prepare-hosts` копирует RPM с Ansible control node и устанавливает через dnf
+   - Upgrade-задачи используют glob-паттерны и `k8s_rpm_remote_dir`
+3. ~~**Upgrade ожидает конкретное именование RPM**~~ — подтверждено:
+   скачанные пакеты имеют именование `150500.1.1`, совместимое с playbook.
+   Playbook обновлён для использования glob-паттернов.
 
 ### 8.2. Рекомендации
 
