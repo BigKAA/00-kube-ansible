@@ -53,12 +53,12 @@ ssh artur@e1.kryukov.lan "sudo whoami"  # должно вернуть root
 
 ### 2.1. Предварительные требования
 
-- [x] Убедиться, что SSH-ключ добавлен для пользователя `artur` на всех целевых машинах
-- [x] Проверить доступ: `ssh artur@e1.kryukov.lan "sudo whoami"` (должно вернуть `root`)
-- [x] Убедиться, что на всех целевых машинах есть Python 3 (`/usr/bin/python3`)
-- [x] Убедиться, что Docker запущен на MacOS (Orbstack)
-- [x] Подготовить Docker-образ с Ansible для запуска playbooks
-- [x] Модифицировать playbook для offline-установки из RPM
+- [ ] Убедиться, что SSH-ключ добавлен для пользователя `artur` на всех целевых машинах
+- [ ] Проверить доступ: `ssh artur@e1.kryukov.lan "sudo whoami"` (должно вернуть `root`)
+- [ ] Убедиться, что на всех целевых машинах есть Python 3 (`/usr/bin/python3`)
+- [ ] Убедиться, что Docker запущен на MacOS (Orbstack)
+- [ ] Подготовить Docker-образ с Ansible для запуска playbooks
+- [ ] Модифицировать playbook для offline-установки из RPM
 
 **Результаты проверки (2026-05-16):**
 - SSH: все 8 нод доступны, sudo работает без пароля
@@ -160,48 +160,38 @@ tmp/
 mkdir -p tmp/{rpms,ansible-cache,ssh,logs}
 ```
 
-#### 2.4.2. Dockerfile
+#### 2.4.2. Сборка Docker-образа
+
+В репозитории уже есть готовый `Dockerfile.ansible` с предустановленными
+коллекциями Ansible (community.crypto, community.general, ansible.posix,
+kubernetes.core) и Python-модулями (cryptography, kubernetes, docker).
 
 ```bash
-# Создать Dockerfile для Ansible
-cat > Dockerfile.ansible << 'EOF'
-FROM python:3.12-slim
-
-RUN apt-get update && apt-get install -y \
-    openssh-client \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN pip install ansible passlib
-
-WORKDIR /workspace
-EOF
-
 # Собрать образ
-docker build -f Dockerfile.ansible -t ansible-k8s:latest .
+docker build -f Dockerfile.ansible -t ansible-custom:latest .
 ```
 
-#### 2.4.3. Запуск контейнера с persistent-директориями
+#### 2.4.3. Алиасы для команд Ansible
+
+Чтобы не писать каждый раз полную команду `docker run`, определите алиасы:
 
 ```bash
-# Запустить контейнер с пробросом всех необходимых директорий
-docker run --rm -it \
-  -v "$(pwd):/workspace" \
-  -v "$(pwd)/tmp/rpms:/tmp/rpms" \
-  -v "$(pwd)/tmp/ssh:/home/ansible/.ssh" \
-  -v "$(pwd)/tmp/ansible-cache:/tmp/ansible-cache" \
-  -v "$(pwd)/tmp/logs:/tmp/logs" \
-  -w /workspace \
-  --user ansible \
-  -e ANSIBLE_CONFIG=/workspace/ansible.cfg \
-  -e ANSIBLE_CACHE_PLUGIN=jsonfile \
-  -e ANSIBLE_CACHE_PLUGIN_CONNECTION=/tmp/ansible-cache \
-  ansible-k8s:latest /bin/bash
+alias ansible-playbook="docker run -ti --rm \
+  -v ~/.ssh:/home/ansible/.ssh \
+  -v $(pwd):/workspace \
+  ansible-custom:latest ansible-playbook"
+
+alias ansible="docker run -ti --rm \
+  -v ~/.ssh:/home/ansible/.ssh \
+  -v $(pwd):/workspace \
+  ansible-custom:latest ansible"
 ```
 
-> **Примечание:** SSH-ключи для подключения к `artur@<host>` должны быть
-> размещены в `tmp/ssh/` на хост-машине (или скопированы туда из `~/.ssh/`).
-> Файлы `known_hosts` также сохраняются в этой директории между запусками.
+> **Важно:** Все команды `ansible` и `ansible-playbook` в этом документе
+> предполагают, что алиасы определены. SSH-ключи для подключения к
+> `artur@<host>` должны быть доступны в `~/.ssh/` на хост-машине.
+> Коллекции Ansible предустановлены в образе — монтировать
+> `~/.ansible` не требуется.
 
 ---
 
@@ -658,27 +648,27 @@ ssh artur@e1.kryukov.lan "sudo systemctl status etcd"  # должен быть i
 
 | # | Проверка | Этап | Ожидаемый результат | Статус |
 |---|----------|------|---------------------|--------|
-| 1 | SSH доступ ко всем нодам (artur@) | Подготовка | Все ноды доступны, sudo работает | ✅ |
-| 2 | Скачивание RPM v1.35 для Rocky Linux 10 | Подготовка | RPM в tmp/rpms/, совместимы с EL10 | ✅ |
-| 3 | Скачивание RPM v1.36 для Rocky Linux 10 | Подготовка | RPM в tmp/rpms/, совместимы с EL10 | ✅ |
-| 4 | Синтаксис install-cluster.yaml | Подготовка | Без ошибок | ✅ |
-| 5 | Установка external etcd | Установка | 3 ноды, healthy | ✅ |
-| 6 | Установка control plane | Установка | 3 ноды, Ready | ✅ |
-| 7 | Установка worker нод | Установка | 2 ноды, Ready | ✅ |
-| 8 | HA (VIP) | Установка | VIP активен, API доступен | ✅ |
-| 9 | CNI (Calico) | Установка | Поды Running, связность | ✅ |
-| 10 | CRI (containerd) | Установка | Запущен, контейнеры работают | ✅ |
-| 11 | Версия k8s = 1.35.0 → 1.36.1 | Установка / Upgrade | `kubectl version` | ✅ |
-| 12 | Версия etcd = 3.5.24 → 3.6.6 | Установка / Upgrade | `etcdctl version` | ✅ |
-| 13 | Синтаксис upgrade.yaml | Upgrade | Без ошибок | ✅ |
-| 14 | Upgrade etcd до 3.6.6 | Upgrade | Rolling upgrade, healthy | ✅ |
-| 15 | Upgrade k8s до 1.36.1 | Upgrade | Все ноды, новая версия | ✅ |
-| 16 | Работоспособность приложений | Upgrade | Deployment, Service, DNS | ✅ |
-| 17 | HA после upgrade | Upgrade | VIP, API доступен | ✅ |
-| 18 | Отказоустойчивость etcd | Негативные | Кластер жив при 1 ноде down | ✅ |
-| 19 | Отказоустойчивость control plane | Негативные | VIP переезжает, API доступен | ✅ |
-| 20 | Reset кластера | Очистка | Пакеты удалены, iptables очищены | ☐ |
-| 21 | Reset etcd | Очистка | etcd остановлен, данные удалены | ☐ |
+| 1 | SSH доступ ко всем нодам (artur@) | Подготовка | Все ноды доступны, sudo работает | ⬜ |
+| 2 | Скачивание RPM v1.35 для Rocky Linux 10 | Подготовка | RPM в tmp/rpms/, совместимы с EL10 | ⬜ |
+| 3 | Скачивание RPM v1.36 для Rocky Linux 10 | Подготовка | RPM в tmp/rpms/, совместимы с EL10 | ⬜ |
+| 4 | Синтаксис install-cluster.yaml | Подготовка | Без ошибок | ⬜ |
+| 5 | Установка external etcd | Установка | 3 ноды, healthy | ⬜ |
+| 6 | Установка control plane | Установка | 3 ноды, Ready | ⬜ |
+| 7 | Установка worker нод | Установка | 2 ноды, Ready | ⬜ |
+| 8 | HA (VIP) | Установка | VIP активен, API доступен | ⬜ |
+| 9 | CNI (Calico) | Установка | Поды Running, связность | ⬜ |
+| 10 | CRI (containerd) | Установка | Запущен, контейнеры работают | ⬜ |
+| 11 | Версия k8s = 1.35.0 → 1.36.1 | Установка / Upgrade | `kubectl version` | ⬜ |
+| 12 | Версия etcd = 3.5.24 → 3.6.6 | Установка / Upgrade | `etcdctl version` | ⬜ |
+| 13 | Синтаксис upgrade.yaml | Upgrade | Без ошибок | ⬜ |
+| 14 | Upgrade etcd до 3.6.6 | Upgrade | Rolling upgrade, healthy | ⬜ |
+| 15 | Upgrade k8s до 1.36.1 | Upgrade | Все ноды, новая версия | ⬜ |
+| 16 | Работоспособность приложений | Upgrade | Deployment, Service, DNS | ⬜ |
+| 17 | HA после upgrade | Upgrade | VIP, API доступен | ⬜ |
+| 18 | Отказоустойчивость etcd | Негативные | Кластер жив при 1 ноде down | ⬜ |
+| 19 | Отказоустойчивость control plane | Негативные | VIP переезжает, API доступен | ⬜ |
+| 20 | Reset кластера | Очистка | Пакеты удалены, iptables очищены | ⬜ |
+| 21 | Reset etcd | Очистка | etcd остановлен, данные удалены | ⬜ |
 
 ---
 
@@ -710,6 +700,17 @@ ssh artur@e1.kryukov.lan "sudo systemctl status etcd"  # должен быть i
 ### 9.1. Полный цикл тестирования
 
 ```bash
+# 0. Собрать Docker-образ и определить алиасы (см. раздел 2.4)
+docker build -f Dockerfile.ansible -t ansible-custom:latest .
+alias ansible-playbook="docker run -ti --rm \
+  -v ~/.ssh:/home/ansible/.ssh \
+  -v $(pwd):/workspace \
+  ansible-custom:latest ansible-playbook"
+alias ansible="docker run -ti --rm \
+  -v ~/.ssh:/home/ansible/.ssh \
+  -v $(pwd):/workspace \
+  ansible-custom:latest ansible"
+
 # 1. Исправить hosts-homelab.yaml
 # 2. Скачать RPM для Rocky Linux 10 (см. раздел 2.3)
 mkdir -p tmp/rpms
@@ -752,25 +753,16 @@ ansible-playbook -i hosts-homelab.yaml reset.yaml \
   -vv
 ```
 
-### 9.2. Запуск через Docker-контейнер
+### 9.2. Запуск через Docker-контейнер (без алиасов)
+
+Если алиасы (раздел 2.4.3) не определены, полная команда выглядит так:
 
 ```bash
-# Создать persistent-директории
-mkdir -p tmp/{rpms,ansible-cache,ssh,logs}
-
 # Из директории проекта
-docker run --rm -it \
+docker run --rm -ti \
   -v "$(pwd):/workspace" \
-  -v "$(pwd)/tmp/rpms:/tmp/rpms" \
-  -v "$(pwd)/tmp/ssh:/home/ansible/.ssh" \
-  -v "$(pwd)/tmp/ansible-cache:/tmp/ansible-cache" \
-  -v "$(pwd)/tmp/logs:/tmp/logs" \
-  -w /workspace \
-  --user ansible \
-  -e ANSIBLE_CONFIG=/workspace/ansible.cfg \
-  -e ANSIBLE_CACHE_PLUGIN=jsonfile \
-  -e ANSIBLE_CACHE_PLUGIN_CONNECTION=/tmp/ansible-cache \
-  ansible-k8s:latest \
+  -v ~/.ssh:/home/ansible/.ssh \
+  ansible-custom:latest \
   ansible-playbook -i hosts-homelab.yaml install-cluster.yaml \
     -u artur --become \
     -e "kube_version=1.35.0" \

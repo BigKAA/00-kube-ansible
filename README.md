@@ -38,14 +38,17 @@ python3 -m venv venv
 pip3 install "ansible-core<2.17"
 ```
 
-Или используем контейнер с Ansible:
+Или собираем и используем собственный контейнер с Ansible на основе `Dockerfile.ansible`:
 
 ```shell
-docker pull alpine/ansible:2.17.0
-mkdir -p ~/.ansible
-alias ansible-playbook="docker run -ti --rm -v ~/.ssh:/root/.ssh -v ~/.ansible:/root/.ansible -v $(pwd):/apps -w /apps alpine/ansible:2.17.0 ansible-playbook"
+docker build -f Dockerfile.ansible -t ansible-custom:latest .
+alias ansible-playbook="docker run -ti --rm -v ~/.ssh:/home/ansible/.ssh -v $(pwd):/workspace ansible-custom:latest ansible-playbook"
 ansible-playbook --version
 ```
+
+> Коллекции Ansible (community.crypto, community.general, ansible.posix, kubernetes.core)
+> предустановлены в образе. Если необходимо добавить дополнительные коллекции —
+> обновите `Dockerfile.ansible` и пересоберите образ.
 
 Генерируем ssh ключ:
 
