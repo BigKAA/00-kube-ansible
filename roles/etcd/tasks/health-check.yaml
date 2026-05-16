@@ -15,19 +15,17 @@
     timeout: 120
     delay: 5
 
-- name: Проверка health кластера etcd
-  ansible.builtin.command: >
-    docker run --rm
-    --network host
-    --volume {{ etcd_pki_dir }}:/etc/etcd/pki:ro
-    {{ etcd_resolved_image }}
-    /usr/local/bin/etcdctl
-    --cacert=/etc/etcd/pki/ca.crt
-    --cert=/etc/etcd/pki/server.crt
-    --key=/etc/etcd/pki/server.key
-    --endpoints={{ _etcd_endpoints }}
-    endpoint health
-  register: _etcd_health
+- name: Проверка health всех нод etcd через HTTP API
+  ansible.builtin.uri:
+    url: "https://{{ hostvars[item].ansible_host }}:2379/health"
+    method: GET
+    ca_path: "{{ etcd_pki_dir }}/ca.crt"
+    client_cert: "{{ etcd_pki_dir }}/server.crt"
+    client_key: "{{ etcd_pki_dir }}/server.key"
+    status_code: 200
+    return_content: true
+  register: _etcd_health_results
+  loop: "{{ groups['etcd_nodes'] }}"
   retries: 10
   delay: 10
   changed_when: false
@@ -35,7 +33,17 @@
 
 - name: Вывести результат проверки health
   ansible.builtin.debug:
-    msg: "{{ _etcd_health.stdout_lines }}"
+    msg: "{{ item.json | default(item) }}"
+  loop: "{{ _etcd_health_results.results }}"
+  run_once: true
+
+- name: Проверить, что все ноды здоровы
+  ansible.builtin.assert:
+    that:
+      - item.json.health == true
+    fail_msg: "Нода {{ item.item }} не прошла health check"
+    quiet: true
+  loop: "{{ _etcd_health_results.results }}"
   run_once: true
 
 - name: Получить статус endpoints кластера

@@ -3,15 +3,14 @@
 # Создание каталогов, env-файл, systemd unit, запуск
 
 - name: Проверить наличие Docker
-  ansible.builtin.command: docker --version
-  register: _docker_check
-  changed_when: false
-  failed_when: false
+  ansible.builtin.stat:
+    path: /usr/bin/docker
+  register: _docker_binary
 
 - name: Ошибка — Docker не установлен
   ansible.builtin.fail:
     msg: "Docker не найден на {{ inventory_hostname }}. Установите Docker перед запуском роли etcd."
-  when: _docker_check.rc != 0
+  when: not _docker_binary.stat.exists
 
 - name: Включить и запустить Docker
   ansible.builtin.service:

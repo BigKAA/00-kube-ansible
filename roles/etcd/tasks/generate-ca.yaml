@@ -1,5 +1,5 @@
 ---
-# Генерация etcd CA (openssl, на localhost)
+# Генерация etcd CA (community.crypto, на localhost)
 # Выполняется один раз (run_once)
 
 - name: Создать локальный каталог PKI
@@ -11,43 +11,25 @@
   become: false
   run_once: true
 
-- name: Проверить наличие CA сертификата
-  ansible.builtin.stat:
-    path: "{{ etcd_local_pki_dir }}/{{ etcd_ca_crt }}"
-  register: _etcd_ca_stat
-  delegate_to: localhost
-  become: false
-  run_once: true
-
 - name: Генерация CA закрытого ключа
-  ansible.builtin.command: >
-    openssl genrsa
-    -out {{ etcd_local_pki_dir }}/{{ etcd_ca_key }}
-    {{ etcd_key_size }}
-  args:
-    creates: "{{ etcd_local_pki_dir }}/{{ etcd_ca_key }}"
+  community.crypto.openssl_privatekey:
+    path: "{{ etcd_local_pki_dir }}/{{ etcd_ca_key }}"
+    type: RSA
+    size: "{{ etcd_key_size }}"
+    mode: "0600"
   delegate_to: localhost
   become: false
   run_once: true
 
 - name: Генерация CA самоподписанного сертификата
-  ansible.builtin.command: >
-    openssl req -new -x509
-    -key {{ etcd_local_pki_dir }}/{{ etcd_ca_key }}
-    -out {{ etcd_local_pki_dir }}/{{ etcd_ca_crt }}
-    -days {{ etcd_ca_days }}
-    -subj "/CN=etcd-ca"
-    -sha256
-  args:
-    creates: "{{ etcd_local_pki_dir }}/{{ etcd_ca_crt }}"
-  delegate_to: localhost
-  become: false
-  run_once: true
-
-- name: Установить права на CA ключ
-  ansible.builtin.file:
-    path: "{{ etcd_local_pki_dir }}/{{ etcd_ca_key }}"
-    mode: '0600'
+  community.crypto.openssl_certificate:
+    path: "{{ etcd_local_pki_dir }}/{{ etcd_ca_crt }}"
+    privatekey_path: "{{ etcd_local_pki_dir }}/{{ etcd_ca_key }}"
+    provider: selfsigned
+    selfsigned_not_after: "+{{ etcd_ca_days }}d"
+    selfsigned_digest: sha256
+    selfsigned_subject:
+      commonName: etcd-ca
   delegate_to: localhost
   become: false
   run_once: true

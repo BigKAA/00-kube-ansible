@@ -52,24 +52,21 @@
     delay: 5
   delegate_to: "{{ _etcd_node }}"
 
-- name: "{{ _etcd_node }} — проверка health"
-  ansible.builtin.command: >
-    docker run --rm
-    --network host
-    --volume {{ hostvars[_etcd_node].etcd_pki_dir | default('/etc/etcd/pki') }}:/etc/etcd/pki:ro
-    {{ etcd_resolved_image }}
-    /usr/local/bin/etcdctl
-    --cacert=/etc/etcd/pki/ca.crt
-    --cert=/etc/etcd/pki/server.crt
-    --key=/etc/etcd/pki/server.key
-    --endpoints={{ _etcd_endpoints }}
-    endpoint health
+- name: "{{ _etcd_node }} — проверка health через HTTP API"
+  ansible.builtin.uri:
+    url: "https://localhost:2379/health"
+    method: GET
+    ca_path: "{{ hostvars[_etcd_node].etcd_pki_dir | default('/etc/etcd/pki') }}/ca.crt"
+    client_cert: "{{ hostvars[_etcd_node].etcd_pki_dir | default('/etc/etcd/pki') }}/server.crt"
+    client_key: "{{ hostvars[_etcd_node].etcd_pki_dir | default('/etc/etcd/pki') }}/server.key"
+    status_code: 200
+    return_content: true
   register: _node_health
   retries: 5
   delay: 10
-  changed_when: false
+  until: _node_health.json.health == true
   delegate_to: "{{ _etcd_node }}"
 
 - name: "{{ _etcd_node }} — health OK"
   ansible.builtin.debug:
-    msg: "{{ _node_health.stdout_lines }}"
+    msg: "Нода {{ _etcd_node }} прошла health check: {{ _node_health.json.health }}"

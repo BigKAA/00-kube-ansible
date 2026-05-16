@@ -1,67 +1,50 @@
 ---
-# Генерация административного сертификата etcdctl (на localhost)
+# Генерация административного сертификата etcdctl (community.crypto, на localhost)
 # Создаёт файлы: etcd-admin.crt, etcd-admin.key
 
-- name: etcd-admin — сгенерировать openssl конфиг
-  ansible.builtin.template:
-    src: openssl-client.cnf.j2
-    dest: "{{ etcd_local_pki_dir }}/etcd-admin-openssl.cnf"
-    mode: '0644'
-  vars:
-    etcd_client_cn: "{{ etcd_admin_cn }}"
-    etcd_client_org: "{{ etcd_admin_org }}"
-  delegate_to: localhost
-  become: false
-  run_once: true
-
 - name: etcd-admin — генерация закрытого ключа
-  ansible.builtin.command: >
-    openssl genrsa
-    -out {{ etcd_local_pki_dir }}/etcd-admin.key
-    {{ etcd_key_size }}
-  args:
-    creates: "{{ etcd_local_pki_dir }}/etcd-admin.key"
+  community.crypto.openssl_privatekey:
+    path: "{{ etcd_local_pki_dir }}/etcd-admin.key"
+    type: RSA
+    size: "{{ etcd_key_size }}"
+    mode: "0600"
   delegate_to: localhost
   become: false
   run_once: true
 
 - name: etcd-admin — генерация CSR
-  ansible.builtin.command: >
-    openssl req -new
-    -key {{ etcd_local_pki_dir }}/etcd-admin.key
-    -out {{ etcd_local_pki_dir }}/etcd-admin.csr
-    -config {{ etcd_local_pki_dir }}/etcd-admin-openssl.cnf
-  args:
-    creates: "{{ etcd_local_pki_dir }}/etcd-admin.csr"
+  community.crypto.openssl_csr:
+    path: "{{ etcd_local_pki_dir }}/etcd-admin.csr"
+    privatekey_path: "{{ etcd_local_pki_dir }}/etcd-admin.key"
+    common_name: "{{ etcd_admin_cn }}"
+    organization_name: "{{ etcd_admin_org }}"
+    key_usage:
+      - keyEncipherment
+      - dataEncipherment
+      - digitalSignature
+    extended_key_usage:
+      - clientAuth
   delegate_to: localhost
   become: false
   run_once: true
 
 - name: etcd-admin — подпись сертификата CA
-  ansible.builtin.command: >
-    openssl x509 -req
-    -in {{ etcd_local_pki_dir }}/etcd-admin.csr
-    -CA {{ etcd_local_pki_dir }}/{{ etcd_ca_crt }}
-    -CAkey {{ etcd_local_pki_dir }}/{{ etcd_ca_key }}
-    -CAcreateserial
-    -out {{ etcd_local_pki_dir }}/etcd-admin.crt
-    -days {{ etcd_cert_days }}
-    -sha256
-    -extensions v3_req
-    -extfile {{ etcd_local_pki_dir }}/etcd-admin-openssl.cnf
-  args:
-    creates: "{{ etcd_local_pki_dir }}/etcd-admin.crt"
+  community.crypto.openssl_certificate:
+    path: "{{ etcd_local_pki_dir }}/etcd-admin.crt"
+    csr_path: "{{ etcd_local_pki_dir }}/etcd-admin.csr"
+    ownca_path: "{{ etcd_local_pki_dir }}/{{ etcd_ca_crt }}"
+    ownca_privatekey_path: "{{ etcd_local_pki_dir }}/{{ etcd_ca_key }}"
+    provider: ownca
+    ownca_not_after: "+{{ etcd_cert_days }}d"
+    ownca_digest: sha256
   delegate_to: localhost
   become: false
   run_once: true
 
 - name: etcd-admin — очистка временных файлов
   ansible.builtin.file:
-    path: "{{ etcd_local_pki_dir }}/{{ item }}"
+    path: "{{ etcd_local_pki_dir }}/etcd-admin.csr"
     state: absent
-  loop:
-    - "etcd-admin.csr"
-    - "etcd-admin-openssl.cnf"
   delegate_to: localhost
   become: false
   run_once: true
