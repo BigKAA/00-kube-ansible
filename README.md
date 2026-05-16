@@ -18,13 +18,14 @@
 
 Поддерживает:
 
-- Kubernetes v1.31.
+- Kubernetes v1.28 — v1.36.
 - Установку одной или несколько control nodes.
 - HA доступ к API kubernetes.
 - CRI-O.
 - calico.
 - В KubeProxyConfiguration установлены параметры для работы Metallb.
 - nodelocaldns - кеширующий DNS сервер на каждой ноде кластера.
+- External etcd кластер (опционально).
 
 ## Установка ansible
 
@@ -119,6 +120,67 @@ Playbook с утилитами. [Обычный набор утилит](https:/
 
 ```shell
 ansible-playbook services/06-utils.yaml
+```
+
+## External etcd
+
+По умолчанию используется встроенный (stacked) etcd, который работает на control plane нодах.
+При необходимости можно вынести etcd на отдельные ноды.
+
+### Конфигурация
+
+В `group_vars/k8s_cluster` установите:
+
+```yaml
+etcd_mode: "external"
+```
+
+### Инвентори
+
+В `hosts.yaml` добавьте группу `etcd_nodes` с **нечётным** количеством нод (рекомендуется 3):
+
+```yaml
+etcd_nodes:
+  hosts:
+    e1.kryukov.lan:
+      ansible_host: 192.168.218.141
+      etcd_short_name: e1
+    e2.kryukov.lan:
+      ansible_host: 192.168.218.142
+      etcd_short_name: e2
+    e3.kryukov.lan:
+      ansible_host: 192.168.218.143
+      etcd_short_name: e3
+```
+
+### Матрица совместимости Kubernetes ↔ etcd
+
+| Kubernetes | etcd |
+| --- | --- |
+| 1.28 | 3.5.9 |
+| 1.29 | 3.5.10 |
+| 1.30 | 3.5.12 |
+| 1.31 | 3.5.13 |
+| 1.32 | 3.5.16 |
+| 1.33 | 3.5.16 |
+| 1.34 | 3.5.16 |
+| 1.35 | 3.5.21 |
+| 1.36 | 3.6.6 |
+
+Версия etcd определяется автоматически по `kube_version`.
+При необходимости можно переопределить:
+
+```yaml
+etcd_image: "registry.k8s.io/etcd:3.6.6-0"
+```
+
+### Очистка external etcd
+
+При удалении кластера (`reset.yaml`) external etcd **не удаляется** по умолчанию.
+Для очистки установите:
+
+```yaml
+reset_etcd: true
 ```
 
 ## Сервисные функции
