@@ -24,12 +24,12 @@
 
 - name: Определить целевой образ etcd по матрице совместимости
   ansible.builtin.set_fact:
-    etcd_resolved_image: "{{ etcd_version_matrix[kube_version] | default(etcd_image) }}"
+    etcd_resolved_image: "{{ etcd_version_matrix[kube_version | regex_replace('^(\\d+\\.\\d+).*', '\\1')] | default(etcd_image) }}"
   run_once: true
 
 - name: Установить etcd_resolved_image на всех etcd нодах (для delegate_to)
   ansible.builtin.set_fact:
-    etcd_resolved_image: "{{ etcd_version_matrix[kube_version] | default(etcd_image) }}"
+    etcd_resolved_image: "{{ etcd_version_matrix[kube_version | regex_replace('^(\\d+\\.\\d+).*', '\\1')] | default(etcd_image) }}"
   loop: "{{ groups['etcd_nodes'] }}"
   loop_control:
     loop_var: _etcd_set_node
@@ -39,6 +39,14 @@
 - name: Вывести целевой образ etcd
   ansible.builtin.debug:
     msg: "Целевой образ etcd: {{ etcd_resolved_image }}"
+  run_once: true
+
+# etcd_pki_dir и etcd_config_dir определены в group_vars/etcd_nodes,
+# но upgrade-cluster выполняется на k8s_cluster. Подхватываем через hostvars.
+- name: Получить etcd переменные с первой etcd ноды
+  ansible.builtin.set_fact:
+    etcd_pki_dir: "{{ hostvars[groups['etcd_nodes'][0]].etcd_pki_dir | default('/etc/etcd/pki') }}"
+    etcd_config_dir: "{{ hostvars[groups['etcd_nodes'][0]].etcd_config_dir | default('/etc/etcd') }}"
   run_once: true
 
 # ============================================================
@@ -64,7 +72,7 @@
 
 - name: Извлечь текущую версию etcd из JSON
   ansible.builtin.set_fact:
-    _etcd_current_version: "{{ (_etcd_current_status.stdout | from_json)[0].Version }}"
+    _etcd_current_version: "{{ ((_etcd_current_status.stdout | from_json)[0].Status.get('version') | default((_etcd_current_status.stdout | from_json)[0].Status.get('Version'), true)) | trim }}"
   run_once: true
 
 - name: Вывести текущую версию etcd
@@ -78,7 +86,7 @@
 
 - name: Извлечь версию из целевого образа
   ansible.builtin.set_fact:
-    _etcd_target_version: "{{ etcd_resolved_image.split(':') | last }}"
+    _etcd_target_version: "{{ (etcd_resolved_image.split(':') | last).split('-')[0] }}"
   run_once: true
 
 - name: Вывести целевую версию etcd

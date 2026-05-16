@@ -39,7 +39,7 @@
 
 - name: Install packages dnf
   ansible.builtin.shell: |
-    dnf install -y --disableplugin=fastestmirror --allow-downgrade \
+    dnf install -y \
       {{ k8s_rpm_remote_dir }}/kubeadm-{{ kube_version }}*.rpm \
       {{ k8s_rpm_remote_dir }}/kubelet-{{ kube_version }}*.rpm \
       {{ k8s_rpm_remote_dir }}/kubectl-{{ kube_version }}*.rpm
