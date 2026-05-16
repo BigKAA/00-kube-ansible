@@ -157,6 +157,32 @@ rpm -qp --requires tmp/rpms/kubeadm-1.35.0.rpm
 
 ### 2.4. Подготовка Docker-контейнера с Ansible
 
+#### 2.4.1. Структура директории `tmp/`
+
+Директория `tmp/` используется для хранения данных, которые должны сохраняться
+между запусками Docker-контейнера:
+
+```
+tmp/
+├── rpms/                  # Скачанные RPM-пакеты k8s (persistent)
+│   ├── kubeadm-1.35.0.rpm
+│   ├── kubelet-1.35.0.rpm
+│   ├── kubectl-1.35.0.rpm
+│   ├── kubeadm-1.36.1.rpm
+│   ├── kubelet-1.36.1.rpm
+│   └── kubectl-1.36.1.rpm
+├── ansible-cache/         # Ansible facts, кэш (persistent)
+├── ssh/                   # SSH-ключи и known_hosts (persistent)
+└── logs/                  # Логи выполнения (persistent)
+```
+
+Создать структуру:
+```bash
+mkdir -p tmp/{rpms,ansible-cache,ssh,logs}
+```
+
+#### 2.4.2. Dockerfile
+
 ```bash
 # Создать Dockerfile для Ansible
 cat > Dockerfile.ansible << 'EOF'
@@ -174,22 +200,29 @@ EOF
 
 # Собрать образ
 docker build -f Dockerfile.ansible -t ansible-k8s:latest .
+```
 
-# Запустить контейнер с пробросом SSH-ключа пользователя artur
-# Ключ должен быть доступен внутри контейнера для подключения как artur@
+#### 2.4.3. Запуск контейнера с persistent-директориями
+
+```bash
+# Запустить контейнер с пробросом всех необходимых директорий
 docker run --rm -it \
   -v "$(pwd):/workspace" \
-  -v "$HOME/.ssh:/home/ansible/.ssh:ro" \
+  -v "$(pwd)/tmp/rpms:/tmp/rpms" \
+  -v "$(pwd)/tmp/ssh:/home/ansible/.ssh" \
+  -v "$(pwd)/tmp/ansible-cache:/tmp/ansible-cache" \
+  -v "$(pwd)/tmp/logs:/tmp/logs" \
   -w /workspace \
   --user ansible \
   -e ANSIBLE_CONFIG=/workspace/ansible.cfg \
+  -e ANSIBLE_CACHE_PLUGIN=jsonfile \
+  -e ANSIBLE_CACHE_PLUGIN_CONNECTION=/tmp/ansible-cache \
   ansible-k8s:latest /bin/bash
 ```
 
-> **Примечание:** SSH-ключ, используемый для подключения к `artur@<host>`,
-> должен быть доступен внутри контейнера. Если ключ находится в стандартном
-> месте (`~/.ssh/id_ed25519` или `~/.ssh/id_rsa`), он будет доступен
-> через проброс `$HOME/.ssh`.
+> **Примечание:** SSH-ключи для подключения к `artur@<host>` должны быть
+> размещены в `tmp/ssh/` на хост-машине (или скопированы туда из `~/.ssh/`).
+> Файлы `known_hosts` также сохраняются в этой директории между запусками.
 
 ---
 
@@ -746,13 +779,21 @@ ansible-playbook -i hosts-homelab.yaml reset.yaml \
 ### 9.2. Запуск через Docker-контейнер
 
 ```bash
+# Создать persistent-директории
+mkdir -p tmp/{rpms,ansible-cache,ssh,logs}
+
 # Из директории проекта
 docker run --rm -it \
   -v "$(pwd):/workspace" \
-  -v "$HOME/.ssh:/home/ansible/.ssh:ro" \
+  -v "$(pwd)/tmp/rpms:/tmp/rpms" \
+  -v "$(pwd)/tmp/ssh:/home/ansible/.ssh" \
+  -v "$(pwd)/tmp/ansible-cache:/tmp/ansible-cache" \
+  -v "$(pwd)/tmp/logs:/tmp/logs" \
   -w /workspace \
   --user ansible \
   -e ANSIBLE_CONFIG=/workspace/ansible.cfg \
+  -e ANSIBLE_CACHE_PLUGIN=jsonfile \
+  -e ANSIBLE_CACHE_PLUGIN_CONNECTION=/tmp/ansible-cache \
   ansible-k8s:latest \
   ansible-playbook -i hosts-homelab.yaml install-cluster.yaml \
     -u artur --become \

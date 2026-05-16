@@ -6,3 +6,9 @@ venv/
 .tmp/
 CLAUDE.md
 files/etcd-pki
+
+# Persistent данные Docker-контейнера
+tmp/rpms/
+tmp/ansible-cache/
+tmp/ssh/
+tmp/logs/
