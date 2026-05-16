@@ -15,38 +15,98 @@
     state: directory
     mode: '0755'
 
-- name: External etcd — скопировать PKI сертификаты с первого master (ca.crt, ca.key)
+- name: External etcd — прочитать ca.crt с первого master
   when: not kubeadm_ca.stat.exists and etcd_mode is defined and etcd_mode == "external"
-  ansible.builtin.command: >
-    scp -o StrictHostKeyChecking=no
-    root@{{ hostvars[groups['k8s_masters'][0]].ansible_host }}:/etc/kubernetes/pki/{{ item }}
-    /etc/kubernetes/pki/{{ item }}
-  loop:
-    - ca.crt
-    - ca.key
+  ansible.builtin.slurp:
+    src: /etc/kubernetes/pki/ca.crt
+  register: _ca_crt
+  delegate_to: "{{ groups['k8s_masters'][0] }}"
+  run_once: true
+
+- name: External etcd — прочитать ca.key с первого master
+  when: not kubeadm_ca.stat.exists and etcd_mode is defined and etcd_mode == "external"
+  ansible.builtin.slurp:
+    src: /etc/kubernetes/pki/ca.key
+  register: _ca_key
+  delegate_to: "{{ groups['k8s_masters'][0] }}"
+  run_once: true
   no_log: true
 
-- name: External etcd — скопировать front-proxy-ca с первого master
+- name: External etcd — прочитать front-proxy-ca.crt с первого master
   when: not kubeadm_ca.stat.exists and etcd_mode is defined and etcd_mode == "external"
-  ansible.builtin.command: >
-    scp -o StrictHostKeyChecking=no
-    root@{{ hostvars[groups['k8s_masters'][0]].ansible_host }}:/etc/kubernetes/pki/{{ item }}
-    /etc/kubernetes/pki/{{ item }}
-  loop:
-    - front-proxy-ca.crt
-    - front-proxy-ca.key
+  ansible.builtin.slurp:
+    src: /etc/kubernetes/pki/front-proxy-ca.crt
+  register: _front_proxy_ca_crt
+  delegate_to: "{{ groups['k8s_masters'][0] }}"
+  run_once: true
+
+- name: External etcd — прочитать front-proxy-ca.key с первого master
+  when: not kubeadm_ca.stat.exists and etcd_mode is defined and etcd_mode == "external"
+  ansible.builtin.slurp:
+    src: /etc/kubernetes/pki/front-proxy-ca.key
+  register: _front_proxy_ca_key
+  delegate_to: "{{ groups['k8s_masters'][0] }}"
+  run_once: true
   no_log: true
 
-- name: External etcd — скопировать SA ключи с первого master
+- name: External etcd — прочитать sa.pub с первого master
   when: not kubeadm_ca.stat.exists and etcd_mode is defined and etcd_mode == "external"
-  ansible.builtin.command: >
-    scp -o StrictHostKeyChecking=no
-    root@{{ hostvars[groups['k8s_masters'][0]].ansible_host }}:/etc/kubernetes/pki/{{ item }}
-    /etc/kubernetes/pki/{{ item }}
-  loop:
-    - sa.pub
-    - sa.key
+  ansible.builtin.slurp:
+    src: /etc/kubernetes/pki/sa.pub
+  register: _sa_pub
+  delegate_to: "{{ groups['k8s_masters'][0] }}"
+  run_once: true
+
+- name: External etcd — прочитать sa.key с первого master
+  when: not kubeadm_ca.stat.exists and etcd_mode is defined and etcd_mode == "external"
+  ansible.builtin.slurp:
+    src: /etc/kubernetes/pki/sa.key
+  register: _sa_key
+  delegate_to: "{{ groups['k8s_masters'][0] }}"
+  run_once: true
   no_log: true
+
+- name: External etcd — разложить ca.crt на target-нодах
+  when: not kubeadm_ca.stat.exists and etcd_mode is defined and etcd_mode == "external"
+  ansible.builtin.copy:
+    content: "{{ _ca_crt.content | b64decode }}"
+    dest: /etc/kubernetes/pki/ca.crt
+    mode: '0644'
+
+- name: External etcd — разложить ca.key на target-нодах
+  when: not kubeadm_ca.stat.exists and etcd_mode is defined and etcd_mode == "external"
+  ansible.builtin.copy:
+    content: "{{ _ca_key.content | b64decode }}"
+    dest: /etc/kubernetes/pki/ca.key
+    mode: '0600'
+
+- name: External etcd — разложить front-proxy-ca.crt на target-нодах
+  when: not kubeadm_ca.stat.exists and etcd_mode is defined and etcd_mode == "external"
+  ansible.builtin.copy:
+    content: "{{ _front_proxy_ca_crt.content | b64decode }}"
+    dest: /etc/kubernetes/pki/front-proxy-ca.crt
+    mode: '0644'
+
+- name: External etcd — разложить front-proxy-ca.key на target-нодах
+  when: not kubeadm_ca.stat.exists and etcd_mode is defined and etcd_mode == "external"
+  ansible.builtin.copy:
+    content: "{{ _front_proxy_ca_key.content | b64decode }}"
+    dest: /etc/kubernetes/pki/front-proxy-ca.key
+    mode: '0600'
+
+- name: External etcd — разложить sa.pub на target-нодах
+  when: not kubeadm_ca.stat.exists and etcd_mode is defined and etcd_mode == "external"
+  ansible.builtin.copy:
+    content: "{{ _sa_pub.content | b64decode }}"
+    dest: /etc/kubernetes/pki/sa.pub
+    mode: '0644'
+
+- name: External etcd — разложить sa.key на target-нодах
+  when: not kubeadm_ca.stat.exists and etcd_mode is defined and etcd_mode == "external"
+  ansible.builtin.copy:
+    content: "{{ _sa_key.content | b64decode }}"
+    dest: /etc/kubernetes/pki/sa.key
+    mode: '0600'
 
 - name: External etcd — удалить node-специфичные сертификаты перед join
   when: not kubeadm_ca.stat.exists and etcd_mode is defined and etcd_mode == "external"

@@ -37,6 +37,7 @@
     mode: '0644'
     owner: root
     group: root
+  notify: restart etcd
 
 - name: Развёртывание systemd unit etcd.service
   ansible.builtin.template:
@@ -45,6 +46,7 @@
     mode: '0644'
     owner: root
     group: root
+  notify: restart etcd
 
 - name: Перезагрузить systemd daemon
   ansible.builtin.systemd:

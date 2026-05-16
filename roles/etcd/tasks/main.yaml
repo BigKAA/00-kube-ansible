@@ -4,7 +4,7 @@
 # Определяем версию etcd по матрице совместимости с kube_version
 - name: Определить версию etcd по матрице совместимости
   ansible.builtin.set_fact:
-    etcd_resolved_image: "{{ etcd_version_matrix[kube_version] | default(etcd_image) }}"
+    etcd_resolved_image: "{{ etcd_version_matrix[kube_version | regex_replace('^(\\d+\\.\\d+).*', '\\1')] | default(etcd_image) }}"
   delegate_to: localhost
   become: false
   run_once: true
