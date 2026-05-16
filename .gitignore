@@ -13,3 +13,4 @@ tmp/ansible-cache/
 tmp/ssh/
 tmp/logs/
 files/
+docs/

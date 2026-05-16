@@ -11,7 +11,27 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Устанавливаем Ansible и дополнительные Python-модули
-RUN pip install --no-cache-dir ansible passlib jmespath
+# cryptography — для community.crypto (SSL/TLS)
+# kubernetes — для kubernetes.core (Helm, k8s)
+# docker — для community.docker (управление контейнерами)
+RUN pip install --no-cache-dir \
+    ansible \
+    passlib \
+    jmespath \
+    cryptography \
+    kubernetes \
+    docker
+
+# Устанавливаем коллекции Ansible
+# community.crypto — SSL/TLS сертификаты (etcd PKI)
+# community.general — modprobe, sysctl и другие общие модули
+# ansible.posix — sysctl, iptables и другие POSIX-модули
+# kubernetes.core — helm, helm_repository и другие k8s-модули
+RUN ansible-galaxy collection install \
+    community.crypto \
+    community.general \
+    ansible.posix \
+    kubernetes.core
 
 # Создаём директорию для SSH
 RUN mkdir -p /home/ansible/.ssh && \
