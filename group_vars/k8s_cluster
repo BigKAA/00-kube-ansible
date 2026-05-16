@@ -15,6 +15,14 @@ dockerhubMirrorURLs:
 # https://kubernetes.io/releases/
 kube_version: 1.36.1
 
+# Режим установки пакетов Kubernetes:
+# - online: загрузка из репозитория pkgs.k8s.io (по умолчанию)
+# - offline: установка из локальных RPM (предварительно скопированных на ноды)
+k8s_install_mode: "online"
+
+# Путь к RPM на целевых машинах (для offline-режима)
+k8s_rpm_remote_dir: "/tmp/k8s-rpms"
+
 kube_domain_name: cluster.local
 service_cidr: "10.233.0.0/18"
 pod_network_cidr: "10.233.64.0/18"

@@ -18,13 +18,17 @@
 # Иначе обновим версию.
 
 - name: Remove repository kubernetes
-  when: ansible_facts['os_family'] == "RedHat"
+  when:
+    - ansible_facts['os_family'] == "RedHat"
+    - k8s_install_mode == "online"
   yum_repository:
     name: kubernetes
     state: absent
 
 - name: Add repo kubernetes
-  when: ansible_facts['os_family'] == "RedHat"
+  when:
+    - ansible_facts['os_family'] == "RedHat"
+    - k8s_install_mode == "online"
   yum_repository:
     name: kubernetes
     description: "Base programs for k8s, version: v{{ kube_version[:4] }}"
@@ -36,9 +40,9 @@
 - name: Install packages dnf
   dnf:
     name:
-      - "/tmp/k8s-rpms/kubeadm-{{ kube_version }}-150500.1.1.x86_64.rpm"
-      - "/tmp/k8s-rpms/kubelet-{{ kube_version }}-150500.1.1.x86_64.rpm"
-      - "/tmp/k8s-rpms/kubectl-{{ kube_version }}-150500.1.1.x86_64.rpm"
+      - "{{ k8s_rpm_remote_dir }}/kubeadm-{{ kube_version }}*.rpm"
+      - "{{ k8s_rpm_remote_dir }}/kubelet-{{ kube_version }}*.rpm"
+      - "{{ k8s_rpm_remote_dir }}/kubectl-{{ kube_version }}*.rpm"
     state: present
     disable_gpg_check: true
     allow_downgrade: true

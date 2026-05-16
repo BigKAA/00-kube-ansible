@@ -138,8 +138,14 @@
 - name: Install k8s files
   block:
 
+    # ============================================================
+    # Online mode — установка из репозитория
+    # ============================================================
+
     - name: K8s repository for Ubuntu|Debian [Key]
-      when: ansible_facts['os_family'] == "Debian"
+      when:
+        - ansible_facts['os_family'] == "Debian"
+        - k8s_install_mode == "online"
       ansible.builtin.apt_key:
         # url: "https://pkgs.k8s.io/core:/stable:/v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}/deb/Release.key"
         url: "https://prod-cdn.packages.k8s.io/repositories/isv:/kubernetes:/core:/stable:/v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}/deb/Release.key"
@@ -147,7 +153,9 @@
         keyring: /etc/apt/trusted.gpg.d/k8s.gpg
 
     - name: K8s repository for Ubuntu|Debian
-      when: ansible_facts['os_family'] == "Debian"
+      when:
+        - ansible_facts['os_family'] == "Debian"
+        - k8s_install_mode == "online"
       ansible.builtin.apt_repository:
         # repo: "deb [signed-by=/etc/apt/trusted.gpg.d/k8s.gpg] https://pkgs.k8s.io/core:/stable:/v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}/deb/ /"
         repo: "deb [signed-by=/etc/apt/trusted.gpg.d/k8s.gpg] https://prod-cdn.packages.k8s.io/repositories/isv:/kubernetes:/core:/stable:/v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}/deb/ /"
@@ -155,7 +163,9 @@
         filename: kubernetes
 
     - name: Add kubernetes repository RedHat
-      when: ansible_facts['os_family'] == "RedHat"
+      when:
+        - ansible_facts['os_family'] == "RedHat"
+        - k8s_install_mode == "online"
       ansible.builtin.yum_repository:
         name: kubernetes
         description: "Base programs for k8s, version: v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}"
@@ -166,8 +176,48 @@
           - "https://pkgs.k8s.io/core:/stable:/v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}/rpm/repodata/repomd.xml.key"
         state: present
 
+    # ============================================================
+    # Offline mode — установка из локальных RPM
+    # ============================================================
+
+    - name: Create RPM directory on target
+      when: k8s_install_mode == "offline"
+      ansible.builtin.file:
+        path: "{{ k8s_rpm_remote_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Copy k8s RPMs to target
+      when: k8s_install_mode == "offline"
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "{{ k8s_rpm_remote_dir }}/"
+        mode: "0644"
+      with_fileglob:
+        - "{{ playbook_dir }}/tmp/rpms/kubeadm-{{ kube_version }}*.rpm"
+        - "{{ playbook_dir }}/tmp/rpms/kubelet-{{ kube_version }}*.rpm"
+        - "{{ playbook_dir }}/tmp/rpms/kubectl-{{ kube_version }}*.rpm"
+
+    - name: Install k8s utils from RPM [RedHat offline]
+      when:
+        - ansible_facts['os_family'] == "RedHat"
+        - k8s_install_mode == "offline"
+      ansible.builtin.dnf:
+        name:
+          - "{{ k8s_rpm_remote_dir }}/kubeadm-{{ kube_version }}*.rpm"
+          - "{{ k8s_rpm_remote_dir }}/kubelet-{{ kube_version }}*.rpm"
+          - "{{ k8s_rpm_remote_dir }}/kubectl-{{ kube_version }}*.rpm"
+        state: present
+        disable_gpg_check: true
+
+    # ============================================================
+    # Online mode — установка из репозитория (RedHat)
+    # ============================================================
+
     - name: Install k8s utils [rpm]
-      when: ansible_facts['os_family'] == "RedHat"
+      when:
+        - ansible_facts['os_family'] == "RedHat"
+        - k8s_install_mode == "online"
       ansible.builtin.dnf:
         name:
           - kubectl
