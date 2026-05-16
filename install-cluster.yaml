@@ -15,6 +15,12 @@
   roles:
     - prepare-hosts
 
+- name: Install external etcd cluster
+  hosts: etcd_nodes
+  roles:
+    - role: etcd
+      when: etcd_mode is defined and etcd_mode == "external"
+
 - name: Install Control nodes
   hosts: k8s_masters
 

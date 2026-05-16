@@ -1,4 +1,11 @@
 ---
+- name: Upgrade external etcd cluster
+  hosts: etcd_nodes
+  serial: "1"
+  roles:
+    - role: etcd
+      when: etcd_mode is defined and etcd_mode == "external"
+
 - name: Upgrade kubernetes cluster
   hosts: k8s_cluster
   serial: "1"

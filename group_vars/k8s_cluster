@@ -105,6 +105,9 @@ etcd_quota_backend_bytes: 8589934592
 etcd_ca_days: 3650         # Срок жизни CA-сертификата (дней)
 etcd_cert_days: 365        # Срок жизни подписанных сертификатов: ноды, apiserver-client, admin
 
+# Очистка external etcd при reset (true/false)
+reset_etcd: false
+
 ############################################################
 ####  UTILS                                  ###############
 #### Запускаются как отдельный playbook      ###############

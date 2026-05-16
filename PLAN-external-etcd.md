@@ -123,7 +123,7 @@
 
 ## 6. Модификация `install-cluster.yaml` — добавить шаг etcd
 
-- [ ] Добавить play для установки external etcd перед установкой master:
+- [x] Добавить play для установки external etcd перед установкой master:
   ```yaml
   - name: Install external etcd cluster
     hosts: etcd_nodes
@@ -142,7 +142,7 @@
 
 ## 7. Модификация `upgrade.yaml` — добавить etcd upgrade
 
-- [ ] Добавить play для upgrade etcd перед upgrade k8s:
+- [x] Добавить play для upgrade etcd перед upgrade k8s:
   ```yaml
   - name: Upgrade external etcd cluster
     hosts: etcd_nodes
@@ -155,11 +155,11 @@
 
 ## 8. Модификация `reset.yaml` — очистка external etcd
 
-- [ ] Добавить задачи для очистки external etcd при `etcd_mode == "external"`:
+- [x] Добавить задачи для очистки external etcd при `etcd_mode == "external"`:
   - Остановка и отключение etcd сервиса на etcd нодах
   - Удаление systemd unit, контейнера, данных (`/var/lib/etcd`), конфигурации (`/etc/etcd`)
   - Опционально: удаление локальных сертификатов PKI (`files/etcd-pki/`) на Ansible control node
-- [ ] Добавить отдельный флаг/переменную для управления очисткой etcd (например, `reset_etcd: false`)
+- [x] Добавить отдельный флаг/переменную для управления очисткой etcd (например, `reset_etcd: false`)
 
 ## 9. Документация
 

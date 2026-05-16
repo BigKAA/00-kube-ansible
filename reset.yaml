@@ -94,3 +94,71 @@
     file:
       path: /etc/kubernetes/utils
       state: absent
+
+- name: Reset external etcd cluster
+  hosts: etcd_nodes
+
+  tasks:
+    - name: Check if external etcd reset is enabled
+      ansible.builtin.meta: end_play
+      when: >
+        not (
+          etcd_mode is defined and
+          etcd_mode == "external" and
+          reset_etcd | default(false) | bool
+        )
+
+    - name: Stop etcd service
+      ansible.builtin.service:
+        name: etcd
+        state: stopped
+        enabled: false
+      ignore_errors: true
+
+    - name: Remove etcd systemd unit
+      ansible.builtin.file:
+        path: /etc/systemd/system/etcd.service
+        state: absent
+
+    - name: Remove etcd container
+      ansible.builtin.command: ctr -n k8s.io c rm etcd
+      ignore_errors: true
+
+    - name: Remove etcd data directory
+      ansible.builtin.file:
+        path: /var/lib/etcd
+        state: absent
+
+    - name: Remove etcd configuration directory
+      ansible.builtin.file:
+        path: /etc/etcd
+        state: absent
+
+    - name: Remove etcd environment file
+      ansible.builtin.file:
+        path: /etc/etcd/etcd.env
+        state: absent
+      ignore_errors: true
+
+    - name: Reload systemd daemon
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+- name: Cleanup etcd PKI on Ansible control node
+  hosts: localhost
+  connection: local
+
+  tasks:
+    - name: Check if external etcd reset is enabled
+      ansible.builtin.meta: end_play
+      when: >
+        not (
+          etcd_mode is defined and
+          etcd_mode == "external" and
+          reset_etcd | default(false) | bool
+        )
+
+    - name: Remove local etcd PKI directory
+      ansible.builtin.file:
+        path: "{{ playbook_dir }}/files/etcd-pki"
+        state: absent
