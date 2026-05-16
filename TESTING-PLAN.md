@@ -53,7 +53,6 @@ ssh artur@e1.kryukov.lan "sudo whoami"  # должно вернуть root
 
 ### 2.1. Предварительные требования
 
-- [ ] **Исправить дубликат в hosts-homelab.yaml** (строка 15: `r4.kryukov.lan` → `r5.kryukov.lan`)
 - [ ] Убедиться, что SSH-ключ добавлен для пользователя `artur` на всех целевых машинах
 - [ ] Проверить доступ: `ssh artur@e1.kryukov.lan "sudo whoami"` (должно вернуть `root`)
 - [ ] Убедиться, что на всех целевых машинах есть Python 3 (`/usr/bin/python3`)
