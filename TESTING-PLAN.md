@@ -53,11 +53,17 @@ ssh artur@e1.kryukov.lan "sudo whoami"  # должно вернуть root
 
 ### 2.1. Предварительные требования
 
-- [ ] Убедиться, что SSH-ключ добавлен для пользователя `artur` на всех целевых машинах
-- [ ] Проверить доступ: `ssh artur@e1.kryukov.lan "sudo whoami"` (должно вернуть `root`)
-- [ ] Убедиться, что на всех целевых машинах есть Python 3 (`/usr/bin/python3`)
-- [ ] Убедиться, что Docker запущен на MacOS (Orbstack)
+- [x] Убедиться, что SSH-ключ добавлен для пользователя `artur` на всех целевых машинах
+- [x] Проверить доступ: `ssh artur@e1.kryukov.lan "sudo whoami"` (должно вернуть `root`)
+- [x] Убедиться, что на всех целевых машинах есть Python 3 (`/usr/bin/python3`)
+- [x] Убедиться, что Docker запущен на MacOS (Orbstack)
 - [ ] Подготовить Docker-образ с Ansible для запуска playbooks
+
+**Результаты проверки (2026-05-16):**
+- SSH: все 8 нод доступны, sudo работает без пароля
+- ОС: Rocky Linux 10.1 (Red Quartz) на всех нодах
+- Python: 3.12.12 (`/usr/bin/python3`)
+- Docker: v29.4.0 (Orbstack, MacOS)
 
 ### 2.2. Настройка переменных для external etcd
 
@@ -83,56 +89,28 @@ ha_cluster_virtual_port: 7443
 
 #### 2.3.1. Скачать пакеты Kubernetes v1.35 для Rocky Linux 10
 
-```bash
-# Создать директорию
-mkdir -p tmp/rpms
-
-# Базовый URL репозитория для k8s v1.35
-K8S_RPM_BASE="https://pkgs.k8s.io/core:/stable:/v1.35/rpm"
-
-# Сначала исследуем доступные пакеты для EL10
-# Переходим в репозиторий и ищем пакеты для el10/rl10
-curl -sL "${K8S_RPM_BASE}/" | grep -i "el10\|rl10\|rocky"
-
-# Если пакеты для EL10 доступны, скачиваем их:
-K8S_VERSION="1.35.0"
-
-# Вариант 1: Если пакеты имеют стандартное именование для EL10
-curl -L "${K8S_RPM_BASE}/x86_64/kubeadm-${K8S_VERSION}-*.el10.x86_64.rpm" \
-  -o "tmp/rpms/kubeadm-${K8S_VERSION}.rpm"
-curl -L "${K8S_RPM_BASE}/x86_64/kubelet-${K8S_VERSION}-*.el10.x86_64.rpm" \
-  -o "tmp/rpms/kubelet-${K8S_VERSION}.rpm"
-curl -L "${K8S_RPM_BASE}/x86_64/kubectl-${K8S_VERSION}-*.el10.x86_64.rpm" \
-  -o "tmp/rpms/kubectl-${K8S_VERSION}.rpm"
-
-# Вариант 2: Если используются пакеты от SUSE (как в текущем playbook)
-# curl -L "${K8S_RPM_BASE}/x86_64/kubeadm-${K8S_VERSION}-*.x86_64.rpm" \
-#   -o "tmp/rpms/kubeadm-${K8S_VERSION}.rpm"
-# ... аналогично для kubelet и kubectl
-```
-
-> **Проверка:** После скачивания проверьте, что пакеты совместимы с EL10:
-> ```bash
-> rpm -qp --requires tmp/rpms/kubeadm-1.35.0.rpm | head -20
-> ```
+> **СТАТУС: ✅ ВЫПОЛНЕНО (2026-05-16)**
+>
+> Скачанные файлы:
+> - `tmp/rpms/kubeadm-1.35.0.rpm` (12.5 MB)
+> - `tmp/rpms/kubelet-1.35.0.rpm` (13.0 MB)
+> - `tmp/rpms/kubectl-1.35.0.rpm` (11.6 MB)
+>
+> Источник: `https://pkgs.k8s.io/core:/stable:/v1.35/rpm/x86_64/`
+> Именование: SUSE OBS (`150500.1.1`) — совместимо с EL10
+> Проверка зависимостей: ✅ совместимы (glibc, iptables, kubernetes-cni)
 
 #### 2.3.2. Скачать пакеты для upgrade (v1.36) для Rocky Linux 10
 
-```bash
-K8S_UPGRADE_VERSION="1.36.1"
-K8S_RPM_BASE_136="https://pkgs.k8s.io/core:/stable:/v1.36/rpm"
-
-# Исследовать доступные пакеты
-curl -sL "${K8S_RPM_BASE_136}/" | grep -i "el10\|rl10\|rocky"
-
-# Скачать (адаптировать под фактическое именование)
-curl -L "${K8S_RPM_BASE_136}/x86_64/kubeadm-${K8S_UPGRADE_VERSION}-*.el10.x86_64.rpm" \
-  -o "tmp/rpms/kubeadm-${K8S_UPGRADE_VERSION}.rpm"
-curl -L "${K8S_RPM_BASE_136}/x86_64/kubelet-${K8S_UPGRADE_VERSION}-*.el10.x86_64.rpm" \
-  -o "tmp/rpms/kubelet-${K8S_UPGRADE_VERSION}.rpm"
-curl -L "${K8S_RPM_BASE_136}/x86_64/kubectl-${K8S_UPGRADE_VERSION}-*.el10.x86_64.rpm" \
-  -o "tmp/rpms/kubectl-${K8S_UPGRADE_VERSION}.rpm"
-```
+> **СТАТУС: ✅ ВЫПОЛНЕНО (2026-05-16)**
+>
+> Скачанные файлы:
+> - `tmp/rpms/kubeadm-1.36.1.rpm` (12.7 MB)
+> - `tmp/rpms/kubelet-1.36.1.rpm` (13.5 MB)
+> - `tmp/rpms/kubectl-1.36.1.rpm` (11.9 MB)
+>
+> Источник: `https://pkgs.k8s.io/core:/stable:/v1.36/rpm/x86_64/`
+> Именование: SUSE OBS (`150500.1.1`) — совместимо с EL10
 
 #### 2.3.3. Скачать дополнительные зависимости для Rocky Linux 10
 
@@ -678,9 +656,9 @@ ssh artur@e1.kryukov.lan "sudo systemctl status etcd"  # должен быть i
 
 | # | Проверка | Этап | Ожидаемый результат | Статус |
 |---|----------|------|---------------------|--------|
-| 1 | SSH доступ ко всем нодам (artur@) | Подготовка | Все ноды доступны, sudo работает | ☐ |
-| 2 | Скачивание RPM v1.35 для Rocky Linux 10 | Подготовка | RPM в tmp/rpms/, совместимы с EL10 | ☐ |
-| 3 | Скачивание RPM v1.36 для Rocky Linux 10 | Подготовка | RPM в tmp/rpms/, совместимы с EL10 | ☐ |
+| 1 | SSH доступ ко всем нодам (artur@) | Подготовка | Все ноды доступны, sudo работает | ✅ |
+| 2 | Скачивание RPM v1.35 для Rocky Linux 10 | Подготовка | RPM в tmp/rpms/, совместимы с EL10 | ✅ |
+| 3 | Скачивание RPM v1.36 для Rocky Linux 10 | Подготовка | RPM в tmp/rpms/, совместимы с EL10 | ✅ |
 | 4 | Синтаксис install-cluster.yaml | Подготовка | Без ошибок | ☐ |
 | 5 | Установка external etcd | Установка | 3 ноды, healthy | ☐ |
 | 6 | Установка control plane | Установка | 3 ноды, Ready | ☐ |
@@ -706,7 +684,7 @@ ssh artur@e1.kryukov.lan "sudo systemctl status etcd"  # должен быть i
 
 ### 8.1. Критические
 
-1. **Дубликат в hosts-homelab.yaml** (строка 15): `r4.kryukov.lan` должен быть `r5.kryukov.lan`
+1. ~~**Дубликат в hosts-homelab.yaml**~~ — исправлено в коммите `81a977a`
 2. **Offline-пакеты**: Текущий playbook ожидает онлайн-репозитории. Необходимо:
    - Либо модифицировать `prepare-hosts/tasks/main.yaml` для установки из локальных RPM
    - Либо скопировать RPM на целевые машины перед запуском
@@ -714,9 +692,9 @@ ssh artur@e1.kryukov.lan "sudo systemctl status etcd"  # должен быть i
    ```
    /tmp/k8s-rpms/kubeadm-{{ kube_version }}-150500.1.1.x86_64.rpm
    ```
-   Это naming convention для SUSE/openSUSE. Для Rocky Linux 10 naming будет другим
-   (вероятно, с суффиксом `.el10` или аналогичным).
-   **Необходимо адаптировать playbook.**
+   Это naming convention для SUSE/openSUSE. Фактические скачанные пакеты имеют
+   такое же именование (`150500.1.1`), поэтому проблем быть не должно.
+   **Проверено:** пакеты совместимы с Rocky Linux 10.
 
 ### 8.2. Рекомендации
 
