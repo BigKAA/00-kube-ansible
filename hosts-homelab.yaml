@@ -12,7 +12,7 @@ k8s_workers:
     # Worker nodes
     r4.kryukov.lan:
       ansible_host: 192.168.218.134
-    r4.kryukov.lan:
+    r5.kryukov.lan:
       ansible_host: 192.168.218.135
 k8s_cluster:
   children:
