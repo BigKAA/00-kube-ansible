@@ -4,14 +4,110 @@
     path: "/etc/kubernetes/pki/ca.key"
   register: kubeadm_ca
 
-- name: Join control nodes
-  when: not kubeadm_ca.stat.exists
+# === External etcd: подготовка сертификатов перед join ===
+# Для external etcd сертификаты PKI копируются с первого master'а,
+# так как фаза download-certs пропускается (сертификаты etcd уже загружены ролью etcd).
+
+- name: External etcd — создать каталог PKI
+  when: not kubeadm_ca.stat.exists and etcd_mode is defined and etcd_mode == "external"
+  ansible.builtin.file:
+    path: /etc/kubernetes/pki
+    state: directory
+    mode: '0755'
+
+- name: External etcd — скопировать PKI сертификаты с первого master (ca.crt, ca.key)
+  when: not kubeadm_ca.stat.exists and etcd_mode is defined and etcd_mode == "external"
+  ansible.builtin.command: >
+    scp -o StrictHostKeyChecking=no
+    root@{{ hostvars[groups['k8s_masters'][0]].ansible_host }}:/etc/kubernetes/pki/{{ item }}
+    /etc/kubernetes/pki/{{ item }}
+  loop:
+    - ca.crt
+    - ca.key
+  no_log: true
+
+- name: External etcd — скопировать front-proxy-ca с первого master
+  when: not kubeadm_ca.stat.exists and etcd_mode is defined and etcd_mode == "external"
+  ansible.builtin.command: >
+    scp -o StrictHostKeyChecking=no
+    root@{{ hostvars[groups['k8s_masters'][0]].ansible_host }}:/etc/kubernetes/pki/{{ item }}
+    /etc/kubernetes/pki/{{ item }}
+  loop:
+    - front-proxy-ca.crt
+    - front-proxy-ca.key
+  no_log: true
+
+- name: External etcd — скопировать SA ключи с первого master
+  when: not kubeadm_ca.stat.exists and etcd_mode is defined and etcd_mode == "external"
+  ansible.builtin.command: >
+    scp -o StrictHostKeyChecking=no
+    root@{{ hostvars[groups['k8s_masters'][0]].ansible_host }}:/etc/kubernetes/pki/{{ item }}
+    /etc/kubernetes/pki/{{ item }}
+  loop:
+    - sa.pub
+    - sa.key
+  no_log: true
+
+- name: External etcd — удалить node-специфичные сертификаты перед join
+  when: not kubeadm_ca.stat.exists and etcd_mode is defined and etcd_mode == "external"
+  ansible.builtin.file:
+    path: "/etc/kubernetes/pki/{{ item }}"
+    state: absent
+  loop:
+    - apiserver.crt
+    - apiserver-kubelet-client.crt
+    - front-proxy-client.crt
+
+# === Проверка наличия etcd client сертификатов (external etcd) ===
+- name: External etcd — проверить наличие etcd CA на control plane
+  when: etcd_mode is defined and etcd_mode == "external"
+  ansible.builtin.stat:
+    path: /etc/kubernetes/pki/etcd/ca.crt
+  register: etcd_ca_stat
+
+- name: External etcd — проверить наличие apiserver-etcd-client сертификата
+  when: etcd_mode is defined and etcd_mode == "external"
+  ansible.builtin.stat:
+    path: /etc/kubernetes/pki/apiserver-etcd-client.crt
+  register: etcd_client_cert_stat
+
+- name: External etcd — проверить наличие apiserver-etcd-client ключа
+  when: etcd_mode is defined and etcd_mode == "external"
+  ansible.builtin.stat:
+    path: /etc/kubernetes/pki/apiserver-etcd-client.key
+  register: etcd_client_key_stat
+
+- name: External etcd — ошибка если отсутствуют etcd сертификаты
+  when: etcd_mode is defined and etcd_mode == "external" and (not etcd_ca_stat.stat.exists or not etcd_client_cert_stat.stat.exists or not etcd_client_key_stat.stat.exists)
+  ansible.builtin.fail:
+    msg: >
+      Отсутствуют сертификаты etcd client.
+      Убедитесь, что роль etcd выполнена успешно и загрузила сертификаты на control plane ноды.
+      Отсутствуют:
+      {% if not etcd_ca_stat.stat.exists %}/etc/kubernetes/pki/etcd/ca.crt {% endif %}
+      {% if not etcd_client_cert_stat.stat.exists %}/etc/kubernetes/pki/apiserver-etcd-client.crt {% endif %}
+      {% if not etcd_client_key_stat.stat.exists %}/etc/kubernetes/pki/apiserver-etcd-client.key {% endif %}
+
+# === Join: stacked etcd (стандартный режим) ===
+- name: Join control nodes (stacked etcd)
+  when: not kubeadm_ca.stat.exists and (etcd_mode is not defined or etcd_mode == "stacked")
   ansible.builtin.shell:
     cmd: |
       kubeadm join {{ hostvars[groups['k8s_masters'][0]].join_path.stdout }} \
       --token {{ hostvars[groups['k8s_masters'][0]].join_token.stdout }} \
       --discovery-token-ca-cert-hash sha256:{{ hostvars[groups['k8s_masters'][0]].discovery_token_ca_cert_hash.stdout }} \
       --control-plane --certificate-key {{ hostvars[groups['k8s_masters'][0]].certificate_key.stdout }}
+
+# === Join: external etcd (пропускаем download-certs, без certificate-key) ===
+- name: Join control nodes (external etcd)
+  when: not kubeadm_ca.stat.exists and etcd_mode is defined and etcd_mode == "external"
+  ansible.builtin.shell:
+    cmd: |
+      kubeadm join {{ hostvars[groups['k8s_masters'][0]].join_path.stdout }} \
+      --token {{ hostvars[groups['k8s_masters'][0]].join_token.stdout }} \
+      --discovery-token-ca-cert-hash sha256:{{ hostvars[groups['k8s_masters'][0]].discovery_token_ca_cert_hash.stdout }} \
+      --control-plane \
+      --skip-phases=control-plane-prepare/download-certs
 
 # Add link
 

@@ -78,7 +78,7 @@
 
 ## 3. Модификация роли `master` — поддержка external etcd
 
-- [ ] Создать шаблон `roles/master/templates/kubeadm-config-external-etcd.j2` с блоком `etcd.external` (на основе `manifests/01-kubeadm-external-etcd.yaml`):
+- [x] Создать шаблон `roles/master/templates/kubeadm-config-external-etcd.j2` с блоком `etcd.external` (на основе `manifests/01-kubeadm-external-etcd.yaml`):
   ```yaml
   etcd:
     external:
@@ -90,21 +90,21 @@
       certFile: /etc/kubernetes/pki/apiserver-etcd-client.crt
       keyFile: /etc/kubernetes/pki/apiserver-etcd-client.key
   ```
-- [ ] Модифицировать `roles/master/tasks/main.yaml`:
+- [x] Модифицировать `roles/master/tasks/main.yaml`:
   - Добавить условие: при `etcd_mode == "external"` использовать шаблон `kubeadm-config-external-etcd.j2`
   - При `etcd_mode == "stacked"` использовать текущий шаблон `kubeadm-config.j2`
   - При `etcd_mode == "external"` — не выполнять `kubeadm config images pull` для etcd-образа (фильтр или `--skip-phases`)
   - При `etcd_mode == "external"` — не генерировать `certificate-key` (он нужен только для stacked etcd)
-- [ ] Также обновить `kubeadm-config.v4.j2` — заменить `etcd.local` на условный блок для external/stacked (когда шаблон будет раскомментирован)
+- [x] Также обновить `kubeadm-config.v4.j2` — заменить `etcd.local` на условный блок для external/stacked (когда шаблон будет раскомментирован)
 
 ## 4. Модификация роли `second_controls` — external etcd join
 
-- [ ] Модифицировать `roles/second_controls/tasks/join.yaml`:
+- [x] Модифицировать `roles/second_controls/tasks/join.yaml`:
   - При `etcd_mode == "external"`: добавить `--skip-phases=control-plane-prepare/download-certs`
   - При `etcd_mode == "external"`: не передавать `--certificate-key` (он нужен только для stacked etcd)
   - При `etcd_mode == "external"`: перед join — скопировать PKI-сертификаты (ca.crt, ca.key, front-proxy-ca.crt, front-proxy-ca.key, sa.pub, sa.key) с первого master'а
   - При `etcd_mode == "external"`: удалить node-специфичные сертификаты перед join (apiserver.crt, apiserver-kubelet-client.crt, front-proxy-client.crt)
-- [ ] Добавить проверку наличия etcd client certs на control plane нодах (ca.crt + apiserver-etcd-client.crt/key) — роль `etcd` уже загружает их при установке
+- [x] Добавить проверку наличия etcd client certs на control plane нодах (ca.crt + apiserver-etcd-client.crt/key) — роль `etcd` уже загружает их при установке
 
 ## 5. Модификация роли `upgrade-cluster` — upgrade etcd + k8s
 

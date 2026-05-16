@@ -19,19 +19,35 @@
   ansible.builtin.set_fact:
     k8s_middle_version: "{{ kube_version[2:4] | int }}"
 
-- name: Copy kubeadm-config.yaml < 1.31
+# Выбор шаблона kubeadm-config в зависимости от режима etcd
+- name: Copy kubeadm-config.yaml (external etcd)
+  ansible.builtin.template:
+    src: kubeadm-config-external-etcd.j2
+    dest: /etc/kubernetes/kubeadm-config.yaml
+    mode: '0600'
+  when: etcd_mode is defined and etcd_mode == "external"
+
+- name: Copy kubeadm-config.yaml (stacked etcd)
   ansible.builtin.template:
     src: kubeadm-config.j2
     dest: /etc/kubernetes/kubeadm-config.yaml
     mode: '0600'
-#   when: k8s_middle_version < '31'
+  when: etcd_mode is not defined or etcd_mode == "stacked"
 
-# - name: Copy kubeadm-config.yaml >= 1.31
+# Для future: kubeadm-config.v4.j2 (>= 1.31)
+# - name: Copy kubeadm-config.yaml >= 1.31 (external etcd)
+#   ansible.builtin.template:
+#     src: kubeadm-config-v4-external-etcd.j2
+#     dest: /etc/kubernetes/kubeadm-config.yaml
+#     mode: '0600'
+#   when: (etcd_mode is defined and etcd_mode == "external") and k8s_middle_version >= '31'
+
+# - name: Copy kubeadm-config.yaml >= 1.31 (stacked etcd)
 #   ansible.builtin.template:
 #     src: kubeadm-config.v4.j2
 #     dest: /etc/kubernetes/kubeadm-config.yaml
 #     mode: '0600'
-#   when: k8s_middle_version >= '31'
+#   when: (etcd_mode is not defined or etcd_mode == "stacked") and k8s_middle_version >= '31'
 
 # - name: Install Calicoctl
 #   ansible.builtin.get_url:
@@ -39,8 +55,15 @@
 #     dest: /usr/local/bin/calicoctl
 #     mode: '0755'
 
-- name: Load k8s containers
+# При external etcd не нужно загружать образ etcd — тянем только необходимые образы
+- name: Load k8s containers (external etcd — без etcd image)
+  ansible.builtin.shell: |
+    kubeadm config images list --kubernetes-version {{ kube_version }} | grep -v etcd | xargs -I{} kubeadm config images pull --image-name {}
+  when: etcd_mode is defined and etcd_mode == "external"
+
+- name: Load k8s containers (stacked etcd)
   ansible.builtin.command: kubeadm config images pull
+  when: etcd_mode is not defined or etcd_mode == "stacked"
 
 - name: Calico
   when: cni == 'calico'

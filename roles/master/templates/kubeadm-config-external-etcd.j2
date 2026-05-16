@@ -1,48 +1,28 @@
-# На будщее, потом пригодится.
----
-apiVersion: kubeadm.k8s.io/v1beta4
+apiVersion: kubeadm.k8s.io/v1beta3
 kind: InitConfiguration
 localAPIEndpoint:
   advertiseAddress: {{ hostvars[groups['k8s_masters'][0]].ansible_facts.default_ipv4.address }}
   bindPort: 6443
 nodeRegistration:
-  criSocket: "{{ cri_socket }}"
+  criSocket: {{ cri_socket }}
   imagePullPolicy: IfNotPresent
-  name: {{ ansible_facts.fqdn }}
-bootstrapTokens:
-- groups:
-  - system:bootstrappers:kubeadm:default-node-token
-  token: abcdef.0123456789abcdef
-  ttl: 24h0m0s
-  usages:
-  - signing
-  - authentication
-timeouts:
-  controlPlaneComponentHealthCheck: 4m0s
-  discovery: 5m0s
-  etcdAPICall: 2m0s
-  kubeletHealthCheck: 4m0s
-  kubernetesAPICall: 1m0s
-  tlsBootstrap: 5m0s
-  upgradeManifests: 5m0s
+  name: {{ ansible_facts.nodename }}
 ---
+apiVersion: kubeadm.k8s.io/v1beta3
 kind: ClusterConfiguration
-apiVersion: kubeadm.k8s.io/v1beta4
-apiServer: {}
-caCertificateValidityPeriod: 87600h0m0s
-certificateValidityPeriod: 8760h0m0s
 certificatesDir: /etc/kubernetes/pki
 clusterName: {{ kube_domain_name }}
+imageRepository: {{ imageRepository }}
 kubernetesVersion: {{ kube_version }}
-controllerManager: {}
 {% if ha_cluster_virtual_ip is defined and ha_cluster_virtual_ip != "" %}
 controlPlaneEndpoint: {{ ha_cluster_virtual_ip }}:{{ ha_cluster_virtual_port }}
 {% else %}
 controlPlaneEndpoint: {{ hostvars[groups['k8s_masters'][0]].ansible_facts.default_ipv4.address }}:6443
 {% endif %}
-dns: {}
-encryptionAlgorithm: RSA-2048
-{% if etcd_mode is defined and etcd_mode == "external" %}
+networking:
+  dnsDomain: {{ kube_domain_name }}
+  podSubnet: {{ pod_network_cidr }}
+  serviceSubnet: {{ service_cidr }}
 etcd:
   external:
     endpoints:
@@ -52,22 +32,9 @@ etcd:
     caFile: /etc/kubernetes/pki/etcd/ca.crt
     certFile: /etc/kubernetes/pki/apiserver-etcd-client.crt
     keyFile: /etc/kubernetes/pki/apiserver-etcd-client.key
-{% else %}
-etcd:
-  local:
-    dataDir: /var/lib/etcd
-{% endif %}
-imageRepository: {{ imageRepository }}
-networking:
-  dnsDomain: {{ kube_domain_name }}
-  serviceSubnet: {{ service_cidr }}
-  podSubnet: {{ pod_network_cidr }}
-proxy: {}
-scheduler: {}
 ---
 apiVersion: kubeproxy.config.k8s.io/v1alpha1
 kind: KubeProxyConfiguration
-bindAddress: 0.0.0.0
 clusterCIDR: {{ pod_network_cidr }}
 ipvs:
   strictARP: true
@@ -89,10 +56,9 @@ systemReserved:
   ephemeral-storage: {{ system_ephemeral_storage_reserved }}
 {% endif %}
 {% endif %}
-# Default: "10Mi"
 {% if container_log_max_size is defined %}
 containerLogMaxSize: {{ container_log_max_size }}
 {% endif %}
-{% if container_log_max_size is defined %}
+{% if container_log_max_files is defined %}
 containerLogMaxFiles: {{ container_log_max_files }}
 {% endif %}

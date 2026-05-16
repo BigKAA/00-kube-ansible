@@ -8,10 +8,18 @@
     openssl x509 -pubkey -in /etc/kubernetes/pki/ca.crt | openssl rsa -pubin -outform der 2>/dev/null | openssl dgst -sha256 -hex | sed 's/^.* //'
   register: discovery_token_ca_cert_hash
 
-- name: Upload certs
+# Certificate-key нужен только для stacked etcd — для external etcd сертификаты копируются напрямую
+- name: Upload certs (stacked etcd)
   ansible.builtin.shell: |
     kubeadm init phase upload-certs --upload-certs | tail -1
   register: certificate_key
+  when: etcd_mode is not defined or etcd_mode == "stacked"
+
+- name: Set empty certificate-key for external etcd
+  ansible.builtin.set_fact:
+    certificate_key:
+      stdout: ""
+  when: etcd_mode is defined and etcd_mode == "external"
 
 - name: Get join path
   ansible.builtin.shell: |
