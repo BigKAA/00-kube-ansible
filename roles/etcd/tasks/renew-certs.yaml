@@ -12,6 +12,7 @@
     state: absent
   loop: "{{ groups['etcd_nodes'] | map('extract', hostvars, 'etcd_short_name') | product(['.crt', '.key']) | map('join') | list }}"
   delegate_to: localhost
+  become: false
   run_once: true
 
 - name: Удалить старые клиентские сертификаты
@@ -24,6 +25,7 @@
     - "etcd-admin.crt"
     - "etcd-admin.key"
   delegate_to: localhost
+  become: false
   run_once: true
 
 # Перегенерация CA (опционально — если нужно обновить и CA)
@@ -35,6 +37,7 @@
     - "{{ etcd_ca_crt }}"
     - "{{ etcd_ca_key }}"
   delegate_to: localhost
+  become: false
   run_once: true
 
 # Запускаем полную генерацию заново

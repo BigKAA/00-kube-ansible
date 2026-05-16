@@ -40,14 +40,11 @@
       - "https://pkgs.k8s.io/core:/stable:/v{{ kube_version[:4] }}/rpm/repodata/repomd.xml.key"
 
 - name: Install packages dnf
-  dnf:
-    name:
-      - "{{ k8s_rpm_remote_dir }}/kubeadm-{{ kube_version }}*.rpm"
-      - "{{ k8s_rpm_remote_dir }}/kubelet-{{ kube_version }}*.rpm"
-      - "{{ k8s_rpm_remote_dir }}/kubectl-{{ kube_version }}*.rpm"
-    state: present
-    disable_gpg_check: true
-    allow_downgrade: true
+  ansible.builtin.shell: |
+    dnf install -y --disableplugin=fastestmirror --allow-downgrade \
+      {{ k8s_rpm_remote_dir }}/kubeadm-{{ kube_version }}*.rpm \
+      {{ k8s_rpm_remote_dir }}/kubelet-{{ kube_version }}*.rpm \
+      {{ k8s_rpm_remote_dir }}/kubectl-{{ kube_version }}*.rpm
   when: ansible_facts['os_family'] == "RedHat"
 
 - name: Drain node

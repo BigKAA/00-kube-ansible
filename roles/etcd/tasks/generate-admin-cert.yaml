@@ -11,6 +11,7 @@
     etcd_client_cn: "{{ etcd_admin_cn }}"
     etcd_client_org: "{{ etcd_admin_org }}"
   delegate_to: localhost
+  become: false
   run_once: true
 
 - name: etcd-admin — генерация закрытого ключа
@@ -21,6 +22,7 @@
   args:
     creates: "{{ etcd_local_pki_dir }}/etcd-admin.key"
   delegate_to: localhost
+  become: false
   run_once: true
 
 - name: etcd-admin — генерация CSR
@@ -32,6 +34,7 @@
   args:
     creates: "{{ etcd_local_pki_dir }}/etcd-admin.csr"
   delegate_to: localhost
+  become: false
   run_once: true
 
 - name: etcd-admin — подпись сертификата CA
@@ -49,6 +52,7 @@
   args:
     creates: "{{ etcd_local_pki_dir }}/etcd-admin.crt"
   delegate_to: localhost
+  become: false
   run_once: true
 
 - name: etcd-admin — очистка временных файлов
@@ -59,6 +63,7 @@
     - "etcd-admin.csr"
     - "etcd-admin-openssl.cnf"
   delegate_to: localhost
+  become: false
   run_once: true
 
 - name: etcd-admin — установить права
@@ -69,4 +74,5 @@
     - { path: "etcd-admin.key", mode: "0600" }
     - { path: "etcd-admin.crt", mode: "0644" }
   delegate_to: localhost
+  become: false
   run_once: true

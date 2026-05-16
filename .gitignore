@@ -3,7 +3,7 @@ venv/
 .idea/
 .vscode/
 .serena/
-.tmp/
+tmp/
 CLAUDE.md
 files/etcd-pki
 
@@ -12,3 +12,4 @@ tmp/rpms/
 tmp/ansible-cache/
 tmp/ssh/
 tmp/logs/
+files/

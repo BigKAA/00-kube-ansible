@@ -6,12 +6,14 @@
   ansible.builtin.set_fact:
     etcd_resolved_image: "{{ etcd_version_matrix[kube_version] | default(etcd_image) }}"
   delegate_to: localhost
+  become: false
   run_once: true
 
 - name: Вывести выбранную версию etcd
   ansible.builtin.debug:
     msg: "etcd image: {{ etcd_resolved_image }}"
   delegate_to: localhost
+  become: false
   run_once: true
 
 # 1. Генерация CA (на localhost)

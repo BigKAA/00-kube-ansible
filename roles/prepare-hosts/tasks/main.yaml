@@ -53,10 +53,23 @@
 
 - name: Disable firewalld
   when: ansible_facts['os_family'] == "RedHat"
-  ansible.builtin.service:
-    name: firewalld
-    state: stopped
-    enabled: false
+  block:
+    - name: Check if firewalld exists
+      ansible.builtin.command: systemctl list-unit-files firewalld.service
+      register: firewalld_check
+      changed_when: false
+      failed_when: false
+
+    - name: Stop and disable firewalld
+      ansible.builtin.service:
+        name: firewalld
+        state: stopped
+        enabled: false
+      when: "'firewalld.service' in firewalld.stdout"
+  rescue:
+    - name: Firewalld not found - skip
+      ansible.builtin.debug:
+        msg: "firewalld not installed, skipping"
 
 - name: Test swap
   ansible.builtin.shell: "swapon --show --noheadings | wc -l"
@@ -202,13 +215,11 @@
       when:
         - ansible_facts['os_family'] == "RedHat"
         - k8s_install_mode == "offline"
-      ansible.builtin.dnf:
-        name:
-          - "{{ k8s_rpm_remote_dir }}/kubeadm-{{ kube_version }}*.rpm"
-          - "{{ k8s_rpm_remote_dir }}/kubelet-{{ kube_version }}*.rpm"
-          - "{{ k8s_rpm_remote_dir }}/kubectl-{{ kube_version }}*.rpm"
-        state: present
-        disable_gpg_check: true
+      ansible.builtin.shell: |
+        dnf install -y --disableplugin=fastestmirror \
+          {{ k8s_rpm_remote_dir }}/kubeadm-{{ kube_version }}*.rpm \
+          {{ k8s_rpm_remote_dir }}/kubelet-{{ kube_version }}*.rpm \
+          {{ k8s_rpm_remote_dir }}/kubectl-{{ kube_version }}*.rpm
 
     # ============================================================
     # Online mode — установка из репозитория (RedHat)
