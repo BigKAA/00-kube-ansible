@@ -43,7 +43,7 @@
   run_once: true
 
 - name: "{{ _node_short_name }} — подпись сертификата CA"
-  community.crypto.openssl_certificate:
+  community.crypto.x509_certificate:
     path: "{{ etcd_local_pki_dir }}/{{ _node_short_name }}.crt"
     csr_path: "{{ etcd_local_pki_dir }}/{{ _node_short_name }}.csr"
     ownca_path: "{{ etcd_local_pki_dir }}/{{ etcd_ca_crt }}"

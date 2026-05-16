@@ -21,15 +21,38 @@
   become: false
   run_once: true
 
+- name: Генерация CA CSR
+  community.crypto.openssl_csr:
+    path: "{{ etcd_local_pki_dir }}/etcd-ca.csr"
+    privatekey_path: "{{ etcd_local_pki_dir }}/{{ etcd_ca_key }}"
+    common_name: etcd-ca
+    basic_constraints:
+      - "CA:TRUE"
+    basic_constraints_critical: true
+    key_usage:
+      - keyCertSign
+      - cRLSign
+    key_usage_critical: true
+  delegate_to: localhost
+  become: false
+  run_once: true
+
 - name: Генерация CA самоподписанного сертификата
-  community.crypto.openssl_certificate:
+  community.crypto.x509_certificate:
     path: "{{ etcd_local_pki_dir }}/{{ etcd_ca_crt }}"
+    csr_path: "{{ etcd_local_pki_dir }}/etcd-ca.csr"
     privatekey_path: "{{ etcd_local_pki_dir }}/{{ etcd_ca_key }}"
     provider: selfsigned
     selfsigned_not_after: "+{{ etcd_ca_days }}d"
     selfsigned_digest: sha256
-    selfsigned_subject:
-      commonName: etcd-ca
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Удалить временный CA CSR
+  ansible.builtin.file:
+    path: "{{ etcd_local_pki_dir }}/etcd-ca.csr"
+    state: absent
   delegate_to: localhost
   become: false
   run_once: true

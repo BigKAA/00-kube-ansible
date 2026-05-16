@@ -40,7 +40,7 @@
 - name: Проверить, что все ноды здоровы
   ansible.builtin.assert:
     that:
-      - item.json.health == true
+      - (item.content | from_json).health == "true"
     fail_msg: "Нода {{ item.item }} не прошла health check"
     quiet: true
   loop: "{{ _etcd_health_results.results }}"

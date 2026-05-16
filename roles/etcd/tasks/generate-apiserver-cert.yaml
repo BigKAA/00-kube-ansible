@@ -29,7 +29,7 @@
   run_once: true
 
 - name: apiserver-etcd-client — подпись сертификата CA
-  community.crypto.openssl_certificate:
+  community.crypto.x509_certificate:
     path: "{{ etcd_local_pki_dir }}/apiserver-etcd-client.crt"
     csr_path: "{{ etcd_local_pki_dir }}/apiserver-etcd-client.csr"
     ownca_path: "{{ etcd_local_pki_dir }}/{{ etcd_ca_crt }}"
