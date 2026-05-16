@@ -3,4 +3,6 @@ venv/
 .idea/
 .vscode/
 .serena/
+.tmp/
 CLAUDE.md
+files/etcd-pki

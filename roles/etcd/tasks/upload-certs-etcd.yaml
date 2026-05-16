@@ -1,0 +1,38 @@
+---
+# Загрузка сертификатов на etcd ноды
+# На каждую ноду загружаются:
+#   - CA: etcd-ca.crt → /etc/etcd/pki/ca.crt
+#   - Нодовый сертификат: <short_name>.crt → /etc/etcd/pki/server.crt
+#   - Нодовый ключ: <short_name>.key → /etc/etcd/pki/server.key
+
+- name: Создать каталог PKI на etcd ноде
+  ansible.builtin.file:
+    path: "{{ etcd_pki_dir }}"
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+
+- name: Загрузить CA сертификат
+  ansible.builtin.copy:
+    src: "{{ etcd_local_pki_dir }}/{{ etcd_ca_crt }}"
+    dest: "{{ etcd_pki_dir }}/ca.crt"
+    mode: '0644'
+    owner: root
+    group: root
+
+- name: Загрузить сертификат ноды
+  ansible.builtin.copy:
+    src: "{{ etcd_local_pki_dir }}/{{ etcd_short_name }}.crt"
+    dest: "{{ etcd_pki_dir }}/server.crt"
+    mode: '0644'
+    owner: root
+    group: root
+
+- name: Загрузить ключ ноды
+  ansible.builtin.copy:
+    src: "{{ etcd_local_pki_dir }}/{{ etcd_short_name }}.key"
+    dest: "{{ etcd_pki_dir }}/server.key"
+    mode: '0600'
+    owner: root
+    group: root

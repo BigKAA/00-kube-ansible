@@ -1,0 +1,81 @@
+---
+# Проверка состояния кластера etcd
+# Выполняется на первой etcd ноде (run_once)
+
+- name: Сформировать список endpoints кластера
+  ansible.builtin.set_fact:
+    _etcd_endpoints: >-
+      {% for host in groups['etcd_nodes'] %}https://{{ hostvars[host].ansible_host }}:2379{% if not loop.last %},{% endif %}{% endfor %}
+  run_once: true
+
+- name: Ожидание запуска etcd (порт 2379)
+  ansible.builtin.wait_for:
+    port: 2379
+    host: "{{ ansible_host }}"
+    timeout: 120
+    delay: 5
+
+- name: Проверка health кластера etcd
+  ansible.builtin.command: >
+    docker run --rm
+    --network host
+    --volume {{ etcd_pki_dir }}:/etc/etcd/pki:ro
+    {{ etcd_resolved_image }}
+    /usr/local/bin/etcdctl
+    --cacert=/etc/etcd/pki/ca.crt
+    --cert=/etc/etcd/pki/server.crt
+    --key=/etc/etcd/pki/server.key
+    --endpoints={{ _etcd_endpoints }}
+    endpoint health
+  register: _etcd_health
+  retries: 10
+  delay: 10
+  changed_when: false
+  run_once: true
+
+- name: Вывести результат проверки health
+  ansible.builtin.debug:
+    msg: "{{ _etcd_health.stdout_lines }}"
+  run_once: true
+
+- name: Получить статус endpoints кластера
+  ansible.builtin.command: >
+    docker run --rm
+    --network host
+    --volume {{ etcd_pki_dir }}:/etc/etcd/pki:ro
+    {{ etcd_resolved_image }}
+    /usr/local/bin/etcdctl
+    --cacert=/etc/etcd/pki/ca.crt
+    --cert=/etc/etcd/pki/server.crt
+    --key=/etc/etcd/pki/server.key
+    --endpoints={{ _etcd_endpoints }}
+    -w table endpoint status
+  register: _etcd_status
+  changed_when: false
+  run_once: true
+
+- name: Вывести статус кластера
+  ansible.builtin.debug:
+    msg: "{{ _etcd_status.stdout_lines }}"
+  run_once: true
+
+- name: Проверить список членов кластера
+  ansible.builtin.command: >
+    docker run --rm
+    --network host
+    --volume {{ etcd_pki_dir }}:/etc/etcd/pki:ro
+    {{ etcd_resolved_image }}
+    /usr/local/bin/etcdctl
+    --cacert=/etc/etcd/pki/ca.crt
+    --cert=/etc/etcd/pki/server.crt
+    --key=/etc/etcd/pki/server.key
+    --endpoints={{ _etcd_endpoints }}
+    member list
+  register: _etcd_members
+  changed_when: false
+  run_once: true
+
+- name: Вывести список членов кластера
+  ansible.builtin.debug:
+    msg: "{{ _etcd_members.stdout_lines }}"
+  run_once: true

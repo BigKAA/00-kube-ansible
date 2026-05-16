@@ -1,0 +1,55 @@
+---
+# Точка входа роли etcd — оркестрация всех этапов
+
+# Определяем версию etcd по матрице совместимости с kube_version
+- name: Определить версию etcd по матрице совместимости
+  ansible.builtin.set_fact:
+    etcd_resolved_image: "{{ etcd_version_matrix[kube_version] | default(etcd_image) }}"
+  delegate_to: localhost
+  run_once: true
+
+- name: Вывести выбранную версию etcd
+  ansible.builtin.debug:
+    msg: "etcd image: {{ etcd_resolved_image }}"
+  delegate_to: localhost
+  run_once: true
+
+# 1. Генерация CA (на localhost)
+- name: Генерация etcd CA
+  ansible.builtin.include_tasks: generate-ca.yaml
+  run_once: true
+
+# 2. Генерация сертификатов нод (на localhost)
+- name: Генерация сертификатов etcd-нод
+  ansible.builtin.include_tasks: generate-certs.yaml
+  run_once: true
+
+# 3. Генерация клиентского сертификата kube-apiserver (на localhost)
+- name: Генерация клиентского сертификата apiserver
+  ansible.builtin.include_tasks: generate-apiserver-cert.yaml
+  run_once: true
+
+# 4. Генерация административного сертификата etcdctl (на localhost)
+- name: Генерация административного сертификата etcdctl
+  ansible.builtin.include_tasks: generate-admin-cert.yaml
+  run_once: true
+
+# 5. Загрузка сертификатов на etcd ноды
+- name: Загрузка сертификатов на etcd ноды
+  ansible.builtin.include_tasks: upload-certs-etcd.yaml
+
+# 6. Загрузка клиентских сертификатов на control plane ноды
+- name: Загрузка клиентских сертификатов на k8s control plane
+  ansible.builtin.include_tasks: upload-certs-k8s.yaml
+  loop: "{{ groups['k8s_masters'] }}"
+  loop_control:
+    loop_var: _k8s_master
+
+# 7. Установка etcd (создание каталогов, env, systemd unit, запуск)
+- name: Установка контейнерного etcd
+  ansible.builtin.include_tasks: install.yaml
+
+# 8. Проверка состояния кластера
+- name: Проверка состояния кластера etcd
+  ansible.builtin.include_tasks: health-check.yaml
+  run_once: true

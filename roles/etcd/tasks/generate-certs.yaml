@@ -1,0 +1,20 @@
+---
+# Генерация сертификатов etcd-нод (на localhost)
+# Для каждой ноды в группе etcd_nodes создаётся:
+#   - закрытый ключ (<short_name>.key)
+#   - сертификат (<short_name>.crt) с SAN (FQDN, short_name, IP, 127.0.0.1)
+
+- name: Создать каталог PKI
+  ansible.builtin.file:
+    path: "{{ etcd_local_pki_dir }}"
+    state: directory
+    mode: '0700'
+  delegate_to: localhost
+  run_once: true
+
+- name: Генерация сертификатов для каждой etcd ноды
+  ansible.builtin.include_tasks: _generate-node-cert.yaml
+  loop: "{{ groups['etcd_nodes'] }}"
+  loop_control:
+    loop_var: _etcd_node
+  run_once: true

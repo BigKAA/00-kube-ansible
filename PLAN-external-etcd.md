@@ -44,37 +44,37 @@
 
 ### 2.1. Структура роли
 
-- [ ] Создать структуру директорий `roles/etcd/{tasks,templates,files,handlers,defaults}`
+- [x] Создать структуру директорий `roles/etcd/{tasks,templates,files,handlers,defaults}`
 
 ### 2.2. Задачи (tasks)
 
-- [ ] `roles/etcd/tasks/main.yaml` — точка входа, делегирует вызовы
-- [ ] `roles/etcd/tasks/generate-ca.yaml` — генерация etcd CA (openssl, на localhost)
-- [ ] `roles/etcd/tasks/generate-certs.yaml` — генерация сертификатов etcd-нод (на localhost)
-- [ ] `roles/etcd/tasks/generate-apiserver-cert.yaml` — генерация клиентского сертификата kube-apiserver (на localhost)
-- [ ] `roles/etcd/tasks/generate-admin-cert.yaml` — генерация административного сертификата etcdctl (на localhost)
-- [ ] `roles/etcd/tasks/upload-certs-etcd.yaml` — загрузка сертификатов на etcd ноды
-- [ ] `roles/etcd/tasks/upload-certs-k8s.yaml` — загрузка клиентских сертификатов на control plane ноды
-- [ ] `roles/etcd/tasks/install.yaml` — установка контейнерного etcd (создание каталогов, env-файл, systemd unit, запуск)
-- [ ] `roles/etcd/tasks/health-check.yaml` — проверка состояния кластера etcd
-- [ ] `roles/etcd/tasks/renew-certs.yaml` — обновление сертификатов etcd
+- [x] `roles/etcd/tasks/main.yaml` — точка входа, делегирует вызовы
+- [x] `roles/etcd/tasks/generate-ca.yaml` — генерация etcd CA (openssl, на localhost)
+- [x] `roles/etcd/tasks/generate-certs.yaml` — генерация сертификатов etcd-нод (на localhost)
+- [x] `roles/etcd/tasks/generate-apiserver-cert.yaml` — генерация клиентского сертификата kube-apiserver (на localhost)
+- [x] `roles/etcd/tasks/generate-admin-cert.yaml` — генерация административного сертификата etcdctl (на localhost)
+- [x] `roles/etcd/tasks/upload-certs-etcd.yaml` — загрузка сертификатов на etcd ноды
+- [x] `roles/etcd/tasks/upload-certs-k8s.yaml` — загрузка клиентских сертификатов на control plane ноды
+- [x] `roles/etcd/tasks/install.yaml` — установка контейнерного etcd (создание каталогов, env-файл, systemd unit, запуск)
+- [x] `roles/etcd/tasks/health-check.yaml` — проверка состояния кластера etcd
+- [x] `roles/etcd/tasks/renew-certs.yaml` — обновление сертификатов etcd
 
 ### 2.3. Шаблоны (templates)
 
-- [ ] `roles/etcd/templates/etcd.env.j2` — шаблон environment-файла для systemd unit
-- [ ] `roles/etcd/templates/etcd.service.j2` — шаблон systemd unit (на основе `05-etcd-install-container-cluster.sh`)
-- [ ] `roles/etcd/templates/openssl-node.cnf.j2` — шаблон openssl-конфига для сертификатов нод
-- [ ] `roles/etcd/templates/openssl-client.cnf.j2` — шаблон openssl-конфига для клиентских сертификатов
+- [x] `roles/etcd/templates/etcd.env.j2` — шаблон environment-файла для systemd unit
+- [x] `roles/etcd/templates/etcd.service.j2` — шаблон systemd unit (на основе `05-etcd-install-container-cluster.sh`)
+- [x] `roles/etcd/templates/openssl-node.cnf.j2` — шаблон openssl-конфига для сертификатов нод
+- [x] `roles/etcd/templates/openssl-client.cnf.j2` — шаблон openssl-конфига для клиентских сертификатов
 
 ### 2.4. Defaults
 
-- [ ] `roles/etcd/defaults/main.yaml` — значения по умолчанию для роли etcd
+- [x] `roles/etcd/defaults/main.yaml` — значения по умолчанию для роли etcd
 
 ### 2.5. Конфигурация etcd
 
-- [ ] Реализовать определение версии etcd по версии Kubernetes (матрица совместимости)
-- [ ] Использовать `etcd_short_name` из inventory для формирования `ETCD_INITIAL_CLUSTER`
-- [ ] Формировать `ETCD_INITIAL_CLUSTER` динамически из inventory группы `etcd_nodes`
+- [x] Реализовать определение версии etcd по версии Kubernetes (матрица совместимости)
+- [x] Использовать `etcd_short_name` из inventory для формирования `ETCD_INITIAL_CLUSTER`
+- [x] Формировать `ETCD_INITIAL_CLUSTER` динамически из inventory группы `etcd_nodes`
 
 ## 3. Модификация роли `master` — поддержка external etcd
 
@@ -92,17 +92,19 @@
   ```
 - [ ] Модифицировать `roles/master/tasks/main.yaml`:
   - Добавить условие: при `etcd_mode == "external"` использовать шаблон `kubeadm-config-external-etcd.j2`
-  - При `etcd_mode == "stacked"` использовать текущий шаблон
-  - При `etcd_mode == "external"` — не выполнять `kubeadm config images pull` для etcd (добавить фильтр)
-- [ ] Также обновить `kubeadm-config.v4.j2` — заменить `etcd.local` на условный блок для external/stacked
+  - При `etcd_mode == "stacked"` использовать текущий шаблон `kubeadm-config.j2`
+  - При `etcd_mode == "external"` — не выполнять `kubeadm config images pull` для etcd-образа (фильтр или `--skip-phases`)
+  - При `etcd_mode == "external"` — не генерировать `certificate-key` (он нужен только для stacked etcd)
+- [ ] Также обновить `kubeadm-config.v4.j2` — заменить `etcd.local` на условный блок для external/stacked (когда шаблон будет раскомментирован)
 
 ## 4. Модификация роли `second_controls` — external etcd join
 
 - [ ] Модифицировать `roles/second_controls/tasks/join.yaml`:
   - При `etcd_mode == "external"`: добавить `--skip-phases=control-plane-prepare/download-certs`
+  - При `etcd_mode == "external"`: не передавать `--certificate-key` (он нужен только для stacked etcd)
   - При `etcd_mode == "external"`: перед join — скопировать PKI-сертификаты (ca.crt, ca.key, front-proxy-ca.crt, front-proxy-ca.key, sa.pub, sa.key) с первого master'а
   - При `etcd_mode == "external"`: удалить node-специфичные сертификаты перед join (apiserver.crt, apiserver-kubelet-client.crt, front-proxy-client.crt)
-- [ ] Добавить задачи для копирования etcd client certs на control plane ноды (ca.crt + apiserver-etcd-client.crt/key) — если ещё не скопированы ролью etcd
+- [ ] Добавить проверку наличия etcd client certs на control plane нодах (ca.crt + apiserver-etcd-client.crt/key) — роль `etcd` уже загружает их при установке
 
 ## 5. Модификация роли `upgrade-cluster` — upgrade etcd + k8s
 
@@ -128,11 +130,12 @@
     roles:
       - etcd
     # Генерация сертификатов выполняется на localhost (delegate_to)
+    # Загрузка сертификатов на k8s_masters выполняется в рамках этой же роли
   ```
   Порядок:
   1. Checking odd number (существующий)
   2. Install packages (существующий)
-  3. **Install external etcd** (новый, при external)
+  3. **Install external etcd** (новый, при external — включает загрузку etcd-сертификатов на k8s_masters)
   4. Install Control nodes (модифицированный)
   5. Install worker nodes (существующий)
 
@@ -154,7 +157,7 @@
 - [ ] Добавить задачи для очистки external etcd при `etcd_mode == "external"`:
   - Остановка и отключение etcd сервиса на etcd нодах
   - Удаление systemd unit, контейнера, данных (`/var/lib/etcd`), конфигурации (`/etc/etcd`)
-  - Опционально: удаление локальных сертификатов PKI
+  - Опционально: удаление локальных сертификатов PKI (`files/etcd-pki/`) на Ansible control node
 - [ ] Добавить отдельный флаг/переменную для управления очисткой etcd (например, `reset_etcd: false`)
 
 ## 9. Документация

@@ -1,0 +1,78 @@
+---
+# Генерация сертификата для одной etcd ноды
+# Переменные цикла: _etcd_node (inventory hostname из groups['etcd_nodes'])
+
+- name: Установить факты ноды {{ _etcd_node }}
+  ansible.builtin.set_fact:
+    _node_short_name: "{{ hostvars[_etcd_node].etcd_short_name }}"
+    _node_ip: "{{ hostvars[_etcd_node].ansible_host }}"
+    _node_fqdn: "{{ _etcd_node }}"
+  delegate_to: localhost
+  run_once: true
+
+- name: "{{ _node_short_name }} — сгенерировать openssl конфиг"
+  ansible.builtin.template:
+    src: openssl-node.cnf.j2
+    dest: "{{ etcd_local_pki_dir }}/{{ _node_short_name }}-openssl.cnf"
+    mode: '0644'
+  vars:
+    etcd_node_fqdn: "{{ _node_fqdn }}"
+    etcd_short_name: "{{ _node_short_name }}"
+    ansible_host: "{{ _node_ip }}"
+  delegate_to: localhost
+  run_once: true
+
+- name: "{{ _node_short_name }} — генерация закрытого ключа"
+  ansible.builtin.command: >
+    openssl genrsa
+    -out {{ etcd_local_pki_dir }}/{{ _node_short_name }}.key
+    {{ etcd_key_size }}
+  args:
+    creates: "{{ etcd_local_pki_dir }}/{{ _node_short_name }}.key"
+  delegate_to: localhost
+  run_once: true
+
+- name: "{{ _node_short_name }} — генерация CSR"
+  ansible.builtin.command: >
+    openssl req -new
+    -key {{ etcd_local_pki_dir }}/{{ _node_short_name }}.key
+    -out {{ etcd_local_pki_dir }}/{{ _node_short_name }}.csr
+    -config {{ etcd_local_pki_dir }}/{{ _node_short_name }}-openssl.cnf
+  args:
+    creates: "{{ etcd_local_pki_dir }}/{{ _node_short_name }}.csr"
+  delegate_to: localhost
+  run_once: true
+
+- name: "{{ _node_short_name }} — подпись сертификата CA"
+  ansible.builtin.command: >
+    openssl x509 -req
+    -in {{ etcd_local_pki_dir }}/{{ _node_short_name }}.csr
+    -CA {{ etcd_local_pki_dir }}/{{ etcd_ca_crt }}
+    -CAkey {{ etcd_local_pki_dir }}/{{ etcd_ca_key }}
+    -CAcreateserial
+    -out {{ etcd_local_pki_dir }}/{{ _node_short_name }}.crt
+    -days {{ etcd_cert_days }}
+    -sha256
+    -extensions v3_req
+    -extfile {{ etcd_local_pki_dir }}/{{ _node_short_name }}-openssl.cnf
+  args:
+    creates: "{{ etcd_local_pki_dir }}/{{ _node_short_name }}.crt"
+  delegate_to: localhost
+  run_once: true
+
+- name: "{{ _node_short_name }} — очистка временных файлов"
+  ansible.builtin.file:
+    path: "{{ etcd_local_pki_dir }}/{{ item }}"
+    state: absent
+  loop:
+    - "{{ _node_short_name }}.csr"
+    - "{{ _node_short_name }}-openssl.cnf"
+  delegate_to: localhost
+  run_once: true
+
+- name: "{{ _node_short_name }} — установить права на ключ"
+  ansible.builtin.file:
+    path: "{{ etcd_local_pki_dir }}/{{ _node_short_name }}.key"
+    mode: '0600'
+  delegate_to: localhost
+  run_once: true

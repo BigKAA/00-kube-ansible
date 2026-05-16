@@ -1,0 +1,72 @@
+---
+# Генерация административного сертификата etcdctl (на localhost)
+# Создаёт файлы: etcd-admin.crt, etcd-admin.key
+
+- name: etcd-admin — сгенерировать openssl конфиг
+  ansible.builtin.template:
+    src: openssl-client.cnf.j2
+    dest: "{{ etcd_local_pki_dir }}/etcd-admin-openssl.cnf"
+    mode: '0644'
+  vars:
+    etcd_client_cn: "{{ etcd_admin_cn }}"
+    etcd_client_org: "{{ etcd_admin_org }}"
+  delegate_to: localhost
+  run_once: true
+
+- name: etcd-admin — генерация закрытого ключа
+  ansible.builtin.command: >
+    openssl genrsa
+    -out {{ etcd_local_pki_dir }}/etcd-admin.key
+    {{ etcd_key_size }}
+  args:
+    creates: "{{ etcd_local_pki_dir }}/etcd-admin.key"
+  delegate_to: localhost
+  run_once: true
+
+- name: etcd-admin — генерация CSR
+  ansible.builtin.command: >
+    openssl req -new
+    -key {{ etcd_local_pki_dir }}/etcd-admin.key
+    -out {{ etcd_local_pki_dir }}/etcd-admin.csr
+    -config {{ etcd_local_pki_dir }}/etcd-admin-openssl.cnf
+  args:
+    creates: "{{ etcd_local_pki_dir }}/etcd-admin.csr"
+  delegate_to: localhost
+  run_once: true
+
+- name: etcd-admin — подпись сертификата CA
+  ansible.builtin.command: >
+    openssl x509 -req
+    -in {{ etcd_local_pki_dir }}/etcd-admin.csr
+    -CA {{ etcd_local_pki_dir }}/{{ etcd_ca_crt }}
+    -CAkey {{ etcd_local_pki_dir }}/{{ etcd_ca_key }}
+    -CAcreateserial
+    -out {{ etcd_local_pki_dir }}/etcd-admin.crt
+    -days {{ etcd_cert_days }}
+    -sha256
+    -extensions v3_req
+    -extfile {{ etcd_local_pki_dir }}/etcd-admin-openssl.cnf
+  args:
+    creates: "{{ etcd_local_pki_dir }}/etcd-admin.crt"
+  delegate_to: localhost
+  run_once: true
+
+- name: etcd-admin — очистка временных файлов
+  ansible.builtin.file:
+    path: "{{ etcd_local_pki_dir }}/{{ item }}"
+    state: absent
+  loop:
+    - "etcd-admin.csr"
+    - "etcd-admin-openssl.cnf"
+  delegate_to: localhost
+  run_once: true
+
+- name: etcd-admin — установить права
+  ansible.builtin.file:
+    path: "{{ etcd_local_pki_dir }}/{{ item.path }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "etcd-admin.key", mode: "0600" }
+    - { path: "etcd-admin.crt", mode: "0644" }
+  delegate_to: localhost
+  run_once: true

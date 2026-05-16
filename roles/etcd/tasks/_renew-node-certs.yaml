@@ -1,0 +1,75 @@
+---
+# Rolling обновление сертификатов на одной etcd ноде
+# Переменные цикла: _etcd_node
+
+- name: "{{ _etcd_node }} — создать каталог PKI"
+  ansible.builtin.file:
+    path: "{{ hostvars[_etcd_node].etcd_pki_dir | default('/etc/etcd/pki') }}"
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+  delegate_to: "{{ _etcd_node }}"
+
+- name: "{{ _etcd_node }} — загрузить CA сертификат"
+  ansible.builtin.copy:
+    src: "{{ etcd_local_pki_dir }}/{{ etcd_ca_crt }}"
+    dest: "{{ hostvars[_etcd_node].etcd_pki_dir | default('/etc/etcd/pki') }}/ca.crt"
+    mode: '0644'
+    owner: root
+    group: root
+  delegate_to: "{{ _etcd_node }}"
+
+- name: "{{ _etcd_node }} — загрузить сертификат ноды"
+  ansible.builtin.copy:
+    src: "{{ etcd_local_pki_dir }}/{{ hostvars[_etcd_node].etcd_short_name }}.crt"
+    dest: "{{ hostvars[_etcd_node].etcd_pki_dir | default('/etc/etcd/pki') }}/server.crt"
+    mode: '0644'
+    owner: root
+    group: root
+  delegate_to: "{{ _etcd_node }}"
+
+- name: "{{ _etcd_node }} — загрузить ключ ноды"
+  ansible.builtin.copy:
+    src: "{{ etcd_local_pki_dir }}/{{ hostvars[_etcd_node].etcd_short_name }}.key"
+    dest: "{{ hostvars[_etcd_node].etcd_pki_dir | default('/etc/etcd/pki') }}/server.key"
+    mode: '0600'
+    owner: root
+    group: root
+  delegate_to: "{{ _etcd_node }}"
+
+- name: "{{ _etcd_node }} — перезапустить etcd"
+  ansible.builtin.service:
+    name: etcd
+    state: restarted
+  delegate_to: "{{ _etcd_node }}"
+
+- name: "{{ _etcd_node }} — ожидание запуска etcd"
+  ansible.builtin.wait_for:
+    port: 2379
+    host: "{{ hostvars[_etcd_node].ansible_host }}"
+    timeout: 60
+    delay: 5
+  delegate_to: "{{ _etcd_node }}"
+
+- name: "{{ _etcd_node }} — проверка health"
+  ansible.builtin.command: >
+    docker run --rm
+    --network host
+    --volume {{ hostvars[_etcd_node].etcd_pki_dir | default('/etc/etcd/pki') }}:/etc/etcd/pki:ro
+    {{ etcd_resolved_image }}
+    /usr/local/bin/etcdctl
+    --cacert=/etc/etcd/pki/ca.crt
+    --cert=/etc/etcd/pki/server.crt
+    --key=/etc/etcd/pki/server.key
+    --endpoints={{ _etcd_endpoints }}
+    endpoint health
+  register: _node_health
+  retries: 5
+  delay: 10
+  changed_when: false
+  delegate_to: "{{ _etcd_node }}"
+
+- name: "{{ _etcd_node }} — health OK"
+  ansible.builtin.debug:
+    msg: "{{ _node_health.stdout_lines }}"

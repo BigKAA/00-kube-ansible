@@ -1,0 +1,57 @@
+---
+# Установка контейнерного etcd
+# Создание каталогов, env-файл, systemd unit, запуск
+
+- name: Проверить наличие Docker
+  ansible.builtin.command: docker --version
+  register: _docker_check
+  changed_when: false
+  failed_when: false
+
+- name: Ошибка — Docker не установлен
+  ansible.builtin.fail:
+    msg: "Docker не найден на {{ inventory_hostname }}. Установите Docker перед запуском роли etcd."
+  when: _docker_check.rc != 0
+
+- name: Включить и запустить Docker
+  ansible.builtin.service:
+    name: docker
+    state: started
+    enabled: true
+
+- name: Создать каталоги etcd
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "{{ item.mode | default('0755') }}"
+    owner: root
+    group: root
+  loop:
+    - { path: "{{ etcd_config_dir }}" }
+    - { path: "{{ etcd_data_dir }}", mode: "0700" }
+
+- name: Развёртывание environment-файла etcd.env
+  ansible.builtin.template:
+    src: etcd.env.j2
+    dest: "{{ etcd_config_dir }}/etcd.env"
+    mode: '0644'
+    owner: root
+    group: root
+
+- name: Развёртывание systemd unit etcd.service
+  ansible.builtin.template:
+    src: etcd.service.j2
+    dest: /etc/systemd/system/etcd.service
+    mode: '0644'
+    owner: root
+    group: root
+
+- name: Перезагрузить systemd daemon
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Включить и запустить etcd
+  ansible.builtin.service:
+    name: etcd
+    state: started
+    enabled: true

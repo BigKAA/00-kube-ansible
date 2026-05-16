@@ -1,0 +1,72 @@
+---
+# Генерация клиентского сертификата kube-apiserver → etcd (на localhost)
+# Создаёт файлы: apiserver-etcd-client.crt, apiserver-etcd-client.key
+
+- name: apiserver-etcd-client — сгенерировать openssl конфиг
+  ansible.builtin.template:
+    src: openssl-client.cnf.j2
+    dest: "{{ etcd_local_pki_dir }}/apiserver-etcd-client-openssl.cnf"
+    mode: '0644'
+  vars:
+    etcd_client_cn: "{{ etcd_apiserver_cn }}"
+    etcd_client_org: "{{ etcd_apiserver_org }}"
+  delegate_to: localhost
+  run_once: true
+
+- name: apiserver-etcd-client — генерация закрытого ключа
+  ansible.builtin.command: >
+    openssl genrsa
+    -out {{ etcd_local_pki_dir }}/apiserver-etcd-client.key
+    {{ etcd_key_size }}
+  args:
+    creates: "{{ etcd_local_pki_dir }}/apiserver-etcd-client.key"
+  delegate_to: localhost
+  run_once: true
+
+- name: apiserver-etcd-client — генерация CSR
+  ansible.builtin.command: >
+    openssl req -new
+    -key {{ etcd_local_pki_dir }}/apiserver-etcd-client.key
+    -out {{ etcd_local_pki_dir }}/apiserver-etcd-client.csr
+    -config {{ etcd_local_pki_dir }}/apiserver-etcd-client-openssl.cnf
+  args:
+    creates: "{{ etcd_local_pki_dir }}/apiserver-etcd-client.csr"
+  delegate_to: localhost
+  run_once: true
+
+- name: apiserver-etcd-client — подпись сертификата CA
+  ansible.builtin.command: >
+    openssl x509 -req
+    -in {{ etcd_local_pki_dir }}/apiserver-etcd-client.csr
+    -CA {{ etcd_local_pki_dir }}/{{ etcd_ca_crt }}
+    -CAkey {{ etcd_local_pki_dir }}/{{ etcd_ca_key }}
+    -CAcreateserial
+    -out {{ etcd_local_pki_dir }}/apiserver-etcd-client.crt
+    -days {{ etcd_cert_days }}
+    -sha256
+    -extensions v3_req
+    -extfile {{ etcd_local_pki_dir }}/apiserver-etcd-client-openssl.cnf
+  args:
+    creates: "{{ etcd_local_pki_dir }}/apiserver-etcd-client.crt"
+  delegate_to: localhost
+  run_once: true
+
+- name: apiserver-etcd-client — очистка временных файлов
+  ansible.builtin.file:
+    path: "{{ etcd_local_pki_dir }}/{{ item }}"
+    state: absent
+  loop:
+    - "apiserver-etcd-client.csr"
+    - "apiserver-etcd-client-openssl.cnf"
+  delegate_to: localhost
+  run_once: true
+
+- name: apiserver-etcd-client — установить права
+  ansible.builtin.file:
+    path: "{{ etcd_local_pki_dir }}/{{ item.path }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "apiserver-etcd-client.key", mode: "0600" }
+    - { path: "apiserver-etcd-client.crt", mode: "0644" }
+  delegate_to: localhost
+  run_once: true

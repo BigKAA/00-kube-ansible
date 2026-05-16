@@ -1,0 +1,65 @@
+---
+# Обновление сертификатов etcd
+# 1. Перегенерация сертификатов нод на localhost
+# 2. Загрузка новых сертификатов на ноды
+# 3. Перезапуск etcd по одной ноде (rolling)
+# 4. Проверка health после каждой ноды
+
+# Перегенерация сертификатов — удаляем старые и запускаем генерацию заново
+- name: Удалить старые сертификаты нод
+  ansible.builtin.file:
+    path: "{{ etcd_local_pki_dir }}/{{ item }}"
+    state: absent
+  loop: "{{ groups['etcd_nodes'] | map('extract', hostvars, 'etcd_short_name') | product(['.crt', '.key']) | map('join') | list }}"
+  delegate_to: localhost
+  run_once: true
+
+- name: Удалить старые клиентские сертификаты
+  ansible.builtin.file:
+    path: "{{ etcd_local_pki_dir }}/{{ item }}"
+    state: absent
+  loop:
+    - "apiserver-etcd-client.crt"
+    - "apiserver-etcd-client.key"
+    - "etcd-admin.crt"
+    - "etcd-admin.key"
+  delegate_to: localhost
+  run_once: true
+
+# Перегенерация CA (опционально — если нужно обновить и CA)
+- name: Удалить старый CA
+  ansible.builtin.file:
+    path: "{{ etcd_local_pki_dir }}/{{ item }}"
+    state: absent
+  loop:
+    - "{{ etcd_ca_crt }}"
+    - "{{ etcd_ca_key }}"
+  delegate_to: localhost
+  run_once: true
+
+# Запускаем полную генерацию заново
+- name: Перегенерация CA
+  ansible.builtin.include_tasks: generate-ca.yaml
+
+- name: Перегенерация сертификатов нод
+  ansible.builtin.include_tasks: generate-certs.yaml
+
+- name: Перегенерация клиентского сертификата apiserver
+  ansible.builtin.include_tasks: generate-apiserver-cert.yaml
+
+- name: Перегенерация административного сертификата
+  ansible.builtin.include_tasks: generate-admin-cert.yaml
+
+# Rolling перезапуск — загрузка и перезапуск по одной ноде
+- name: Сформировать список endpoints кластера
+  ansible.builtin.set_fact:
+    _etcd_endpoints: >-
+      {% for host in groups['etcd_nodes'] %}https://{{ hostvars[host].ansible_host }}:2379{% if not loop.last %},{% endif %}{% endfor %}
+  run_once: true
+
+- name: Rolling обновление сертификатов на нодах
+  ansible.builtin.include_tasks: _renew-node-certs.yaml
+  loop: "{{ groups['etcd_nodes'] }}"
+  loop_control:
+    loop_var: _etcd_node
+  run_once: true

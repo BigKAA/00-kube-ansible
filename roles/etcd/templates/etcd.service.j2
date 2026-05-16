@@ -1,0 +1,52 @@
+[Unit]
+Description=etcd key-value store in container
+Documentation=https://etcd.io/docs/
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/etcd/etcd.env
+ExecStartPre=-/usr/bin/docker rm -f etcd
+ExecStartPre=/usr/bin/docker pull ${ETCD_IMAGE}
+ExecStart=/usr/bin/docker run \
+  --rm \
+  --name etcd \
+  --network host \
+  --log-driver=journald \
+  --pids-limit=-1 \
+  --volume /var/lib/etcd:/var/lib/etcd:Z \
+  --volume /etc/etcd/pki:/etc/etcd/pki:ro,Z \
+  ${ETCD_IMAGE} \
+  /usr/local/bin/etcd \
+  --name=${ETCD_NAME} \
+  --data-dir=/var/lib/etcd \
+  --listen-client-urls=https://${THIS_IP}:2379,https://127.0.0.1:2379 \
+  --advertise-client-urls=https://${THIS_IP}:2379 \
+  --listen-peer-urls=https://${THIS_IP}:2380 \
+  --initial-advertise-peer-urls=https://${THIS_IP}:2380 \
+  --initial-cluster=${ETCD_INITIAL_CLUSTER} \
+  --initial-cluster-token=${ETCD_INITIAL_CLUSTER_TOKEN} \
+  --initial-cluster-state=${ETCD_INITIAL_CLUSTER_STATE} \
+  --client-cert-auth=true \
+  --trusted-ca-file=/etc/etcd/pki/ca.crt \
+  --cert-file=/etc/etcd/pki/server.crt \
+  --key-file=/etc/etcd/pki/server.key \
+  --peer-client-cert-auth=true \
+  --peer-trusted-ca-file=/etc/etcd/pki/ca.crt \
+  --peer-cert-file=/etc/etcd/pki/server.crt \
+  --peer-key-file=/etc/etcd/pki/server.key \
+  --auto-compaction-mode={{ etcd_auto_compaction_mode }} \
+  --auto-compaction-retention={{ etcd_auto_compaction_retention }} \
+  --quota-backend-bytes={{ etcd_quota_backend_bytes }} \
+  --snapshot-count={{ etcd_snapshot_count }} \
+  --feature-gates={{ etcd_feature_gates }} \
+  --watch-progress-notify-interval={{ etcd_watch_progress_notify_interval }} \
+  --listen-metrics-urls=${METRICS_URL}
+ExecStop=/usr/bin/docker stop -t {{ etcd_stop_timeout }} etcd
+Restart=always
+RestartSec={{ etcd_restart_sec }}
+LimitNOFILE={{ etcd_limit_nofile }}
+
+[Install]
+WantedBy=multi-user.target
