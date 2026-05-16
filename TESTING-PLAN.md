@@ -661,22 +661,22 @@ ssh artur@e1.kryukov.lan "sudo systemctl status etcd"  # должен быть i
 | 1 | SSH доступ ко всем нодам (artur@) | Подготовка | Все ноды доступны, sudo работает | ✅ |
 | 2 | Скачивание RPM v1.35 для Rocky Linux 10 | Подготовка | RPM в tmp/rpms/, совместимы с EL10 | ✅ |
 | 3 | Скачивание RPM v1.36 для Rocky Linux 10 | Подготовка | RPM в tmp/rpms/, совместимы с EL10 | ✅ |
-| 4 | Синтаксис install-cluster.yaml | Подготовка | Без ошибок | ☐ |
-| 5 | Установка external etcd | Установка | 3 ноды, healthy | ☐ |
-| 6 | Установка control plane | Установка | 3 ноды, Ready | ☐ |
-| 7 | Установка worker нод | Установка | 2 ноды, Ready | ☐ |
-| 8 | HA (VIP) | Установка | VIP активен, API доступен | ☐ |
-| 9 | CNI (Calico) | Установка | Поды Running, связность | ☐ |
-| 10 | CRI (containerd) | Установка | Запущен, контейнеры работают | ☐ |
-| 11 | Версия k8s = 1.35.0 | Установка | `kubectl version` | ☐ |
-| 12 | Версия etcd = 3.5.21 | Установка | `etcdctl version` | ☐ |
-| 13 | Синтаксис upgrade.yaml | Upgrade | Без ошибок | ☐ |
-| 14 | Upgrade etcd до 3.6.6 | Upgrade | Rolling upgrade, healthy | ☐ |
-| 15 | Upgrade k8s до 1.36.1 | Upgrade | Все ноды, новая версия | ☐ |
-| 16 | Работоспособность приложений | Upgrade | Deployment, Service, DNS | ☐ |
-| 17 | HA после upgrade | Upgrade | VIP, API доступен | ☐ |
-| 18 | Отказоустойчивость etcd | Негативные | Кластер жив при 1 ноде down | ☐ |
-| 19 | Отказоустойчивость control plane | Негативные | VIP переезжает, API доступен | ☐ |
+| 4 | Синтаксис install-cluster.yaml | Подготовка | Без ошибок | ✅ |
+| 5 | Установка external etcd | Установка | 3 ноды, healthy | ✅ |
+| 6 | Установка control plane | Установка | 3 ноды, Ready | ✅ |
+| 7 | Установка worker нод | Установка | 2 ноды, Ready | ✅ |
+| 8 | HA (VIP) | Установка | VIP активен, API доступен | ✅ |
+| 9 | CNI (Calico) | Установка | Поды Running, связность | ✅ |
+| 10 | CRI (containerd) | Установка | Запущен, контейнеры работают | ✅ |
+| 11 | Версия k8s = 1.35.0 → 1.36.1 | Установка / Upgrade | `kubectl version` | ✅ |
+| 12 | Версия etcd = 3.5.24 → 3.6.6 | Установка / Upgrade | `etcdctl version` | ✅ |
+| 13 | Синтаксис upgrade.yaml | Upgrade | Без ошибок | ✅ |
+| 14 | Upgrade etcd до 3.6.6 | Upgrade | Rolling upgrade, healthy | ✅ |
+| 15 | Upgrade k8s до 1.36.1 | Upgrade | Все ноды, новая версия | ✅ |
+| 16 | Работоспособность приложений | Upgrade | Deployment, Service, DNS | ✅ |
+| 17 | HA после upgrade | Upgrade | VIP, API доступен | ✅ |
+| 18 | Отказоустойчивость etcd | Негативные | Кластер жив при 1 ноде down | ✅ |
+| 19 | Отказоустойчивость control plane | Негативные | VIP переезжает, API доступен | ✅ |
 | 20 | Reset кластера | Очистка | Пакеты удалены, iptables очищены | ☐ |
 | 21 | Reset etcd | Очистка | etcd остановлен, данные удалены | ☐ |
 

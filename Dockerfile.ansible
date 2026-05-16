@@ -1,0 +1,27 @@
+FROM python:3.12-slim
+
+# Создаём пользователя ansible
+RUN useradd -u 501 -m -d /home/ansible -s /bin/bash ansible
+
+# Устанавливаем зависимости
+RUN apt-get update && apt-get install -y \
+    openssh-client \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Устанавливаем Ansible и дополнительные Python-модули
+RUN pip install --no-cache-dir ansible passlib jmespath
+
+# Создаём директорию для SSH
+RUN mkdir -p /home/ansible/.ssh && \
+    chmod 700 /home/ansible/.ssh && \
+    chown -R ansible:ansible /home/ansible
+
+WORKDIR /workspace
+
+# Переключаемся на пользователя ansible
+USER ansible
+
+# Добавляем настройки SSH (host key checking выключен через ansible.cfg)
+RUN ssh-keyscan -H github.com >> /home/ansible/.ssh/known_hosts 2>/dev/null || true
