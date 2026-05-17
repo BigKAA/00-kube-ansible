@@ -1,66 +1,27 @@
-- name: Get current version of 1-st master
-  ansible.builtin.shell:
-    cmd: "kubectl get nodes {{ ansible_fqdn }} -o=jsonpath='{.status.nodeInfo.kubeletVersion}'"
-  register: version_current_1st_master
+---
+# Обновление первой control plane ноды
 
-# Сравниваем новую и текущую версию. Если они равны, ничего на этой ноде не делаем.
-- name: Version check. 
-  when: version_current_1st_master.stdout is match(".*" + kube_version)
-  block:
-    - name: Nothing to do
-      ansible.builtin.debug: 
-        msg: "Current cluster version {{ version_current_1st_master.stdout }} equal a new version in variables {{ kube_version }}"
+- name: Проверка версии
+  ansible.builtin.include_tasks: _version-check.yaml
 
-    - name: Stop upgrade 1-st control
-      ansible.builtin.meta: end_host
+- name: Обновление репозитория и пакетов
+  ansible.builtin.include_tasks: _update-repo.yaml
 
-# Иначе обновим версию.
-
-# Удалим репозитории (только online mode)
-- name: Remove repository kubernetes
-  when:
-    - ansible_facts['os_family'] == "RedHat"
-    - k8s_install_mode == "online"
-  ansible.builtin.yum_repository:
-    name: kubernetes
-    state: absent
-
-# Добавим репозитории (только online mode)
-- name: Add repo kubernetes
-  when:
-    - ansible_facts['os_family'] == "RedHat"
-    - k8s_install_mode == "online"
-  ansible.builtin.yum_repository:
-    name: kubernetes
-    description: "Base programs for k8s, version: v{{ kube_version[:4] }}"
-    baseurl: "https://pkgs.k8s.io/core:/stable:/v{{ kube_version[:4] }}/rpm/"
-    gpgcheck: yes
-    gpgkey: 
-      - "https://pkgs.k8s.io/core:/stable:/v{{ kube_version[:4] }}/rpm/repodata/repomd.xml.key"
-
-- name: Install packages dnf
-  ansible.builtin.shell: |
-    dnf install -y \
-      {{ k8s_rpm_remote_dir }}/kubeadm-{{ kube_version }}*.rpm \
-      {{ k8s_rpm_remote_dir }}/kubelet-{{ kube_version }}*.rpm \
-      {{ k8s_rpm_remote_dir }}/kubectl-{{ kube_version }}*.rpm
-  when: ansible_facts['os_family'] == "RedHat"
-
-- name: Drain node
+- name: Drain ноды
   ansible.builtin.shell:
     cmd: kubectl drain {{ ansible_fqdn }} --ignore-daemonsets --delete-emptydir-data
 
-- name: Upgrade master node
-  ansible.builtin.shell: 
+- name: Обновление master ноды
+  ansible.builtin.shell:
     cmd: "kubeadm upgrade apply v{{ kube_version }} -y"
 
-- name: Restart kubelet
+- name: Перезапуск kubelet
   ansible.builtin.systemd:
     state: restarted
-    daemon_reload: yes
+    daemon_reload: true
     name: kubelet
 
-- name: Wait for apiserver to become ready
+- name: Ожидание готовности apiserver
   ansible.builtin.command: kubectl get nodes
   register: apiserver_check
   until: apiserver_check.rc == 0
@@ -68,6 +29,6 @@
   delay: 10
   changed_when: false
 
-- name: Uncordon master node
+- name: Uncordon master ноды
   ansible.builtin.shell:
     cmd: "kubectl uncordon {{ ansible_fqdn }}"
