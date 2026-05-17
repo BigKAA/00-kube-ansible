@@ -116,14 +116,14 @@
 - [ ] Файлы: `README.md`
 
 ### 2.2 Документировать роли
-- [ ] Создать `roles/prepare-hosts/README.md`
-- [ ] Создать `roles/master/README.md`
-- [ ] Создать `roles/ha/README.md`
-- [ ] Создать `roles/workers/README.md`
-- [ ] Создать `roles/second_controls/README.md`
-- [ ] Создать `roles/utils/README.md`
-- [ ] Создать `roles/etcd/README.md`
-- [ ] Обновить `roles/upgrade-cluster/README.md` (сейчас 2 строки)
+- [x] Создать `roles/prepare-hosts/README.md`
+- [x] Создать `roles/master/README.md`
+- [x] Создать `roles/ha/README.md`
+- [x] Создать `roles/workers/README.md`
+- [x] Создать `roles/second_controls/README.md`
+- [x] Создать `roles/utils/README.md`
+- [x] Создать `roles/etcd/README.md`
+- [x] Обновить `roles/upgrade-cluster/README.md` (было 2 строки)
 
 ### 2.3 Убрать дубли в конфигурации
 - [x] Матрица etcd — оставить только в `roles/etcd/defaults/main.yaml`
@@ -211,7 +211,7 @@
 | Фаза | Задач | Выполнено | Осталось | Прогресс |
 |------|-------|-----------|----------|----------|
 | Фаза 1 — Быстрые победы | 7 | 7 | 0 | 100% |
-| Фаза 2 — Основная работа | 6 | 4 | 2 | 67% |
+| Фаза 2 — Основная работа | 6 | 6 | 0 | 100% |
 | Фаза 3 — Архитектура | 6 | 1 | 5 | 17% |
 | Фаза 4 — По необходимости | 3 | 0 | 3 | 0% |
-| **Итого** | **22** | **12** | **10** | **55%** |
+| **Итого** | **22** | **13** | **9** | **59%** |
