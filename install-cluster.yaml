@@ -72,14 +72,87 @@
         quiet: true
       run_once: true
 
-- name: Checking for an odd number of nodes.
-  hosts: groups['k8s_masters'][0]
-    
+    - name: Проверка — CRI допустимое значение
+      ansible.builtin.assert:
+        that:
+          - cri in ['containerd', 'crio']
+        fail_msg: "cri должен быть 'containerd' или 'crio' (сейчас: {{ cri }})"
+        quiet: true
+      run_once: true
+
+    - name: Проверка — CNI допустимое значение
+      ansible.builtin.assert:
+        that:
+          - cni in ['calico', 'flannel']
+        fail_msg: "cni должен быть 'calico' или 'flannel' (сейчас: {{ cni }})"
+        quiet: true
+      run_once: true
+
+# ============================================================
+# Pre-flight: проверка доступности хостов
+# ============================================================
+- name: Pre-flight connectivity
+  hosts: k8s_cluster
+  gather_facts: false
   tasks:
-    - name: Abort if an even number of nodes
+    - name: Проверка — доступность хоста
+      ansible.builtin.ping:
+      register: ping_result
+      ignore_errors: true
+
+    - name: Проверка — ошибка ping
+      ansible.builtin.fail:
+        msg: "Хост {{ inventory_hostname }} ({{ ansible_host | default(inventory_hostname) }}) недоступен. Проверьте SSH и сеть."
+      when: ping_result.failed
+
+    - name: Проверка — Python3 на remote хосте
+      ansible.builtin.command: python3 --version
+      register: python_check
+      changed_when: false
+      failed_when: false
+
+    - name: Проверка — ошибка Python3
+      ansible.builtin.fail:
+        msg: "Python3 не найден на {{ inventory_hostname }}. Установите python3 или задайте ansible_python_interpreter."
+      when: python_check.rc != 0
+
+# ============================================================
+# Pre-flight: проверка портов (только на control plane)
+# ============================================================
+- name: Pre-flight port checks
+  hosts: k8s_masters
+  gather_facts: false
+  tasks:
+    - name: Проверка — порт 6443 не занят
+      ansible.builtin.wait_for:
+        port: 6443
+        host: 0.0.0.0
+        timeout: 2
+        state: stopped
+      ignore_errors: true
+      register: port_6443
+
+    - name: Проверка — предупреждение о занятом порту 6443
       ansible.builtin.debug:
-        msg: "Abort. Аn even number of nodes"
-      failed_when: groups['k8s_masters'] | length | int is divisibleby 2
+        msg: "ВНИМАНИЕ: Порт 6443 уже используется на {{ inventory_hostname }}. kubeadm init может завершиться с ошибкой."
+      when: port_6443.failed
+
+    - name: Проверка — HA virtual port не занят
+      ansible.builtin.wait_for:
+        port: "{{ ha_cluster_virtual_port }}"
+        host: 0.0.0.0
+        timeout: 2
+        state: stopped
+      ignore_errors: true
+      register: port_ha
+      when: ha_cluster_virtual_ip is defined and ha_cluster_virtual_ip != ""
+
+    - name: Проверка — предупреждение о занятом HA virtual port
+      ansible.builtin.debug:
+        msg: "ВНИМАНИЕ: Порт {{ ha_cluster_virtual_port }} уже используется на {{ inventory_hostname }}."
+      when:
+        - ha_cluster_virtual_ip is defined and ha_cluster_virtual_ip != ""
+        - port_ha.failed
 
 - name: Install packages
   hosts: k8s_cluster
