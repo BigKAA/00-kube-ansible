@@ -1,25 +1,30 @@
+# ============================================================
+# Keepalived конфигурация для HA (VRRP)
+# ============================================================
+
+# Проверка работоспособности HAProxy
 vrrp_script chk_haproxy {
-  script "killall -0 haproxy" # check the haproxy process
-  interval 2                  # every 2 seconds
-  weight 2                    # add 2 points if OK
+  script "killall -0 haproxy"  # проверка процесса haproxy
+  interval 2                   # каждые 2 секунды
+  weight 2                     # +2 к приоритету если OK
 }
 
 vrrp_instance VI_1 {
-  interface {{ ansible_facts.default_ipv4.interface }} # interface to monitor
+  interface {{ ansible_facts.default_ipv4.interface }}  # сетевой интерфейс для мониторинга
 {% if inventory_hostname == groups['k8s_masters'][0] %}
-  state MASTER                # MASTER on master, BACKUP on slaves
+  state MASTER                # MASTER на первой ноде
 {% else %}
-  state BACKUP                # MASTER on master, BACKUP on slaves
+  state BACKUP                # BACKUP на остальных
 {% endif %}
   virtual_router_id 51
 {% if inventory_hostname == groups['k8s_masters'][0] %}
-  priority 101                # 101 on master, 100 on slaves
+  priority 101                # приоритет 101 на master
 {% else %}
-  priority 100                # 101 on master, 100 on slaves
+  priority 100                # приоритет 100 на backup
 {% endif %}
 
   virtual_ipaddress {
-    {{ ha_cluster_virtual_ip }}/24          # virtual ip address
+    {{ ha_cluster_virtual_ip }}/24          # виртуальный IP
   }
 
   track_script {
