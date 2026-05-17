@@ -3,6 +3,7 @@ apiVersion: metallb.io/v1beta1
 kind: IPAddressPool
 metadata:
   name: first-pool
+  namespace: metallb
 spec:
   addresses:
   {% for item in metallbAddresses %}
@@ -14,6 +15,7 @@ apiVersion: metallb.io/v1beta1
 kind: L2Advertisement
 metadata:
   name: base
+  namespace: metallb
 spec:
   ipAddressPools:
   - first-pool
