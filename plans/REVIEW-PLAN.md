@@ -56,23 +56,25 @@
 - [x] Заменить все `set_fact:` → `ansible.builtin.set_fact:`
 - [x] Заменить все `include_tasks:` → `ansible.builtin.include_tasks:`
 - [x] Заменить все `meta:` → `ansible.builtin.meta:`
-- [ ] Заменить все `systemd:` → `ansible.builtin.systemd:`
-- [ ] Заменить все `yum_repository:` → `ansible.builtin.yum_repository:`
-- [ ] Заменить все `dnf:` → `ansible.builtin.dnf:`
-- [ ] Заменить все `apt:` → `ansible.builtin.apt:`
-- [ ] Заменить все `stat:` → `ansible.builtin.stat:`
-- [ ] Заменить все `fail:` → `ansible.builtin.fail:`
-- [ ] Заменить все `assert:` → `ansible.builtin.assert:`
-- [ ] Заменить все `set_fact:` → `ansible.builtin.set_fact:`
-- [ ] Заменить все `include_tasks:` → `ansible.builtin.include_tasks:`
-- [ ] Заменить все `get_url:` → `ansible.builtin.get_url:`
-- [ ] Заменить все `lineinfile:` → `ansible.builtin.lineinfile:`
-- [ ] Заменить все `replace:` → `ansible.builtin.replace:`
-- [ ] Заменить все `unarchive:` → `ansible.builtin.unarchive:`
-- [ ] Заменить все `wait_for:` → `ansible.builtin.wait_for:`
-- [ ] Заменить все `uri:` → `ansible.builtin.uri:`
-- [ ] Заменить все `meta:` → `ansible.builtin.meta:`
-- [ ] Заменить все `slurp:` → `ansible.builtin.slurp:`
+- [x] Заменить все `systemd:` → `ansible.builtin.systemd:`
+- [x] Заменить все `yum_repository:` → `ansible.builtin.yum_repository:`
+- [x] Заменить все `dnf:` → `ansible.builtin.dnf:` (нет в основном проекте)
+- [x] Заменить все `apt:` → `ansible.builtin.apt:` (нет в основном проекте)
+- [x] Заменить все `stat:` → `ansible.builtin.stat:` (нет в основном проекте)
+- [x] Заменить все `fail:` → `ansible.builtin.fail:` (нет в основном проекте)
+- [x] Заменить все `assert:` → `ansible.builtin.assert:` (нет в основном проекте)
+- [x] Заменить все `set_fact:` → `ansible.builtin.set_fact:`
+- [x] Заменить все `include_tasks:` → `ansible.builtin.include_tasks:`
+- [x] Заменить все `get_url:` → `ansible.builtin.get_url:` (нет в основном проекте)
+- [x] Заменить все `lineinfile:` → `ansible.builtin.lineinfile:` (нет в основном проекте)
+- [x] Заменить все `replace:` → `ansible.builtin.replace:` (нет в основном проекте)
+- [x] Заменить все `unarchive:` → `ansible.builtin.unarchive:` (нет в основном проекте)
+- [x] Заменить все `wait_for:` → `ansible.builtin.wait_for:` (нет в основном проекте)
+- [x] Заменить все `uri:` → `ansible.builtin.uri:` (нет в основном проекте)
+- [x] Заменить все `meta:` → `ansible.builtin.meta:`
+- [x] Заменить все `slurp:` → `ansible.builtin.slurp:` (нет в основном проекте)
+
+> **Примечание:** `k3s-playbook/` — отдельный проект, FQCN в нём не приводились.
 
 ---
 
