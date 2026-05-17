@@ -72,10 +72,42 @@ stage: stable  # stable или prerelease
 # calico или flannel
 cni: calico
 
+# Матрица совместимости Kubernetes ↔ Calico
+# https://docs.tigera.io/calico/latest/getting-started/kubernetes/requirements
+calico_version_matrix:
+  "1.28": v3.26.4
+  "1.29": v3.27.0
+  "1.30": v3.27.3
+  "1.31": v3.28.0
+  "1.32": v3.28.1
+  "1.33": v3.29.0
+  "1.34": v3.29.1
+  "1.35": v3.29.2
+  "1.36": v3.30.0
+
+# Матрица совместимости Kubernetes ↔ Flannel
+# https://github.com/flannel-io/flannel
+flannel_version_matrix:
+  "1.28": v0.24.2
+  "1.29": v0.24.2
+  "1.30": v0.25.1
+  "1.31": v0.25.6
+  "1.32": v0.26.0
+  "1.33": v0.26.1
+  "1.34": v0.26.2
+  "1.35": v0.26.3
+  "1.36": v0.26.4
+
+# Версия Calico — вычисляется автоматически по матрице совместимости.
+# Для переопределения задайте tigera_operator_version явно.
+tigera_operator_version: "{{ calico_version_matrix[kube_version | regex_replace('^(\\d+\\.\\d+).*', '\\1')] | default('v3.28.1') }}"
+
+# Версия Flannel — вычисляется автоматически по матрице совместимости.
+flannel_version: "{{ flannel_version_matrix[kube_version | regex_replace('^(\\d+\\.\\d+).*', '\\1')] | default('v0.26.4') }}"
+
 # --- Calico параметры ---
 # One of: IPIP, VXLAN, IPIPCrossSubnet, VXLANCrossSubnet, None
 encapsulation: "IPIPCrossSubnet"
-tigera_operator_version: v3.28.1
 # Для eBPF раскомментируйте:
 # enableBPF: yes
 

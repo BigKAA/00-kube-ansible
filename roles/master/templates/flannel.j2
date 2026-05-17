@@ -144,7 +144,7 @@ spec:
               fieldPath: metadata.namespace
         - name: EVENT_QUEUE_DEPTH
           value: "5000"
-        image: docker.io/flannel/flannel:v0.25.6
+        image: docker.io/flannel/flannel:{{ flannel_version | default('v0.26.4') }}
         name: kube-flannel
         resources:
           requests:
@@ -182,7 +182,7 @@ spec:
         - /etc/cni/net.d/10-flannel.conflist
         command:
         - cp
-        image: docker.io/flannel/flannel:v0.25.6
+        image: docker.io/flannel/flannel:{{ flannel_version | default('v0.26.4') }}
         name: install-cni
         volumeMounts:
         - mountPath: /etc/cni/net.d
