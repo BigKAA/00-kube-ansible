@@ -95,33 +95,33 @@ echo ">>> Пакеты Kubernetes v$KUBE_VERSION"
 download \
     "https://pkgs.k8s.io/core:/stable:/v${KUBE_MAJOR_MINOR}/rpm/x86_64/kubeadm-${KUBE_VERSION}-150000.1.1.x86_64.rpm" \
     "$OUTPUT_DIR/packages/kubeadm-${KUBE_VERSION}.x86_64.rpm" \
-    "kubeadm RPM" || true
+    "kubeadm RPM"
 
 download \
     "https://pkgs.k8s.io/core:/stable:/v${KUBE_MAJOR_MINOR}/rpm/x86_64/kubelet-${KUBE_VERSION}-150000.1.1.x86_64.rpm" \
     "$OUTPUT_DIR/packages/kubelet-${KUBE_VERSION}.x86_64.rpm" \
-    "kubelet RPM" || true
+    "kubelet RPM"
 
 download \
     "https://pkgs.k8s.io/core:/stable:/v${KUBE_MAJOR_MINOR}/rpm/x86_64/kubectl-${KUBE_VERSION}-150000.1.1.x86_64.rpm" \
     "$OUTPUT_DIR/packages/kubectl-${KUBE_VERSION}.x86_64.rpm" \
-    "kubectl RPM" || true
+    "kubectl RPM"
 
 # DEB
 download \
     "https://pkgs.k8s.io/core:/stable:/v${KUBE_MAJOR_MINOR}/deb/amd64/kubeadm_${KUBE_VERSION}-1.1_amd64.deb" \
     "$OUTPUT_DIR/packages/kubeadm_${KUBE_VERSION}-1.1_amd64.deb" \
-    "kubeadm DEB" || true
+    "kubeadm DEB"
 
 download \
     "https://pkgs.k8s.io/core:/stable:/v${KUBE_MAJOR_MINOR}/deb/amd64/kubelet_${KUBE_VERSION}-1.1_amd64.deb" \
     "$OUTPUT_DIR/packages/kubelet_${KUBE_VERSION}-1.1_amd64.deb" \
-    "kubelet DEB" || true
+    "kubelet DEB"
 
 download \
     "https://pkgs.k8s.io/core:/stable:/v${KUBE_MAJOR_MINOR}/deb/amd64/kubectl_${KUBE_VERSION}-1.1_amd64.deb" \
     "$OUTPUT_DIR/packages/kubectl_${KUBE_VERSION}-1.1_amd64.deb" \
-    "kubectl DEB" || true
+    "kubectl DEB"
 
 # ============================================================
 # 2. CNI манифесты

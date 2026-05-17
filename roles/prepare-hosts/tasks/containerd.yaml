@@ -83,7 +83,7 @@
     - ansible_facts['os_family'] == "Debian"
     - k8s_install_mode == "offline"
   ansible.builtin.shell: >
-    dpkg -i {{ k8s_packages_remote_dir }}/containerd*.deb
+    apt install -y --allow-downgrades {{ k8s_packages_remote_dir }}/containerd*.deb
   args:
     warn: false
 

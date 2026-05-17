@@ -35,11 +35,21 @@
     - k8s_install_mode == "online"
   ansible.builtin.command: helm plugin install https://github.com/databus23/helm-diff
 
+- name: Скопировать плагин helm-diff на ноду [offline]
+  when:
+    - not helm_diff_plugin.stat.exists
+    - k8s_install_mode == "offline"
+  ansible.posix.synchronize:
+    src: "{{ playbook_dir }}/{{ k8s_offline_dir }}/utils/helm-plugins/helm-diff/"
+    dest: /tmp/helm-diff
+    delegate_to: localhost
+  register: helm_diff_copy
+
 - name: Установить плагин helm-diff [offline]
   when:
     - not helm_diff_plugin.stat.exists
     - k8s_install_mode == "offline"
-  ansible.builtin.command: helm plugin install {{ playbook_dir }}/{{ k8s_offline_dir }}/utils/helm-plugins/helm-diff
+  ansible.builtin.command: helm plugin install /tmp/helm-diff
 
 - name: Создать каталог для манифестов утилит
   ansible.builtin.file:

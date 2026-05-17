@@ -268,7 +268,7 @@
         - ansible_facts['os_family'] == "RedHat"
         - k8s_install_mode == "offline"
       ansible.builtin.shell: >
-        dnf install -y {{ k8s_packages_remote_dir }}/*.rpm
+        dnf install -y {{ k8s_packages_remote_dir }}/kubeadm*.rpm {{ k8s_packages_remote_dir }}/kubelet*.rpm {{ k8s_packages_remote_dir }}/kubectl*.rpm
       args:
         warn: false
 
@@ -277,7 +277,7 @@
         - ansible_facts['os_family'] == "Debian"
         - k8s_install_mode == "offline"
       ansible.builtin.shell: >
-        dpkg -i {{ k8s_packages_remote_dir }}/*.deb
+        apt install -y --allow-downgrades {{ k8s_packages_remote_dir }}/kubeadm*.deb {{ k8s_packages_remote_dir }}/kubelet*.deb {{ k8s_packages_remote_dir }}/kubectl*.deb
       args:
         warn: false
 
