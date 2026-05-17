@@ -1,50 +1,56 @@
-ansible_python_interpreter: /usr/bin/python3
+# ============================================================
+# Конфигурация Kubernetes кластера
+# ============================================================
+#
+# Секции:
+#   [ОБЯЗАТЕЛЬНО] — параметры, которые нужно настроить под своё окружение
+#   [ОПЦИОНАЛЬНО]  — можно оставить как есть, менять при необходимости
+#   [ВНУТРЕННИЕ]   — служебные переменные, не трогать
+# ============================================================
 
-# Kubernetes parameters
+# ============================================================
+# [ОБЯЗАТЕЛЬНО] Основные параметры
+# ============================================================
 
-# k8s.gcr.io image registry is gradually being redirected to registry.k8s.io (since 2023 Monday March 20th).
+# Версия Kubernetes (поддерживаются 1.28 — 1.36.1)
+# https://kubernetes.io/releases/
+kube_version: 1.36.1
+
+# ============================================================
+# [ОПЦИОНАЛЬНО] Registry и зеркала
+# ============================================================
+
+# Registry образов Kubernetes
 imageRepository: registry.k8s.io
 
-# Enable dockerhub mirror
+# Зеркало Docker Hub (включить при ограничениях доступа)
 dockerhubMirror: false
 dockerhubMirrorURLs:
   - "https://mirror.gcr.io/v2"
   - "https://daocloud.io/v2"
 
-# Versions: 1.28 - 1.36.1
-# https://kubernetes.io/releases/
-kube_version: 1.36.1
-
-# Режим установки пакетов Kubernetes:
-# - online: загрузка из репозитория pkgs.k8s.io (по умолчанию)
-# - offline: установка из локальных RPM (предварительно скопированных на ноды)
-k8s_install_mode: "online"
-
-# Путь к RPM на целевых машинах (для offline-режима)
-k8s_rpm_remote_dir: "/tmp/k8s-rpms"
+# ============================================================
+# [ОПЦИОНАЛЬНО] Сеть кластера
+# ============================================================
 
 kube_domain_name: cluster.local
 service_cidr: "10.233.0.0/18"
 pod_network_cidr: "10.233.64.0/18"
 
-##################################################
-# CRI parameters
-# crio или containerd
+# ============================================================
+# [ОПЦИОНАЛЬНО] CRI (Container Runtime Interface)
+# ============================================================
+# containerd или crio
 cri: containerd
 
-# Сокет CRI — вычисляется автоматически на основе выбранного CRI.
-# Для переопределения задайте cri_socket явно в user-config.
+# Сокет CRI — вычисляется автоматически
 cri_socket: "{{ 'unix:///run/containerd/containerd.sock' if cri == 'containerd' else 'unix:///var/run/crio/crio.sock' }}"
 
-# Sanbox image
-# k8s v3.11 -> registry.k8s.io/pause:3.10
-# k8s v3.10 -> registry.k8s.io/pause:3.9
-# Если сомневаетесь - закоментируйте строку ниже
+# Sandbox image (раскомментировать при необходимости)
 # sandbox_image: "registry.k8s.io/pause:3.10"
 
-# Матрица совместимости Kubernetes ↔ CRI-O.
-# Ключ — мажорная.минорная версия k8s, значение — версия CRI-O.
-# https://github.com/cri-o/cri-o#version-compatibility
+# --- CRI-O параметры (только при cri: crio) ---
+# Версия CRI-O вычисляется автоматически по матрице ниже
 crio_version_matrix:
   "1.28": "v1.28"
   "1.29": "v1.29"
@@ -56,151 +62,126 @@ crio_version_matrix:
   "1.35": "v1.35"
   "1.36": "v1.36"
 
-# Версия CRI-O — вычисляется автоматически по матрице совместимости.
-# Для переопределения задайте crio_version явно в user-config.
 crio_version: "{{ crio_version_matrix[kube_version | regex_replace('^(\\d+\\.\\d+).*', '\\1')] | default('v1.32') }}"
-
-# Enable cri-o image volumes
-# https://github.com/cri-o/cri-o/blob/main/docs/crio.conf.5.md#crioimage-table
-# value: mkdir (default), bind or ignore
 crio_image_volumes: mkdir
+stage: stable  # stable или prerelease
 
-# Внимательно смотрим в какой состоянии находится требуемая версия CRI-O.
-# https://cri-o.io/#
-# value: stable or prerelease
-stage: stable
-
-###################################
-# CNI
-#
-# - calico
-# - flannel
+# ============================================================
+# [ОПЦИОНАЛЬНО] CNI (Container Network Interface)
+# ============================================================
+# calico или flannel
 cni: calico
 
-# calico
+# --- Calico параметры ---
 # One of: IPIP, VXLAN, IPIPCrossSubnet, VXLANCrossSubnet, None
-# Work only install without eBPF
 encapsulation: "IPIPCrossSubnet"
-# https://github.com/projectcalico/calico
 tigera_operator_version: v3.28.1
-### To install eBPF uncomment next line
+# Для eBPF раскомментируйте:
 # enableBPF: yes
 
-# Kubelet configuration
-# https://kubernetes.io/docs/reference/config-api/kubelet-config.v1beta1/
-## Reserve resources for OS system daemons.
+# ============================================================
+# [ОПЦИОНАЛЬНО] Kubelet
+# ============================================================
+
 system_reserved: true
 system_memory_reserved: 512Mi
 system_cpu_reserved: 500m
-## system_ephemeral_storage_reserved: 5Gi
-## Default: "10Mi"
 container_log_max_size: 1Mi
-## Default: 5
 container_log_max_files: 3
 
-# It is advisable not to change.
-kubectl_config: /etc/kubernetes/admin.conf
-kubeadmin_config: /etc/kubernetes/kubeadm.conf
+# ============================================================
+# [ОПЦИОНАЛЬНО] NodeLocalDNS
+# ============================================================
 
-# nodelocaldns
-# https://github.com/kubernetes/dns
 nodelocaldns_image: "registry.k8s.io/dns/k8s-dns-node-cache:1.23.1"
-## Change only if this IP is already taken.
 nodelocaldns_local_ip: 169.254.25.10
 
-## HA cluster
-# If you need disable HA, undefine ha_cluster_virtual_ip
+# ============================================================
+# [ОБЯЗАТЕЛЬНО] HA (High Availability)
+# ============================================================
+# Для отключения HA уберите ha_cluster_virtual_ip
+
+# Виртуальный IP для HAProxy + Keepalived
 ha_cluster_virtual_ip: 192.168.218.130
 ha_cluster_virtual_port: 7443
 
-###################################
-# External etcd
-#
-# Режим etcd: stacked (встроенный) или external (внешний кластер)
+# ============================================================
+# [ОПЦИОНАЛЬНО] etcd
+# ============================================================
+# stacked (встроенный) или external (внешний кластер)
 etcd_mode: "stacked"
-# etcd_mode: external  # раскомментировать для external etcd
-etcd_image: "registry.k8s.io/etcd:3.6.6-0"
-etcd_domain: ""        # домен etcd нод (например, kryukov.lan)
-etcd_initial_cluster_token: "external-etcd-cluster"
-etcd_quota_backend_bytes: 8589934592
-etcd_ca_days: 3650         # Срок жизни CA-сертификата (дней)
-etcd_cert_days: 365        # Срок жизни подписанных сертификатов: ноды, apiserver-client, admin
 
-# Очистка external etcd при reset (true/false)
+# Образ etcd для stacked режима
+etcd_image: "registry.k8s.io/etcd:3.6.6-0"
+
+# Очистка external etcd при reset
 reset_etcd: false
 
-############################################################
-####  UTILS                                  ###############
-#### Запускаются как отдельный playbook      ###############
-#### ansible-playbook services/06-utils.yaml ###############
-############################################################
+# ============================================================
+# [ОБЯЗАТЕЛЬНО] Утилиты — NFS
+# ============================================================
 
-### Helm
-### Install only on 1-st control node
-helmVersion: v3.16.3
-
-### Nfs provisioner
-### https://github.com/kubernetes-sigs/nfs-subdir-external-provisioner
 nfsEnable: true
 nfsServerContainer: "gcr.io/k8s-staging-sig-storage/nfs-subdir-external-provisioner@sha256:b1450f94a3610b9fb1cc9cb29ef528b7b5608db6f17a039ea9ba73f0aca0d1a2"
 nfsServerHost: "192.168.218.170"
 nfsServerPath: "/var/nfs-disk"
 
-### Cert-manager
-### https://github.com/cert-manager/cert-manager
+# ============================================================
+# [ОПЦИОНАЛЬНО] Утилиты — Cert-manager
+# ============================================================
+
 certManagerEnable: true
 certManagerVersion: "v1.17.1"
 certManagerEnableGatewayAPI: false
 
-### Metrics server
-### https://github.com/kubernetes-sigs/metrics-server
+# ============================================================
+# [ОПЦИОНАЛЬНО] Утилиты — Metrics Server
+# ============================================================
+
 metricsServerEnable: true
 metricsServerImage: "gcr.io/k8s-staging-metrics-server/metrics-server:v0.7.2"
 
-### MetalLB
-### https://metallb.universe.tf/
-### Важно! Перед использованием закажите кластерные IP адреса,
-### которые будут переданы в управление MetalLB.
+# ============================================================
+# [ОБЯЗАТЕЛЬНО] Утилиты — MetalLB
+# ============================================================
+
 metallbEnable: true
 metallbChartVersion: "v0.14.8"
-# Массив IP адресов, сетей и/или диапазонов IP
-# Примеры:
-# Один IP - 192.168.1.1/32
-# Диапазон IP - 192.168.218.180-192.168.218.185
-# Сеть - 192.168.1.64/30
+# Форматы: один IP (192.168.1.1/32), диапазон (192.168.218.180-192.168.218.185), сеть (192.168.1.64/30)
 metallbAddresses:
 - 192.168.218.180-192.168.218.185
 
-### Ingress controller
-### https://github.com/kubernetes/ingress-nginx
-### TODO: add helm chart
+# ============================================================
+# [ОПЦИОНАЛЬНО] Утилиты — Ingress Controller
+# ============================================================
+
 ingressControllerEnable: true
 ingressControllerChartVersion: "4.12.0"
 ingressControllerClassName: "system-ingress"
 ingressControllerServiceType: "LoadBalancer"
 ingressControllerReplicaCount: 1
 
-### ArgoCD
-### https://github.com/argoproj/argo-cd
+# ============================================================
+# [ОБЯЗАТЕЛЬНО] Утилиты — ArgoCD
+# ============================================================
+
 argoCDEnable: true
 argoCDChartVersion: "7.8.7"
-### debug, info, warn or error
 argoCDLoglevel: "info"
 argoCDControllerReplicaCount: 1
 argoCDServerReplicaCount: 1
 argoCDURL: "argocd.kryukov.local"
-### -- Bcrypt hashed admin password
-### Argo expects the password in the secret to be bcrypt hashed. You can create this hash with
-### ARGO_PWD=password
-### htpasswd -nbBC 10 "" $ARGO_PWD | tr -d ':\n' | sed 's/$2y/$2a/'
 argoCDAdminPassword: "$2a$10$L8OqGEFh3a0yxwfIha4DLuyq6GIYP119hlFM5wlSEsI.nviVAv/zq"
-### Default: false
-### https://argo-cd.readthedocs.io/en/latest/user-guide/diff-strategies/#server-side-diff
 argoCDEnableServerSideDiff: "true"
-### Возможные значения: annotation, label, annotation+label
-### https://argo-cd.readthedocs.io/en/latest/user-guide/resource_tracking/#additional-tracking-methods-via-an-annotation
-### (default: label)
 argoCDTrackingMethod: "annotation"
-### Ignoring RBAC changes made by AggregateRoles
-### https://argo-cd.readthedocs.io/en/stable/user-guide/diffing/#ignoring-rbac-changes-made-by-aggregateroles
 argoCDIgnoreAggregateRoles: "true"
+
+# ============================================================
+# [ВНУТРЕННИЕ] Служебные переменные — не трогать
+# ============================================================
+
+kubectl_config: /etc/kubernetes/admin.conf
+kubeadmin_config: /etc/kubernetes/kubeadm.conf
+k8s_install_mode: "online"
+k8s_rpm_remote_dir: "/tmp/k8s-rpms"
+helmVersion: v3.16.3
