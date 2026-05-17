@@ -1,217 +1,369 @@
-# Ansible playbook для установки тестового кластера k8s
+# Ansible playbook для установки Kubernetes кластера
 
-Плейбук проверяется на наборе [приложений](https://github.com/BigKAA/youtube/tree/master/1.31).
+[![Kubernetes](https://img.shields.io/badge/Kubernetes-v1.28–v1.36-blue)](https://kubernetes.io/releases/)
+[![Ansible](https://img.shields.io/badge/Ansible-2.16+-green)](https://www.ansible.com/)
 
-| k8s ver         | Distributive    | CRI             | Notes           |
-|-----------------|-----------------|-----------------|-----------------|
-| 1.35.0 → 1.36.1 | Rocky Linux 10.1 | containerd | **OK** |
-| 1.32            | Debian 12 | CRI-O 1.32   | *Не стартует harbor.* |
-| 1.31            | Ubuntu 22.04.4 LTS | CRI-O 1.31   |  *Не стартует harbor. Не монтируется emptyDir.* |
-| 1.30            | Ubuntu 22.04.4 LTS | containerd 1.7.12  | На проверке |
-| 1.31.2          | Rocky Linux 9.4 | containerd 1.7.23-3.1 | **OK** |
-| 1.31            | Rocky Linux 8.10 | CRI-O 1.31 | *Не стартует harbor. Не монтируется emptyDir.*  |
-| 1.31            | Rocky Linux 8.10 | containerd 1.6.32 | **OK** *Приложения пока не тестил* |
-| 1.30            | Rocky Linux 8.10 | containerd 1.6.32 | **OK** |
-| 1.31            | Debian 12 | containerd.io 1.7.21 | Кластер стартует. Не работает metallb. |
-| 1.30            | Debian 12 | containerd.io 1.7.21 | **Ok** |
+Playbook для установки и управления тестовым кластером Kubernetes.
+Проверен на наборе [приложений](https://github.com/BigKAA/youtube/tree/master/1.31).
 
-Остальные дистрибутивы проверю, когда до них руки дойдут.
+## Возможности
 
-Поддерживает:
+- **Kubernetes** v1.28 — v1.36
+- **CRI**: containerd, CRI-O
+- **CNI**: Calico (с eBPF), Flannel
+- **HA**: HAProxy + Keepalived (virtual IP)
+- **etcd**: stacked (встроенный) или external (отдельный кластер)
+- **Утилиты**: Helm, NFS provisioner, cert-manager, Metrics Server, MetalLB, Ingress Nginx, ArgoCD
+- **Управление**: установка, обновление, удаление кластера
 
-- Kubernetes v1.28 — v1.36.
-- Установку одной или несколько control nodes.
-- HA доступ к API kubernetes.
-- CRI-O.
-- calico.
-- В KubeProxyConfiguration установлены параметры для работы Metallb.
-- nodelocaldns - кеширующий DNS сервер на каждой ноде кластера.
-- External etcd кластер (опционально).
+## Быстрый старт
 
-## Установка ansible
+### 1. Подготовка
 
-Так получилось, что у меня в WSL2 стоит Ubuntu:
+**Требования к Ansible control node:**
+- Python 3.8+
+- Ansible 2.16+
+- SSH-ключ для доступа к нодам
+
+**Требования к нодам кластера:**
+- Минимум 2 CPU, 2 GB RAM (control plane)
+- Минимум 2 CPU, 4 GB RAM (worker)
+- 20 GB свободного диска
+- Доступ в интернет (для online-режима)
+- Открытые порты между нодами (см. [Сетевые требования](#сетевые-требования))
+
+### 2. Установка Ansible
 
 ```shell
 python3 -m venv venv
-. ~/venv/bin/activate
+. venv/bin/activate
 pip3 install ansible-core
 ```
 
-Или собираем и используем собственный контейнер с Ansible на основе `Dockerfile.ansible`:
+Или используйте Docker-образ:
 
 ```shell
 docker build -f Dockerfile.ansible -t ansible-custom:latest .
 alias ansible-playbook="docker run -ti --rm -v ~/.ssh:/home/ansible/.ssh -v $(pwd):/workspace ansible-custom:latest ansible-playbook"
-ansible-playbook --version
 ```
 
-> Коллекции Ansible (community.crypto, community.general, ansible.posix, kubernetes.core)
-> предустановлены в образе. Если необходимо добавить дополнительные коллекции —
-> обновите `Dockerfile.ansible` и пересоберите образ.
-
-Генерируем ssh ключ:
+### 3. Настройка SSH
 
 ```shell
 ssh-keygen
+ssh-copy-id root@<IP-адрес-ноды>
 ```
 
-Копируем ключики в виртуальные машины из [hosts.yaml](hosts.yaml):
+### 4. Конфигурация
 
- ```shell
-ssh-copy-id root@control1.kryukov.local
-ssh-copy-id root@control2.kryukov.local
-ssh-copy-id root@control3.kryukov.local
-ssh-copy-id root@worker1.kryukov.local
-ssh-copy-id root@worker2.kryukov.local
-ssh-copy-id root@worker3.kryukov.local
+Скопируйте шаблон инвентори и настройте под своё окружение:
+
+```shell
+cp hosts.template.yaml hosts.yaml
 ```
 
-## Конфигурационные параметры
+Отредактируйте `hosts.yaml` — укажите IP-адреса нод.
+Отредактируйте `group_vars/k8s_cluster` — установите версию Kubernetes и другие параметры.
 
-- [Инвентори](hosts.yaml).
-- [Общая конфигурация](group_vars/k8s_cluster).
-
-## Установка
-
-### k8s с одной control node
-
-В [инвентори](hosts.yaml) в группе `k8s_masters` необходимо указать только один хост.
+### 5. Запуск
 
 ```shell
 ansible-playbook install-cluster.yaml
-```
-
-### k8s с несколькими control nodes
-
-В [инвентори](hosts.yaml) в группе `k8s_masters` необходимо указать **нечётное количество
-control nodes**.
-
-```shell
-ansible-playbook install-cluster.yaml
-```
-
-### k8s c HA
-
-Используются haproxy и keepalived.
-
-![ha cluster](images/ha_cluster.jpg)
-
-В конфигурационном файле определите параметры доступа к API :
-
-- `ha_cluster_virtual_ip` - виртуальный IP адрес.
-- `ha_cluster_virtual_port` - порт. Не должен быть равен 6443.
-
-## Удалить кластер
-
-```shell
-ansible-playbook reset.yaml
-```
-
-**Внимание!!!** Скрипт удаляет **все** нестандартные цепочки и чистит все стандартные цепочки.
-
-## Апдейт кластера
-
-Изменяете версию кластера в `group_vars/k8s_cluster` и запускаете апдейт.
-
-```shell
-ansible-playbook upgrade.yaml
-```
-
-## Utils playbook
-
-Playbook с утилитами. [Обычный набор утилит](https://github.com/BigKAA/youtube/tree/master/1.31), который я ставлю в тестовых кластерах. Раньше ставил руками. Надоело, решил автоматизировать.
-
-```shell
-ansible-playbook services/06-utils.yaml
-```
-
-## External etcd
-
-По умолчанию используется встроенный (stacked) etcd, который работает на control plane нодах.
-При необходимости можно вынести etcd на отдельные ноды.
-
-### Конфигурация
-
-В `group_vars/k8s_cluster` установите:
-
-```yaml
-etcd_mode: "external"
-```
-
-### Инвентори
-
-В `hosts.yaml` добавьте группу `etcd_nodes` с **нечётным** количеством нод (рекомендуется 3):
-
-```yaml
-etcd_nodes:
-  hosts:
-    e1.kryukov.lan:
-      ansible_host: 192.168.218.141
-      etcd_short_name: e1
-    e2.kryukov.lan:
-      ansible_host: 192.168.218.142
-      etcd_short_name: e2
-    e3.kryukov.lan:
-      ansible_host: 192.168.218.143
-      etcd_short_name: e3
-```
-
-### Матрица совместимости Kubernetes ↔ etcd
-
-| Kubernetes | etcd |
-| --- | --- |
-| 1.28 | 3.5.9 |
-| 1.29 | 3.5.10 |
-| 1.30 | 3.5.12 |
-| 1.31 | 3.5.13 |
-| 1.32 | 3.5.16 |
-| 1.33 | 3.5.16 |
-| 1.34 | 3.5.16 |
-| 1.35 | 3.5.24 |
-| 1.36 | 3.6.6 |
-
-Версия etcd определяется автоматически по `kube_version`.
-При необходимости можно переопределить:
-
-```yaml
-etcd_image: "registry.k8s.io/etcd:3.6.6-0"
-```
-
-### Очистка external etcd
-
-При удалении кластера (`reset.yaml`) external etcd **не удаляется** по умолчанию.
-Для очистки установите:
-
-```yaml
-reset_etcd: true
-```
-
-## Сервисные функции
-
-Сервисные функции находятся в директории `services`. Их можно запускать
-как отдельно, так и в составе `install-cluster.yaml`.
-
-| Playbook | Описание |
-|----------|----------|
-| `services/01-prepare-hosts.yaml` | Подготовка хостов: установка пакетов, настройка CRI, sysctl, модули ядра |
-| `services/02-install-ha.yaml` | Установка HAProxy + Keepalived для HA доступа к API |
-| `services/03-install-1st-control.yaml` | Инициализация первой control plane ноды |
-| `services/04-install-another-controls.yaml` | Подключение дополнительных control plane нод |
-| `services/05-install-workers.yaml` | Подключение worker нод к кластеру |
-| `services/06-utils.yaml` | Установка утилит: Helm, NFS provisioner, cert-manager, Metrics Server, MetalLB, Ingress Nginx, ArgoCD |
-| `services/ping.yaml` | Проверка доступности хостов |
-| `services/debug.yaml` | Отладочная информация о кластере |
-| `services/poweroff.yaml` | Выключение всех нод кластера |
-
-Для запуска отдельного playbook'а:
-
-```shell
-ansible-playbook services/06-utils.yaml
 ```
 
 Или через Makefile:
 
 ```shell
-make utils ENV=homelab
+make install
+```
+
+## Установка
+
+### Single-node кластер
+
+Одна control plane нода, без HA. Минимальная конфигурация для тестирования.
+
+В `hosts.yaml` укажите один хост в группе `k8s_masters`:
+
+```yaml
+k8s_masters:
+  hosts:
+    master1:
+      ansible_host: 192.168.1.10
+k8s_workers:
+  hosts:
+    worker1:
+      ansible_host: 192.168.1.11
+k8s_cluster:
+  children:
+    k8s_masters:
+    k8s_workers:
+```
+
+```shell
+ansible-playbook install-cluster.yaml
+```
+
+### HA кластер (несколько control plane)
+
+**Важно:** количество control plane нод должно быть **нечётным** (1, 3, 5...).
+
+В `hosts.yaml` укажите 3+ хоста в группе `k8s_masters`:
+
+```yaml
+k8s_masters:
+  hosts:
+    master1:
+      ansible_host: 192.168.1.10
+    master2:
+      ansible_host: 192.168.1.11
+    master3:
+      ansible_host: 192.168.1.12
+```
+
+Для HA доступа к API настройте virtual IP в `group_vars/k8s_cluster`:
+
+```yaml
+ha_cluster_virtual_ip: 192.168.1.100
+ha_cluster_virtual_port: 7443
+```
+
+![ha cluster](images/ha_cluster.jpg)
+
+### External etcd
+
+По умолчанию используется встроенный (stacked) etcd. Для выноса etcd на отдельные ноды:
+
+1. В `group_vars/k8s_cluster` установите `etcd_mode: "external"`
+2. В `hosts.yaml` добавьте группу `etcd_nodes` с **нечётным** количеством нод (рекомендуется 3):
+
+```yaml
+etcd_nodes:
+  hosts:
+    etcd1:
+      ansible_host: 192.168.1.30
+      etcd_short_name: etcd1
+    etcd2:
+      ansible_host: 192.168.1.31
+      etcd_short_name: etcd2
+    etcd3:
+      ansible_host: 192.168.1.32
+      etcd_short_name: etcd3
+```
+
+Версия etcd определяется автоматически по `kube_version`.
+Матрица совместимости: [roles/etcd/defaults/main.yaml](roles/etcd/defaults/main.yaml)
+
+## Конфигурация
+
+### Основные параметры
+
+| Переменная | По умолчанию | Описание |
+|------------|-------------|----------|
+| `kube_version` | `1.36.1` | Версия Kubernetes (1.28 — 1.36.1) |
+| `cri` | `containerd` | Container Runtime: `containerd` или `crio` |
+| `cni` | `calico` | Container Network: `calico` или `flannel` |
+| `service_cidr` | `10.233.0.0/18` | CIDR для сервисов |
+| `pod_network_cidr` | `10.233.64.0/18` | CIDR для подов |
+| `etcd_mode` | `stacked` | Режим etcd: `stacked` или `external` |
+| `ha_cluster_virtual_ip` | `192.168.218.130` | Virtual IP для HA (убрать для отключения HA) |
+| `ha_cluster_virtual_port` | `7443` | Порт для HA (не должен быть 6443) |
+
+Полный список переменных: [group_vars/k8s_cluster](group_vars/k8s_cluster)
+
+### Выбор CRI
+
+```yaml
+cri: containerd  # или crio
+```
+
+`cri_socket` вычисляется автоматически.
+
+### Выбор CNI
+
+```yaml
+cni: calico  # или flannel
+```
+
+Для Calico с eBPF раскомментируйте `enableBPF: yes` в `group_vars/k8s_cluster`.
+
+## Управление кластером
+
+### Установка
+
+```shell
+ansible-playbook install-cluster.yaml
+# или
+make install
+```
+
+### Удаление
+
+```shell
+ansible-playbook reset.yaml
+# или
+make reset
+```
+
+> **Внимание:** `reset.yaml` удаляет **все** нестандартные iptables цепочки.
+> External etcd **не удаляется** по умолчанию. Для очистки установите `reset_etcd: true`.
+
+### Обновление
+
+Измените `kube_version` в `group_vars/k8s_cluster` и запустите:
+
+```shell
+ansible-playbook upgrade.yaml
+# или
+make upgrade
+```
+
+Обновление выполняется последовательно (serial: 1) — по одной ноде за раз.
+
+### Утилиты
+
+```shell
+ansible-playbook services/06-utils.yaml
+# или
+make utils
+```
+
+Устанавливает: Helm, NFS provisioner, cert-manager, Metrics Server, MetalLB, Ingress Nginx, ArgoCD.
+
+### Сервисные playbook'и
+
+| Команда | Описание |
+|---------|----------|
+| `make install` | Полный цикл установки кластера |
+| `make reset` | Удаление кластера |
+| `make upgrade` | Обновление кластера |
+| `make utils` | Установка утилит |
+| `make prepare` | Подготовка хостов (CRI, пакеты, sysctl) |
+| `make ha` | Установка HA (HAProxy + Keepalived) |
+| `make master` | Установка первого control plane |
+| `make workers` | Установка worker нод |
+| `make ping` | Проверка доступности хостов |
+| `make debug` | Отладочная информация |
+| `make poweroff` | Выключение всех нод |
+| `make check-syntax` | Проверка синтаксиса playbook'ов |
+
+Переключайте окружение через `ENV`:
+
+```shell
+make install ENV=homelab
+make install ENV=production
+```
+
+## Сетевые требования
+
+### Порты между нодами
+
+| Порт | Протокол | Направление | Описание |
+|------|----------|-------------|----------|
+| 6443 | TCP | Все → Control plane | Kubernetes API server |
+| 2379–2380 | TCP | Control plane ↔ Control plane | etcd client и peer |
+| 10250 | TCP | Control plane → Все | Kubelet API |
+| 10259 | TCP | Control plane → Control plane | kube-scheduler |
+| 10257 | TCP | Control plane → Control plane | kube-controller-manager |
+| 179 | TCP | Все → Все | Calico BGP (при использовании) |
+| 4789 | UDP | Все → Все | Calico VXLAN |
+| 5473 | TCP | Все → Все | Calico Typha (опционально) |
+
+### External etcd (дополнительно)
+
+| Порт | Протокол | Направление | Описание |
+|------|----------|-------------|----------|
+| 2379 | TCP | Control plane → etcd | etcd client |
+| 2380 | TCP | etcd ↔ etcd | etcd peer |
+
+## Примеры конфигураций
+
+В директории `examples/` приведены готовые конфигурации для типичных сценариев:
+
+- [`examples/single-node/`](examples/single-node/) — 1 master + 1 worker, без HA
+- [`examples/ha-stacked/`](examples/ha-stacked/) — 3 masters + stacked etcd
+- [`examples/ha-external-etcd/`](examples/ha-external-etcd/) — 3 masters + 3 external etcd
+
+Также доступен шаблон инвентори: [`hosts.template.yaml`](hosts.template.yaml)
+
+## Troubleshooting
+
+### Playbook падает с ошибкой SSH
+
+Проверьте доступность хостов:
+
+```shell
+make ping
+```
+
+Убедитесь, что SSH-ключ скопирован на все ноды.
+
+### kubeadm init завершается с ошибкой
+
+Проверьте, что порт 6443 не занят:
+
+```shell
+ss -tlnp | grep 6443
+```
+
+Проверьте, что swap отключён:
+
+```shell
+swapon --show
+```
+
+### Ноды не подключаются к кластеру
+
+Проверьте, что все ноды доступны по сети и время синхронизировано:
+
+```shell
+# На каждой ноде
+chronyc tracking  # для Rocky Linux
+ntpq -p           # для Debian
+```
+
+### External etcd не запускается
+
+Убедитесь, что:
+- Docker установлен на etcd нодах
+- Количество etcd нод нечётное
+- Порты 2379/2380 открыты между etcd нодами и control plane
+
+## Совместимость
+
+| k8s ver | Distributive | CRI | Статус |
+|---------|-------------|-----|--------|
+| 1.35.0 → 1.36.1 | Rocky Linux 10.1 | containerd | **OK** |
+| 1.31.2 | Rocky Linux 9.4 | containerd 1.7.23 | **OK** |
+| 1.31 | Rocky Linux 8.10 | containerd 1.6.32 | **OK** |
+| 1.30 | Rocky Linux 8.10 | containerd 1.6.32 | **OK** |
+| 1.30 | Debian 12 | containerd.io 1.7.21 | **OK** |
+
+## Структура проекта
+
+```
+├── ansible.cfg              # Конфигурация Ansible
+├── hosts.yaml               # Инвентори хостов
+├── install-cluster.yaml     # Основной playbook установки
+├── reset.yaml               # Playbook удаления кластера
+├── upgrade.yaml             # Playbook обновления кластера
+├── Makefile                 # Удобное управление через make
+├── group_vars/
+│   ├── all.yaml             # Общие переменные для всех групп
+│   ├── k8s_cluster/         # Конфигурация кластера
+│   └── etcd_nodes/          # Переменные для external etcd
+├── examples/                # Примеры конфигураций
+│   ├── single-node/
+│   ├── ha-stacked/
+│   └── ha-external-etcd/
+├── roles/
+│   ├── prepare-hosts/       # Подготовка хостов (CRI, пакеты)
+│   ├── ha/                  # HAProxy + Keepalived
+│   ├── etcd/                # External etcd кластер
+│   ├── master/              # Установка control plane
+│   ├── second_controls/     # Дополнительные control plane
+│   ├── workers/             # Установка worker нод
+│   ├── upgrade-cluster/     # Обновление кластера
+│   └── utils/               # Утилиты
+└── services/                # Сервисные playbook'и
 ```
