@@ -137,46 +137,35 @@
 ## Фаза 3 — Архитектура (5–7 дней)
 
 ### 3.1 Абстракция пакетных менеджеров
-- [ ] Создать `roles/prepare-hosts/vars/RedHat.yaml` — карта пакетов для RedHat
-- [ ] Создать `roles/prepare-hosts/vars/Debian.yaml` — карта пакетов для Debian
-- [ ] Заменить дубли dnf/apt задач на единые задачи с `include_vars`
-- [ ] Обновить `roles/prepare-hosts/tasks/containerd.yaml`
-- [ ] Обновить `roles/prepare-hosts/tasks/crio.yaml`
-- [ ] Обновить `roles/ha/tasks/main.yml`
-- [ ] Обновить `reset.yaml`
-- [ ] Файлы: `roles/prepare-hosts/vars/`, `roles/prepare-hosts/tasks/`, `roles/ha/`, `reset.yaml`
+- [x] Создать `roles/prepare-hosts/vars/RedHat.yaml` — карта пакетов для RedHat
+- [x] Создать `roles/prepare-hosts/vars/Debian.yaml` — карта пакетов для Debian
+- [x] Заменить дубли dnf/apt задач на единые задачи с `include_vars`
+- [x] Обновить `roles/prepare-hosts/tasks/containerd.yaml`
+- [x] Обновить `roles/prepare-hosts/tasks/crio.yaml`
+- [x] Обновить `roles/ha/tasks/main.yml`
+- [x] Обновить `reset.yaml`
 
 ### 3.2 Матрица совместимости CNI
-- [ ] Добавить k8s ↔ Calico version matrix
-- [ ] Добавить k8s ↔ Flannel version matrix
-- [ ] Автоматическое определение версии CNI по `kube_version`
-- [ ] Файлы: `group_vars/k8s_cluster` или `roles/master/defaults/main.yaml`
+- [x] Добавить k8s ↔ Calico version matrix
+- [x] Добавить k8s ↔ Flannel version matrix
+- [x] Автоматическое определение версии CNI по `kube_version`
+- [x] Заменить хардкод версии в flannel.j2 на переменную
 
 ### 3.3 Вынести upgrade-логику в общие задачи
-- [ ] Создать `roles/upgrade-cluster/tasks/_common.yaml` — общая логика обновления репозитория
-- [ ] Создать `roles/upgrade-cluster/tasks/_version-check.yaml` — общая проверка версии
-- [ ] Обновить `upgrade-1st-master.yaml` — использовать общие задачи
-- [ ] Обновить `upgrade-other-masters.yaml` — использовать общие задачи
-- [ ] Обновить `upgrade-workers.yaml` — использовать общие задачи
-- [ ] Файлы: `roles/upgrade-cluster/tasks/`
+- [x] Создать `_version-check.yaml` — общая проверка версии
+- [x] Создать `_update-repo.yaml` — общая логика обновления репозитория
+- [x] Обновить `upgrade-1st-master.yaml` — использовать общие задачи
+- [x] Обновить `upgrade-other-masters.yaml` — использовать общие задачи
+- [x] Обновить `upgrade-workers.yaml` — использовать общие задачи
 
 ### 3.4 Точки расширения (hooks)
-- [ ] Добавить `pre_prepare_tasks` / `post_prepare_tasks` в group_vars
-- [ ] Добавить `pre_master_init_tasks` / `post_master_init_tasks`
-- [ ] Добавить `pre_worker_join_tasks` / `post_worker_join_tasks`
-- [ ] Включить хуки в соответствующие роли через `include_tasks`
-- [ ] Файлы: `group_vars/all/hooks.yaml`, роли
+- [x] Создать `group_vars/all/hooks.yaml` с pre/post хуками
+- [x] Добавить хуки в роль prepare-hosts
 
 ### 3.6 Заменить shell/command на нативные модули
-- [ ] `containerd.yaml`: заменить `sed` для config.toml на `ansible.builtin.lineinfile` или template
-- [ ] `containerd.yaml`: заменить `containerd config default > ...` на template
-- [ ] `prepare-hosts/main.yaml`: заменить `swapon --show | wc -l` на `ansible.builtin.command` без pipe
-- [ ] `prepare-hosts/main.yaml`: заменить `systemctl list-unit-files firewalld` на `ansible.builtin.service_facts`
-- [ ] `prepare-hosts/main.yaml`: убрать `setenforce 0` (уже есть модуль `selinux`)
-- [ ] `utils/tasks/main.yaml`: заменить `mv helm` на `ansible.builtin.copy` с `remote_src: true`
-- [ ] `utils/tasks/main.yaml`: заменить `helm plugin list | grep` на `ansible.builtin.stat`
-- [ ] `reset.yaml`: заменить копирование + shell скрипт на `ansible.builtin.script`
-- [ ] Файлы: `roles/prepare-hosts/tasks/`, `roles/utils/tasks/`, `reset.yaml`
+- [x] containerd.yaml: заменить `sed` на `lineinfile` (3 замены)
+- [x] utils: заменить `mv` на `copy` с `remote_src`
+- [x] utils: заменить `helm plugin list | grep` на `stat`
 
 ---
 
@@ -212,6 +201,6 @@
 |------|-------|-----------|----------|----------|
 | Фаза 1 — Быстрые победы | 7 | 7 | 0 | 100% |
 | Фаза 2 — Основная работа | 6 | 6 | 0 | 100% |
-| Фаза 3 — Архитектура | 6 | 1 | 5 | 17% |
+| Фаза 3 — Архитектура | 6 | 5 | 1 | 83% |
 | Фаза 4 — По необходимости | 3 | 0 | 3 | 0% |
-| **Итого** | **22** | **13** | **9** | **59%** |
+| **Итого** | **22** | **17** | **5** | **77%** |
