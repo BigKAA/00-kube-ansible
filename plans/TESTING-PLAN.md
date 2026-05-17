@@ -58,26 +58,35 @@ ssh artur@e1.kryukov.lan "sudo whoami"  # должно вернуть root
 - [ ] Убедиться, что на всех целевых машинах есть Python 3 (`/usr/bin/python3`)
 - [ ] Убедиться, что Docker запущен на MacOS (Orbstack)
 - [ ] Подготовить Docker-образ с Ansible для запуска playbooks
-- [ ] Модифицировать playbook для offline-установки из RPM
 
 **Результаты проверки (2026-05-16):**
 - SSH: все 8 нод доступны, sudo работает без пароля
 - ОС: Rocky Linux 10.1 (Red Quartz) на всех нодах
 - Python: 3.12.12 (`/usr/bin/python3`)
 - Docker: v29.4.0 (Orbstack, MacOS)
-- Offline-режим: реализован через `k8s_install_mode: offline` (коммит `556f60d`)
+
+> **Примечание:** Pre-flight проверки теперь встроены в `install-cluster.yaml`
+> и запускаются автоматически (проверка SSH, Python3, портов, версий, CRI/CNI).
 
 ### 2.2. Настройка переменных для external etcd
 
-Создать override-файл переменных для тестирования:
+Передать переменные через `-e` при запуске playbook:
 
-```yaml
-# group_vars/k8s_cluster/homelab-test.yaml (или передавать через -e)
-etcd_mode: "external"
-kube_version: "1.35.0"  # Начальная версия для установки
-ha_cluster_virtual_ip: "192.168.218.130"
-ha_cluster_virtual_port: 7443
+```bash
+ansible-playbook -i hosts-homelab.yaml install-cluster.yaml \
+  -e "kube_version=1.35.0" \
+  -e "etcd_mode=external" \
+  -e "k8s_install_mode=offline"
 ```
+
+Или использовать Makefile:
+
+```bash
+make install ENV=homelab EXTRA='-e "kube_version=1.35.0" -e "etcd_mode=external" -e "k8s_install_mode=offline"'
+```
+
+> **Примечание:** `cri_socket` и `crio_version` вычисляются автоматически
+> на основе переменной `cri` и `kube_version`.
 
 ### 2.3. Подготовка offline-пакетов (RPM)
 
@@ -168,7 +177,7 @@ kubernetes.core) и Python-модулями (cryptography, kubernetes, docker).
 
 ```bash
 # Собрать образ
-docker build -f Dockerfile.ansible -t ansible-custom:latest .
+docker build -f Dockerfile.ansible -t ansible-custom:13.6 .
 ```
 
 #### 2.4.3. Алиасы для команд Ansible
@@ -179,12 +188,12 @@ docker build -f Dockerfile.ansible -t ansible-custom:latest .
 alias ansible-playbook="docker run -ti --rm \
   -v ~/.ssh:/home/ansible/.ssh \
   -v $(pwd):/workspace \
-  ansible-custom:latest ansible-playbook"
+  ansible-custom:13.6 ansible-playbook"
 
 alias ansible="docker run -ti --rm \
   -v ~/.ssh:/home/ansible/.ssh \
   -v $(pwd):/workspace \
-  ansible-custom:latest ansible"
+  ansible-custom:13.6 ansible"
 ```
 
 > **Важно:** Все команды `ansible` и `ansible-playbook` в этом документе
@@ -199,14 +208,13 @@ alias ansible="docker run -ti --rm \
 
 ### 3.1. Конфигурация
 
-Обновить `ansible.cfg` для работы через пользователя `artur`:
+`ansible.cfg` уже настроен для работы через пользователя `artur`:
 
 ```ini
 [defaults]
+# inventory задаётся через Makefile или ключ -i
 inventory = ./hosts-homelab.yaml
 roles_path = ./roles
-stdout_callback = yaml
-stderr_callback = yaml
 host_key_checking = False
 
 [privilege_escalation]
@@ -215,6 +223,14 @@ become_method = sudo
 become_user = root
 become_ask_pass = False
 ```
+
+**Pre-flight проверки** запускаются автоматически перед установкой:
+- Проверка SSH connectivity
+- Проверка Python3 на remote хостах
+- Проверка занятости портов (6443, HA virtual port)
+- Проверка нечётности control plane и etcd нод
+- Проверка `kube_version` в диапазоне 1.28–1.36.1
+- Проверка допустимых значений CRI и CNI
 
 ```bash
 # Установить версию Kubernetes
@@ -228,18 +244,37 @@ ansible-playbook -i hosts-homelab.yaml install-cluster.yaml \
   -u artur --become \
   -e "kube_version=${KUBE_VERSION}" \
   -e "etcd_mode=external" \
+  -e "k8s_install_mode=offline" \
   --check -vv
 ```
 
 ### 3.2. Запуск установки
+
+**Через Makefile (рекомендуется):**
+
+```bash
+export KUBE_VERSION="1.35.0"
+
+# Установка кластера с external etcd (offline)
+make install ENV=homelab EXTRA='-e "kube_version=${KUBE_VERSION}" -e "etcd_mode=external" -e "k8s_install_mode=offline"' -vv
+
+# Или с verbose выводом
+make install ENV=homelab EXTRA='-e "kube_version=${KUBE_VERSION}" -e "etcd_mode=external" -e "k8s_install_mode=offline"' VERBOSE=2
+```
+
+**Напрямую через ansible-playbook:**
 
 ```bash
 ansible-playbook -i hosts-homelab.yaml install-cluster.yaml \
   -u artur --become \
   -e "kube_version=${KUBE_VERSION}" \
   -e "etcd_mode=external" \
+  -e "k8s_install_mode=offline" \
   -vv
 ```
+
+> **Примечание:** Pre-flight проверки запускаются автоматически в начале playbook.
+> Они проверят SSH, Python3, порты, версии, CRI/CNI перед установкой.
 
 ### 3.3. Проверки после установки
 
@@ -274,7 +309,7 @@ ssh artur@e1.kryukov.lan "sudo docker exec etcd etcdctl \
 **Критерии успеха:**
 - [ ] Все 3 ноды etcd в состоянии `healthy`
 - [ ] Кластер имеет 3 члена
-- [ ] Версия etcd соответствует матрице совместимости для v1.35 (`registry.k8s.io/etcd:3.5.21-0`)
+- [ ] Версия etcd соответствует матрице совместимости для v1.35 (`registry.k8s.io/etcd:3.5.24-0`)
 
 #### 3.3.2. Проверка Kubernetes кластера
 
@@ -289,7 +324,7 @@ ssh artur@r1.kryukov.lan "sudo kubectl get pods -n kube-system -o wide"
 ssh artur@r1.kryukov.lan "sudo kubectl get pods -n kube-system | grep -E 'apiserver|controller|scheduler|etcd|proxy'"
 
 # Проверить версию кластера
-ssh artur@r1.kryukov.lan "sudo kubectl version --short"
+ssh artur@r1.kryukov.lan "sudo kubectl version -o yaml"
 
 # Проверить конфигурацию cluster-info
 ssh artur@r1.kryukov.lan "sudo kubectl cluster-info"
@@ -422,13 +457,25 @@ export KUBE_VERSION="1.36.1"
 
 #### 4.1.3. Проверить матрицу совместимости etcd
 
-Согласно `roles/etcd/defaults/main.yaml`:
-- Для k8s v1.35 → etcd `3.5.21-0`
+Согласно обновлённой матрице совместимости:
+- Для k8s v1.35 → etcd `3.5.24-0`
 - Для k8s v1.36 → etcd `3.6.6-0`
 
-**Требуется upgrade etcd!**
+> **Примечание:** Upgrade etcd обрабатывается автоматически в `upgrade.yaml`
+> при `etcd_mode: external`. Версия etcd определяется автоматически
+> на основе `kube_version`.
 
 ### 4.2. Запуск upgrade
+
+**Через Makefile (рекомендуется):**
+
+```bash
+export KUBE_VERSION="1.36.1"
+
+make upgrade ENV=homelab EXTRA='-e "kube_version=${KUBE_VERSION}" -e "etcd_mode=external"'
+```
+
+**Напрямую через ansible-playbook:**
 
 ```bash
 # Проверить синтаксис (dry-run)
@@ -445,6 +492,9 @@ ansible-playbook -i hosts-homelab.yaml upgrade.yaml \
   -e "etcd_mode=external" \
   -vv
 ```
+
+> **Примечание:** Upgrade использует общие задачи `_version-check.yaml`
+> и `_update-repo.yaml` для проверки версий и обновления репозиториев.
 
 ### 4.3. Проверки после upgrade
 
@@ -477,7 +527,7 @@ ssh artur@e1.kryukov.lan "sudo docker exec etcd etcdctl \
 
 ```bash
 # Проверить версию кластера
-ssh artur@r1.kryukov.lan "sudo kubectl version --short"
+ssh artur@r1.kryukov.lan "sudo kubectl version -o yaml"
 
 # Проверить статус нод
 ssh artur@r1.kryukov.lan "sudo kubectl get nodes -o wide"
@@ -606,9 +656,83 @@ kubectl delete namespace test-ns
 
 ---
 
-## 6. Этап 4: Очистка (Reset)
+## 6. Этап 5: Проверка pre-flight и hooks
 
-### 6.1. Reset кластера
+### 6.1. Pre-flight проверки
+
+Pre-flight проверки запускаются автоматически в начале `install-cluster.yaml`.
+Для тестирования можно запустить с некорректными данными:
+
+```bash
+# Тест: некорректная версия Kubernetes (должна завершиться ошибкой)
+ansible-playbook -i hosts-homelab.yaml install-cluster.yaml \
+  -u artur --become \
+  -e "kube_version=1.27.0" \
+  -e "etcd_mode=external" \
+  --check -vv
+
+# Тест: нечётное количество control plane (проверка в pre-flight)
+# Создать временный инвентори с 2 control plane нодами и запустить
+
+# Тест: недопустимый CRI
+ansible-playbook -i hosts-homelab.yaml install-cluster.yaml \
+  -u artur --become \
+  -e "cri=invalid" \
+  -e "etcd_mode=external" \
+  --check -vv
+```
+
+**Критерии успеха:**
+- [ ] Pre-flight завершается с ошибкой при некорректной версии
+- [ ] Pre-flight завершается с ошибкой при чётном количестве control plane
+- [ ] Pre-flight завершается с ошибкой при недопустимом CRI/CNI
+
+### 6.2. Hooks (расширения)
+
+Hooks определяются в `group_vars/all/hooks.yaml` и позволяют выполнять
+кастомные задачи до/после основных этапов установки.
+
+```bash
+# Создать тестовый hook
+cat > group_vars/all/hooks-test.yaml << 'EOF'
+pre_prepare_tasks:
+  - name: Test pre-prepare hook
+    debug:
+      msg: "Pre-prepare hook executed"
+
+post_master_init_tasks:
+  - name: Test post-master-init hook
+    debug:
+      msg: "Post-master-init hook executed"
+EOF
+
+# Запустить установку с hooks (offline)
+ansible-playbook -i hosts-homelab.yaml install-cluster.yaml \
+  -u artur --become \
+  -e "kube_version=1.35.0" \
+  -e "etcd_mode=external" \
+  -e "k8s_install_mode=offline" \
+  -vv
+```
+
+**Критерии успеха:**
+- [ ] Pre-prepare hook выполняется перед подготовкой хостов
+- [ ] Post-master-init hook выполняется после инициализации master
+- [ ] Hooks не влияют на основной процесс установки
+
+---
+
+## 7. Этап 6: Очистка (Reset)
+
+### 7.1. Reset кластера
+
+**Через Makefile (рекомендуется):**
+
+```bash
+make reset ENV=homelab EXTRA='-e "etcd_mode=external" -e "reset_etcd=true"'
+```
+
+**Напрямую через ansible-playbook:**
 
 ```bash
 # Проверить синтаксис (dry-run)
@@ -624,7 +748,10 @@ ansible-playbook -i hosts-homelab.yaml reset.yaml \
   -vv
 ```
 
-### 6.2. Проверки после reset
+> **Важно:** `reset.yaml` удаляет все нестандартные iptables цепочки!
+> External etcd не удаляется по умолчанию (установите `reset_etcd: true`).
+
+### 7.2. Проверки после reset
 
 ```bash
 # Проверить что kubeadm удалён
@@ -642,9 +769,9 @@ ssh artur@e1.kryukov.lan "sudo systemctl status etcd"  # должен быть i
 
 ---
 
-## 7. Матрица проверок
+## 8. Матрица проверок
 
-### 7.1. Чек-лист проверок
+### 8.1. Чек-лист проверок
 
 | # | Проверка | Этап | Ожидаемый результат | Статус |
 |---|----------|------|---------------------|--------|
@@ -652,29 +779,32 @@ ssh artur@e1.kryukov.lan "sudo systemctl status etcd"  # должен быть i
 | 2 | Скачивание RPM v1.35 для Rocky Linux 10 | Подготовка | RPM в tmp/rpms/, совместимы с EL10 | ⬜ |
 | 3 | Скачивание RPM v1.36 для Rocky Linux 10 | Подготовка | RPM в tmp/rpms/, совместимы с EL10 | ⬜ |
 | 4 | Синтаксис install-cluster.yaml | Подготовка | Без ошибок | ⬜ |
-| 5 | Установка external etcd | Установка | 3 ноды, healthy | ⬜ |
-| 6 | Установка control plane | Установка | 3 ноды, Ready | ⬜ |
-| 7 | Установка worker нод | Установка | 2 ноды, Ready | ⬜ |
-| 8 | HA (VIP) | Установка | VIP активен, API доступен | ⬜ |
-| 9 | CNI (Calico) | Установка | Поды Running, связность | ⬜ |
-| 10 | CRI (containerd) | Установка | Запущен, контейнеры работают | ⬜ |
-| 11 | Версия k8s = 1.35.0 → 1.36.1 | Установка / Upgrade | `kubectl version` | ⬜ |
-| 12 | Версия etcd = 3.5.24 → 3.6.6 | Установка / Upgrade | `etcdctl version` | ⬜ |
-| 13 | Синтаксис upgrade.yaml | Upgrade | Без ошибок | ⬜ |
-| 14 | Upgrade etcd до 3.6.6 | Upgrade | Rolling upgrade, healthy | ⬜ |
-| 15 | Upgrade k8s до 1.36.1 | Upgrade | Все ноды, новая версия | ⬜ |
-| 16 | Работоспособность приложений | Upgrade | Deployment, Service, DNS | ⬜ |
-| 17 | HA после upgrade | Upgrade | VIP, API доступен | ⬜ |
-| 18 | Отказоустойчивость etcd | Негативные | Кластер жив при 1 ноде down | ⬜ |
-| 19 | Отказоустойчивость control plane | Негативные | VIP переезжает, API доступен | ⬜ |
-| 20 | Reset кластера | Очистка | Пакеты удалены, iptables очищены | ⬜ |
-| 21 | Reset etcd | Очистка | etcd остановлен, данные удалены | ⬜ |
+| 5 | Pre-flight: некорректная версия | Подготовка | Завершается с ошибкой | ⬜ |
+| 6 | Pre-flight: чётное количество control plane | Подготовка | Завершается с ошибкой | ⬜ |
+| 7 | Установка external etcd | Установка | 3 ноды, healthy | ⬜ |
+| 8 | Установка control plane | Установка | 3 ноды, Ready | ⬜ |
+| 9 | Установка worker нод | Установка | 2 ноды, Ready | ⬜ |
+| 10 | HA (VIP) | Установка | VIP активен, API доступен | ⬜ |
+| 11 | CNI (Calico) | Установка | Поды Running, связность | ⬜ |
+| 12 | CRI (containerd) | Установка | Запущен, контейнеры работают | ⬜ |
+| 13 | Версия k8s = 1.35.0 → 1.36.1 | Установка / Upgrade | `kubectl version` | ⬜ |
+| 14 | Версия etcd = 3.5.24 → 3.6.6 | Установка / Upgrade | `etcdctl version` | ⬜ |
+| 15 | Синтаксис upgrade.yaml | Upgrade | Без ошибок | ⬜ |
+| 16 | Upgrade etcd до 3.6.6 | Upgrade | Rolling upgrade, healthy | ⬜ |
+| 17 | Upgrade k8s до 1.36.1 | Upgrade | Все ноды, новая версия | ⬜ |
+| 18 | Работоспособность приложений | Upgrade | Deployment, Service, DNS | ⬜ |
+| 19 | HA после upgrade | Upgrade | VIP, API доступен | ⬜ |
+| 20 | Отказоустойчивость etcd | Негативные | Кластер жив при 1 ноде down | ⬜ |
+| 21 | Отказоустойчивость control plane | Негативные | VIP переезжает, API доступен | ⬜ |
+| 22 | Hooks (pre/post install) | Hooks | Выполняются корректно | ⬜ |
+| 23 | Reset кластера | Очистка | Пакеты удалены, iptables очищены | ⬜ |
+| 24 | Reset etcd | Очистка | etcd остановлен, данные удалены | ⬜ |
 
 ---
 
-## 8. Известные проблемы и замечания
+## 9. Известные проблемы и замечания
 
-### 8.1. Критические
+### 9.1. Критические
 
 1. ~~**Дубликат в hosts-homelab.yaml**~~ — исправлено в коммите `81a977a`
 2. ~~**Offline-пакеты**~~ — реализован offline-режим в коммите `556f60d`:
@@ -685,96 +815,85 @@ ssh artur@e1.kryukov.lan "sudo systemctl status etcd"  # должен быть i
    скачанные пакеты имеют именование `150500.1.1`, совместимое с playbook.
    Playbook обновлён для использования glob-паттернов.
 
-### 8.2. Рекомендации
+### 9.2. Рекомендации
 
-1. Добавить задачу в upgrade playbook для копирования RPM на целевые машины
-2. Добавить проверку доступности RPM перед upgrade
+1. ~~Добавить задачу в upgrade playbook для копирования RPM на целевые машины~~ — реализовано
+2. ~~Добавить проверку доступности RPM перед upgrade~~ — реализовано в `_version-check.yaml`
 3. Добавить rollback-сценарий для upgrade
-4. Добавить проверку совместимости версий etcd перед upgrade
-5. Добавить логирование версий до и после upgrade
+4. ~~Добавить проверку совместимости версий etcd перед upgrade~~ — реализовано в pre-flight
+5. ~~Добавить логирование версий до и после upgrade~~ — реализовано в `_version-check.yaml`
 
 ---
 
-## 9. Команды для быстрого запуска
+## 10. Команды для быстрого запуска
 
-### 9.1. Полный цикл тестирования
+### 10.1. Полный цикл тестирования (через Makefile)
 
 ```bash
-# 0. Собрать Docker-образ и определить алиасы (см. раздел 2.4)
-docker build -f Dockerfile.ansible -t ansible-custom:latest .
-alias ansible-playbook="docker run -ti --rm \
-  -v ~/.ssh:/home/ansible/.ssh \
-  -v $(pwd):/workspace \
-  ansible-custom:latest ansible-playbook"
-alias ansible="docker run -ti --rm \
-  -v ~/.ssh:/home/ansible/.ssh \
-  -v $(pwd):/workspace \
-  ansible-custom:latest ansible"
+# 0. Собрать Docker-образ
+docker build -f Dockerfile.ansible -t ansible-custom:13.6 .
 
-# 1. Исправить hosts-homelab.yaml
-# 2. Скачать RPM для Rocky Linux 10 (см. раздел 2.3)
+# 1. Подготовить RPM для Rocky Linux 10 (см. раздел 2.3)
 mkdir -p tmp/rpms
 # ... скачать RPM v1.35 и v1.36 для EL10 ...
 
-# 3. Проверить доступ ко всем нодам
-ansible -i hosts-homelab.yaml all -u artur -m ping
+# 2. Проверить доступ ко всем нодам
+make ping ENV=homelab
 
-# 4. Установить кластер v1.35
-ansible-playbook -i hosts-homelab.yaml install-cluster.yaml \
-  -u artur --become \
-  -e "kube_version=1.35.0" \
-  -e "etcd_mode=external" \
-  -vv
+# 3. Установить кластер v1.35 с external etcd (offline)
+make install ENV=homelab EXTRA='-e "kube_version=1.35.0" -e "etcd_mode=external" -e "k8s_install_mode=offline"'
 
-# 5. Проверить установку
-# ... (см. раздел 3.3) ...
+# 4. Проверить установку (см. раздел 3.3)
 
-# 6. Скопировать RPM для upgrade на ноды
-ansible k8s_cluster -i hosts-homelab.yaml -u artur --become \
-  -m file -a "path=/tmp/k8s-rpms state=directory mode=0755"
-ansible k8s_cluster -i hosts-homelab.yaml -u artur --become \
-  -m copy -a "src=tmp/rpms/ dest=/tmp/k8s-rpms/"
+# 5. Upgrade до v1.36
+make upgrade ENV=homelab EXTRA='-e "kube_version=1.36.1" -e "etcd_mode=external"'
 
-# 7. Upgrade до v1.36
-ansible-playbook -i hosts-homelab.yaml upgrade.yaml \
-  -u artur --become \
-  -e "kube_version=1.36.1" \
-  -e "etcd_mode=external" \
-  -vv
+# 6. Проверить upgrade (см. раздел 4.3)
 
-# 8. Проверить upgrade
-# ... (см. раздел 4.3) ...
-
-# 9. Reset
-ansible-playbook -i hosts-homelab.yaml reset.yaml \
-  -u artur --become \
-  -e "etcd_mode=external" \
-  -e "reset_etcd=true" \
-  -vv
+# 7. Reset кластера
+make reset ENV=homelab EXTRA='-e "etcd_mode=external" -e "reset_etcd=true"'
 ```
 
-### 9.2. Запуск через Docker-контейнер (без алиасов)
+### 10.2. Запуск через Docker-контейнер (без Makefile)
 
-Если алиасы (раздел 2.4.3) не определены, полная команда выглядит так:
+Если Makefile не используется, полная команда выглядит так:
 
 ```bash
 # Из директории проекта
 docker run --rm -ti \
   -v "$(pwd):/workspace" \
   -v ~/.ssh:/home/ansible/.ssh \
-  ansible-custom:latest \
+  ansible-custom:13.6 \
   ansible-playbook -i hosts-homelab.yaml install-cluster.yaml \
     -u artur --become \
     -e "kube_version=1.35.0" \
     -e "etcd_mode=external" \
+    -e "k8s_install_mode=offline" \
     -vv
 ```
 
 ---
 
-## 10. Диагностика проблем
+## 11. Диагностика проблем
 
-### 10.1. Полезные команды для отладки
+### 11.1. Полезные команды для отладки
+
+**Через Makefile:**
+
+```bash
+# Проверить доступность нод
+make ping ENV=homelab
+
+# Проверить синтаксис playbook
+make check-install ENV=homelab
+make check-upgrade ENV=homelab
+make check-reset ENV=homelab
+
+# Проверить группы инвентори
+make inventory ENV=homelab
+```
+
+**Напрямую через Ansible:**
 
 ```bash
 # Проверить доступность нод
@@ -786,20 +905,9 @@ ansible -i hosts-homelab.yaml k8s_masters -u artur -m debug -a "var=kube_version
 # Проверить группу
 ansible -i hosts-homelab.yaml --list-hosts k8s_cluster
 ansible -i hosts-homelab.yaml --list-hosts etcd_nodes
-
-# Проверить журналы на нодах
-ssh artur@r1.kryukov.lan "sudo journalctl -u kubelet -f --no-pager"
-ssh artur@r1.kryukov.lan "sudo journalctl -u containerd -f --no-pager"
-ssh artur@e1.kryukov.lan "sudo docker logs etcd"
-
-# Проверить сертификаты etcd
-ssh artur@e1.kryukov.lan "sudo openssl x509 -in /etc/etcd/pki/ca.crt -text -noout"
-
-# Проверить версию Rocky Linux
-ssh artur@r1.kryukov.lan "cat /etc/rocky-release"
 ```
 
-### 10.2. Типичные проблемы
+### 11.2. Типичные проблемы
 
 | Проблема | Причина | Решение |
 |----------|---------|---------|

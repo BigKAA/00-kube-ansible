@@ -9,7 +9,7 @@
 
 - name: Drain ноды
   ansible.builtin.shell:
-    cmd: kubectl drain {{ ansible_fqdn }} --ignore-daemonsets --delete-emptydir-data
+    cmd: kubectl drain {{ ansible_facts['fqdn'] }} --ignore-daemonsets --delete-emptydir-data
 
 - name: Обновление master ноды
   ansible.builtin.shell:
@@ -31,4 +31,4 @@
 
 - name: Uncordon master ноды
   ansible.builtin.shell:
-    cmd: "kubectl uncordon {{ ansible_fqdn }}"
+    cmd: "kubectl uncordon {{ ansible_facts['fqdn'] }}"

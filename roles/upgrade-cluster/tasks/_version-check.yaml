@@ -5,7 +5,7 @@
 
 - name: Получить текущую версию ноды
   ansible.builtin.shell:
-    cmd: "kubectl get nodes {{ ansible_fqdn }} -o=jsonpath='{.status.nodeInfo.kubeletVersion}'"
+    cmd: "kubectl get nodes {{ ansible_facts['fqdn'] }} -o=jsonpath='{.status.nodeInfo.kubeletVersion}'"
   register: version_current
 
 - name: Проверка версии — пропуск если совпадает

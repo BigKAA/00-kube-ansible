@@ -63,8 +63,7 @@
 
 - name: Создать containerd config.toml
   ansible.builtin.shell: containerd config default > /etc/containerd/config.toml
-  args:
-    creates: /etc/containerd/config.toml
+  changed_when: true
 
 - name: Включить cgroup v2 [config.toml]
   ansible.builtin.lineinfile:

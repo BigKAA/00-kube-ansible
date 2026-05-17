@@ -9,7 +9,7 @@
 
 - name: Drain ноды
   ansible.builtin.shell:
-    cmd: kubectl drain {{ ansible_fqdn }} --ignore-daemonsets
+    cmd: kubectl drain {{ ansible_facts['fqdn'] }} --ignore-daemonsets
 
 - name: Обновление control plane ноды
   ansible.builtin.shell:
@@ -23,4 +23,4 @@
 
 - name: Uncordon control plane ноды
   ansible.builtin.shell:
-    cmd: "kubectl uncordon {{ ansible_fqdn }}"
+    cmd: "kubectl uncordon {{ ansible_facts['fqdn'] }}"

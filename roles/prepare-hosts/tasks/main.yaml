@@ -7,20 +7,20 @@
 
 # Загрузка переменных семейства ОС
 - name: Загрузить переменные семейства ОС
-  ansible.builtin.include_vars: "{{ ansible_os_family }}.yaml"
+  ansible.builtin.include_vars: "{{ ansible_facts['os_family'] }}.yaml"
 
 # ============================================================
 # Системные пакеты
 # ============================================================
 
 - name: Установка системных пакетов [RedHat]
-  when: ansible_os_family == "RedHat"
+  when: ansible_facts['os_family'] == "RedHat"
   ansible.builtin.dnf:
     name: "{{ packages_common }}"
     state: present
 
 - name: Установка системных пакетов [Debian]
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
   ansible.builtin.apt:
     pkg: "{{ packages_common }}"
     state: present
@@ -41,7 +41,7 @@
 
 - name: Отключить firewalld
   when:
-    - ansible_os_family == "RedHat"
+    - ansible_facts['os_family'] == "RedHat"
     - firewall_service != ""
   block:
     - name: Проверить наличие firewalld
@@ -86,13 +86,13 @@
 # ============================================================
 
 - name: Отключить SELinux
-  when: ansible_os_family == "RedHat"
+  when: ansible_facts['os_family'] == "RedHat"
   ansible.builtin.selinux:
     state: disabled
   register: selinux_ret
 
 - name: Setenforce 0
-  when: ansible_os_family == "RedHat" and selinux_ret.changed
+  when: ansible_facts['os_family'] == "RedHat" and selinux_ret.changed
   ansible.builtin.command:
     cmd: setenforce 0
 
@@ -167,7 +167,7 @@
 
     - name: Репозиторий Kubernetes [Debian, ключ]
       when:
-        - ansible_os_family == "Debian"
+        - ansible_facts['os_family'] == "Debian"
         - k8s_install_mode == "online"
       ansible.builtin.apt_key:
         url: "https://prod-cdn.packages.k8s.io/repositories/isv:/kubernetes:/core:/stable:/v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}/deb/Release.key"
@@ -176,7 +176,7 @@
 
     - name: Репозиторий Kubernetes [Debian]
       when:
-        - ansible_os_family == "Debian"
+        - ansible_facts['os_family'] == "Debian"
         - k8s_install_mode == "online"
       ansible.builtin.apt_repository:
         repo: "deb [signed-by=/etc/apt/trusted.gpg.d/k8s.gpg] https://prod-cdn.packages.k8s.io/repositories/isv:/kubernetes:/core:/stable:/v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}/deb/ /"
@@ -185,7 +185,7 @@
 
     - name: Репозиторий Kubernetes [RedHat]
       when:
-        - ansible_os_family == "RedHat"
+        - ansible_facts['os_family'] == "RedHat"
         - k8s_install_mode == "online"
       ansible.builtin.yum_repository:
         name: kubernetes
@@ -214,17 +214,17 @@
         src: "{{ item }}"
         dest: "{{ k8s_rpm_remote_dir }}/"
         mode: "0644"
-      loop:
+      with_fileglob:
         - "{{ playbook_dir }}/tmp/rpms/kubeadm-{{ kube_version }}*.rpm"
         - "{{ playbook_dir }}/tmp/rpms/kubelet-{{ kube_version }}*.rpm"
         - "{{ playbook_dir }}/tmp/rpms/kubectl-{{ kube_version }}*.rpm"
 
     - name: Установить Kubernetes из RPM [RedHat offline]
       when:
-        - ansible_os_family == "RedHat"
+        - ansible_facts['os_family'] == "RedHat"
         - k8s_install_mode == "offline"
-      ansible.builtin.command: >
-        dnf install -y --disableplugin=fastestmirror
+      ansible.builtin.shell: >
+        dnf install -y
         {{ k8s_rpm_remote_dir }}/kubeadm-{{ kube_version }}*.rpm
         {{ k8s_rpm_remote_dir }}/kubelet-{{ kube_version }}*.rpm
         {{ k8s_rpm_remote_dir }}/kubectl-{{ kube_version }}*.rpm
@@ -235,14 +235,14 @@
 
     - name: Установить Kubernetes [RedHat]
       when:
-        - ansible_os_family == "RedHat"
+        - ansible_facts['os_family'] == "RedHat"
         - k8s_install_mode == "online"
       ansible.builtin.dnf:
         name: "{{ packages_k8s }}"
         state: present
 
     - name: Установить Kubernetes [Debian]
-      when: ansible_os_family == "Debian"
+      when: ansible_facts['os_family'] == "Debian"
       ansible.builtin.apt:
         pkg: "{{ packages_k8s }}"
         state: present

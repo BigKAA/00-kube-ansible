@@ -1,7 +1,7 @@
 # Ansible playbook для установки Kubernetes кластера
 
 [![Kubernetes](https://img.shields.io/badge/Kubernetes-v1.28–v1.36-blue)](https://kubernetes.io/releases/)
-[![Ansible](https://img.shields.io/badge/Ansible-2.16+-green)](https://www.ansible.com/)
+[![Ansible](https://img.shields.io/badge/Ansible-13.6-green)](https://www.ansible.com/)
 
 Playbook для установки и управления тестовым кластером Kubernetes.
 Проверен на наборе [приложений](https://github.com/BigKAA/youtube/tree/master/1.31).
@@ -21,8 +21,8 @@ Playbook для установки и управления тестовым кл
 ### 1. Подготовка
 
 **Требования к Ansible control node:**
-- Python 3.8+
-- Ansible 2.16+
+- Python 3.10+
+- Ansible 13.6 (ansible-core 2.20.5)
 - SSH-ключ для доступа к нодам
 
 **Требования к нодам кластера:**
@@ -37,14 +37,14 @@ Playbook для установки и управления тестовым кл
 ```shell
 python3 -m venv venv
 . venv/bin/activate
-pip3 install ansible-core
+pip3 install ansible==13.6.0
 ```
 
-Или используйте Docker-образ:
+Или используйте Docker-образ (ansible-core 2.20.5, предустановленные коллекции):
 
 ```shell
-docker build -f Dockerfile.ansible -t ansible-custom:latest .
-alias ansible-playbook="docker run -ti --rm -v ~/.ssh:/home/ansible/.ssh -v $(pwd):/workspace ansible-custom:latest ansible-playbook"
+docker build -f Dockerfile.ansible -t ansible-custom:13.6 .
+alias ansible-playbook="docker run -ti --rm -v ~/.ssh:/home/ansible/.ssh -v $(pwd):/workspace ansible-custom:13.6 ansible-playbook"
 ```
 
 ### 3. Настройка SSH
