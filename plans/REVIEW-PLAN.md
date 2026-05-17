@@ -93,11 +93,10 @@
 - [ ] Файлы: `install-cluster.yaml` (новый play в начале)
 
 ### 1.4 Разделить group_vars
-- [ ] Создать `group_vars/all/defaults.yaml` — дефолтные значения (CIDR, версии, образы)
-- [ ] Создать `group_vars/all/user-config.yaml` — что пользователь должен настроить (IP, домены, пароли)
-- [ ] Убрать хардкод IP-адресов из дефолтов (NFS, MetalLB, ArgoCD URL, HA virtual IP)
-- [ ] Убрать дубли переменных между `group_vars/k8s_cluster` и `group_vars/etcd_nodes`
-- [ ] Файлы: `group_vars/`
+- [x] Создать `group_vars/all.yaml` — общие переменные для всех групп
+- [x] Реструктурировать `group_vars/k8s_cluster` — секции ОБЯЗАТЕЛЬНО/ОПЦИОНАЛЬНО/ВНУТРЕННИЕ
+- [x] Убрать дубли переменных между `group_vars/k8s_cluster` и `group_vars/etcd_nodes`
+- [x] Файлы: `group_vars/`
 
 ### 1.5 Примеры конфигураций
 - [ ] Создать `examples/single-node/hosts.yaml` + `group_vars/`
@@ -128,12 +127,11 @@
 - [ ] Обновить `roles/upgrade-cluster/README.md` (сейчас 2 строки)
 
 ### 2.3 Убрать дубли в конфигурации
-- [ ] Матрица etcd — оставить только в `roles/etcd/defaults/main.yaml`
-- [ ] Убрать дубль `etcd_image` из `group_vars/k8s_cluster`
-- [ ] Убрать дубль `etcd_ca_days`, `etcd_cert_days` из `group_vars/k8s_cluster`
-- [ ] Убрать дубль `etcd_initial_cluster_token` из `group_vars/k8s_cluster`
-- [ ] Убрать дубль `etcd_quota_backend_bytes` из `group_vars/k8s_cluster`
-- [ ] В README.md — ссылка на файл с матрицей вместо дублирования таблицы
+- [x] Матрица etcd — оставить только в `roles/etcd/defaults/main.yaml`
+- [x] Убрать дубли etcd из `group_vars/k8s_cluster` (оставлен etcd_mode, etcd_image для stacked)
+- [x] Убрать дубль `ansible_python_interpreter` — вынесен в `group_vars/all.yaml`
+- [x] Убрать дубль `kube_version` — вынесен в `group_vars/all.yaml`
+- [x] В README.md — ссылка на файл с матрицей вместо дублирования таблицы
 
 ---
 
@@ -214,7 +212,7 @@
 | Фаза | Задач | Выполнено | Осталось | Прогресс |
 |------|-------|-----------|----------|----------|
 | Фаза 1 — Быстрые победы | 7 | 7 | 0 | 100% |
-| Фаза 2 — Основная работа | 6 | 0 | 6 | 0% |
+| Фаза 2 — Основная работа | 6 | 2 | 4 | 33% |
 | Фаза 3 — Архитектура | 6 | 1 | 5 | 17% |
 | Фаза 4 — По необходимости | 3 | 0 | 3 | 0% |
-| **Итого** | **22** | **8** | **14** | **36%** |
+| **Итого** | **22** | **10** | **12** | **45%** |
