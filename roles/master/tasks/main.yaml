@@ -1,32 +1,33 @@
 ---
-# 1-st control node
-- name: Check if kubeadm has already run
+# Первая (primary) control plane нода
+
+- name: Проверить, кластер уже инициализирован
   ansible.builtin.stat:
     path: "/etc/kubernetes/pki/ca.key"
   register: kubeadm_ca
 
-- name: Init first master
+- name: Инициализация первого master
   when: not kubeadm_ca.stat.exists
   block:
-    - name: Create /etc/kubernetes directory
+    - name: Создать каталог /etc/kubernetes
       ansible.builtin.file:
         path: /etc/kubernetes
         state: directory
         mode: '0700'
 
-    - name: Set kube kube middle version
+    - name: Определить среднюю версию k8s
       ansible.builtin.set_fact:
         k8s_middle_version: "{{ kube_version[2:4] | int }}"
 
     # Выбор шаблона kubeadm-config в зависимости от режима etcd
-    - name: Copy kubeadm-config.yaml (external etcd)
+    - name: Скопировать kubeadm-config.yaml (external etcd)
       ansible.builtin.template:
         src: kubeadm-config-external-etcd.j2
         dest: /etc/kubernetes/kubeadm-config.yaml
         mode: '0600'
       when: etcd_mode is defined and etcd_mode == "external"
 
-    - name: Copy kubeadm-config.yaml (stacked etcd)
+    - name: Скопировать kubeadm-config.yaml (stacked etcd)
       ansible.builtin.template:
         src: kubeadm-config.j2
         dest: /etc/kubernetes/kubeadm-config.yaml
@@ -34,12 +35,12 @@
       when: etcd_mode is not defined or etcd_mode == "stacked"
 
     # При external etcd не нужно загружать образ etcd — тянем только необходимые образы
-    - name: Load k8s containers (external etcd — без etcd image)
+    - name: Загрузить образы k8s (external etcd — без etcd)
       ansible.builtin.shell: |
         kubeadm config images list --kubernetes-version {{ kube_version }} | grep -v etcd | xargs -I{} ctr image pull {}
       when: etcd_mode is defined and etcd_mode == "external"
 
-    - name: Load k8s containers (stacked etcd)
+    - name: Загрузить образы k8s (stacked etcd)
       ansible.builtin.command: kubeadm config images pull
       when: etcd_mode is not defined or etcd_mode == "stacked"
 
@@ -47,11 +48,11 @@
       when: cni == 'calico'
       block:
 
-      - name: Install Calico
+      - name: Установить Calico
         when: enableBPF is not defined
         ansible.builtin.include_tasks: calico.yaml
 
-      - name: Install Calico with BPF
+      - name: Установить Calico с BPF
         when: enableBPF is defined
         ansible.builtin.include_tasks: calico-bpf.yaml
 
@@ -59,11 +60,11 @@
       when: cni == 'flannel'
       ansible.builtin.include_tasks: flannel.yaml
 
-    - name: Setup DNS
+    - name: Настроить DNS
       ansible.builtin.include_tasks: dns.yaml
 
-    # Почему то в 1.25 на AlmaLinux 8 не ставится enabled
-    - name: Kubelet enable
+    # Почему-то в 1.25 на AlmaLinux 8 не ставится enabled автоматически
+    - name: Включить kubelet
       ansible.builtin.service:
         name: kubelet
         state: started

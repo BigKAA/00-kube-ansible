@@ -1,23 +1,26 @@
-- name: Init master control node
+---
+# Инициализация первой control plane ноды с Calico
+
+- name: Инициализация master ноды
   ansible.builtin.command: kubeadm init --config /etc/kubernetes/kubeadm-config.yaml
   register: kubeadm_init
 
-- name: Install Utils
+- name: Установить утилиты
   ansible.builtin.include_tasks: utils.yaml
 
-- name: Check for installed tigera-operator
+- name: Проверить наличие tigera-operator
   ansible.builtin.command: kubectl get ns tigera-operator
   register: tigera_operator_out
   ignore_errors: true
 
-- name: Install tigera-operator
+- name: Установить tigera-operator
   when: tigera_operator_out.rc == 1
   ansible.builtin.shell: "kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/{{ tigera_operator_version }}/manifests/tigera-operator.yaml"
 
-- name: Copy calico-install.yaml
+- name: Скопировать calico-install.yaml
   ansible.builtin.template:
     src: calico-install.j2
     dest: /etc/kubernetes/calico-install.yaml
 
-- name: Install Calico
+- name: Установить Calico
   ansible.builtin.command: kubectl apply -f /etc/kubernetes/calico-install.yaml

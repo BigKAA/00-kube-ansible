@@ -1,12 +1,14 @@
 ---
-- name: Prepare to Join
+# Главная задача: подготовка и подключение дополнительных control plane нод
+
+- name: Подготовка к подключению
   ansible.builtin.include_tasks: prepare.yaml
   when: inventory_hostname == groups['k8s_masters'][0]
 
-- name: Join another control nodes
+- name: Подключить дополнительные control plane ноды
   ansible.builtin.include_tasks: join.yaml
   when: inventory_hostname != groups['k8s_masters'][0]
 
-- name: Shake coredns
+- name: Перезапустить coredns
   ansible.builtin.command: kubectl -n kube-system rollout restart deployment/coredns
   when: inventory_hostname == groups['k8s_masters'][0]

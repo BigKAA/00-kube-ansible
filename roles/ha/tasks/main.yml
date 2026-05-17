@@ -1,9 +1,7 @@
 ---
-# Загрузка переменных семейства ОС
-- name: Загрузить переменные семейства ОС
-  ansible.builtin.include_vars: "{{ ansible_os_family }}.yaml"
+# Настройка HAProxy + Keepalived для HA доступа к API
 
-- name: Настроить sysctl
+- name: Настроить sysctl ip_nonlocal_bind
   ansible.posix.sysctl:
     name: "net.ipv4.ip_nonlocal_bind"
     value: "1"
@@ -14,13 +12,9 @@
 - name: Установить пакеты HA [RedHat]
   when: ansible_os_family == "RedHat"
   ansible.builtin.dnf:
-    name: "{{ packages_ha | default(['keepalived', 'haproxy']) }}"
-    state: present
-
-- name: Установить пакеты HA [Debian]
-  when: ansible_os_family == "Debian"
-  ansible.builtin.apt:
-    pkg: "{{ packages_ha | default(['keepalived', 'haproxy']) }}"
+    name:
+      - keepalived
+      - haproxy
     state: present
 
 - name: Скопировать keepalived.conf
