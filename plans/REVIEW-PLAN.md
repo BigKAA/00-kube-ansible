@@ -8,26 +8,31 @@
 ## Фаза 1 — Быстрые победы (1–2 дня)
 
 ### 1.2 Автоматический `cri_socket`
+
 - [x] Вычислять `cri_socket` автоматически на основе переменной `cri`
 - [x] Убрать ручное раскомментирование из `group_vars/k8s_cluster`
 - [x] Файлы: `group_vars/k8s_cluster`
 
 ### 1.3 Автоматический `crio_version`
+
 - [x] Создать матрицу совместимости k8s → crio_version (аналогично etcd)
 - [x] Автоматическое определение версии при отсутствии явного указания
 - [x] Файлы: `group_vars/k8s_cluster`, `roles/prepare-hosts/vars/`
 
 ### 1.6 Информативные сообщения
+
 - [x] Добавить debug-сообщения в начало `install-cluster.yaml`: что будет установлено (CRI, CNI, режим etcd, кол-во нод)
 - [x] Добавить assert'ы с понятными сообщениями об ошибках
 - [x] Файлы: `install-cluster.yaml`
 
 ### 1.7 Переключение inventory + Makefile
+
 - [x] Убрать отладочный комментарий из `ansible.cfg`
 - [x] Создать Makefile с targets: `make install ENV=homelab`, `make reset ENV=homelab` и т.д.
 - [x] Файлы: `ansible.cfg`, `Makefile`
 
 ### 2.4 Убрать мёртвый код
+
 - [x] Удалить закомментированные блоки: `kubeadm-config.v4.j2`, `calicoctl` в `roles/master/tasks/main.yaml`
 - [x] Удалить закомментированный `crio-net.j2` и старые URL в `roles/prepare-hosts/tasks/crio.yaml`
 - [x] Удалить закомментированный sleep в `roles/upgrade-cluster/tasks/upgrade-1st-master.yaml`
@@ -35,6 +40,7 @@
 - [x] Удалить закомментированные старые URL репозитория k8s в `roles/prepare-hosts/tasks/main.yaml`
 
 ### 2.5 Исправить ошибки в документации
+
 - [x] `hosts.yml` → `hosts.yaml` в README.md
 - [x] `ePBF` → `eBPF` в `group_vars/k8s_cluster`
 - [x] `group_vars\k8s_cluster` → `group_vars/k8s_cluster` (обратный слеш) в README.md
@@ -46,6 +52,7 @@
 - [x] Обновить roles/upgrade-cluster/README.md (было 2 строки)
 
 ### 3.5 Унификация FQCN
+
 - [x] Заменить все `command:` → `ansible.builtin.command:`
 - [x] Заменить все `shell:` → `ansible.builtin.shell:`
 - [x] Заменить все `file:` → `ansible.builtin.file:`
@@ -81,6 +88,7 @@
 ## Фаза 2 — Основная работа (3–5 дней)
 
 ### 1.1 Pre-flight проверки
+
 - [x] Проверка SSH connectivity (ansible.builtin.ping)
 - [x] Проверка Python3 на remote хостах
 - [x] Проверка что порты не заняты (6443, ha_cluster_virtual_port)
@@ -92,12 +100,14 @@
 - [x] Файлы: `install-cluster.yaml`
 
 ### 1.4 Разделить group_vars
+
 - [x] Создать `group_vars/all.yaml` — общие переменные для всех групп
 - [x] Реструктурировать `group_vars/k8s_cluster` — секции ОБЯЗАТЕЛЬНО/ОПЦИОНАЛЬНО/ВНУТРЕННИЕ
 - [x] Убрать дубли переменных между `group_vars/k8s_cluster` и `group_vars/etcd_nodes`
 - [x] Файлы: `group_vars/`
 
 ### 1.5 Примеры конфигураций
+
 - [x] Создать `examples/single-node/hosts.yaml` + `group_vars/`
 - [x] Создать `examples/ha-stacked/hosts.yaml` + `group_vars/`
 - [x] Создать `examples/ha-external-etcd/hosts.yaml` + `group_vars/`
@@ -105,6 +115,7 @@
 - [x] Файлы: `examples/`, `hosts.template.yaml`
 
 ### 2.1 Переписать README.md
+
 - [x] Добавить секцию «Быстрый старт» — single-node кластер за 5 минут
 - [x] Добавить «Требования к хостам» (минимальные CPU/RAM/disk)
 - [x] Добавить «Сетевые требования» (порты между нодами)
@@ -116,6 +127,7 @@
 - [x] Файлы: `README.md`
 
 ### 2.2 Документировать роли
+
 - [x] Создать `roles/prepare-hosts/README.md`
 - [x] Создать `roles/master/README.md`
 - [x] Создать `roles/ha/README.md`
@@ -126,6 +138,7 @@
 - [x] Обновить `roles/upgrade-cluster/README.md` (было 2 строки)
 
 ### 2.3 Убрать дубли в конфигурации
+
 - [x] Матрица etcd — оставить только в `roles/etcd/defaults/main.yaml`
 - [x] Убрать дубли etcd из `group_vars/k8s_cluster` (оставлен etcd_mode, etcd_image для stacked)
 - [x] Убрать дубль `ansible_python_interpreter` — вынесен в `group_vars/all.yaml`
@@ -137,6 +150,7 @@
 ## Фаза 3 — Архитектура (5–7 дней)
 
 ### 3.1 Абстракция пакетных менеджеров
+
 - [x] Создать `roles/prepare-hosts/vars/RedHat.yaml` — карта пакетов для RedHat
 - [x] Создать `roles/prepare-hosts/vars/Debian.yaml` — карта пакетов для Debian
 - [x] Заменить дубли dnf/apt задач на единые задачи с `include_vars`
@@ -146,12 +160,14 @@
 - [x] Обновить `reset.yaml`
 
 ### 3.2 Матрица совместимости CNI
+
 - [x] Добавить k8s ↔ Calico version matrix
 - [x] Добавить k8s ↔ Flannel version matrix
 - [x] Автоматическое определение версии CNI по `kube_version`
 - [x] Заменить хардкод версии в flannel.j2 на переменную
 
 ### 3.3 Вынести upgrade-логику в общие задачи
+
 - [x] Создать `_version-check.yaml` — общая проверка версии
 - [x] Создать `_update-repo.yaml` — общая логика обновления репозитория
 - [x] Обновить `upgrade-1st-master.yaml` — использовать общие задачи
@@ -159,10 +175,12 @@
 - [x] Обновить `upgrade-workers.yaml` — использовать общие задачи
 
 ### 3.4 Точки расширения (hooks)
+
 - [x] Создать `group_vars/all/hooks.yaml` с pre/post хуками
 - [x] Добавить хуки в роль prepare-hosts
 
 ### 3.6 Заменить shell/command на нативные модули
+
 - [x] containerd.yaml: заменить `sed` на `lineinfile` (3 замены)
 - [x] utils: заменить `mv` на `copy` с `remote_src`
 - [x] utils: заменить `helm plugin list | grep` на `stat`
@@ -172,11 +190,13 @@
 ## Фаза 4 — По необходимости
 
 ### 2.6 Стандарт языка документации
+
 - [x] Определиться: русский (по AGENTS.md)
 - [x] Перевести комментарии в `group_vars/k8s_cluster`
 - [x] Унифицировать комментарии во всех ролях (master, ha, workers, second_controls, utils, prepare-hosts)
 
 ### 2.7 Комментарии в шаблонах
+
 - [x] Добавить комментарии в `kubeadm-config.j2`
 - [x] Добавить комментарии в `haproxy.j2`
 - [x] Добавить комментарии в `keepalived.j2`
@@ -185,6 +205,7 @@
 - [x] Добавить комментарии в `calico-install.j2`
 
 ### 3.7 Расширенный offline режим
+
 - [x] Добавить поддержку `.deb` offline (Debian/Ubuntu)
 - [x] Добавить offline для CRI (containerd, crio)
 - [x] Добавить offline для CNI (Calico, Flannel)

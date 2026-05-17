@@ -54,13 +54,15 @@
 ## Offline-режим
 
 При `k8s_install_mode: "offline"`:
+
 - Helm скачивается из локального архива вместо `get.helm.sh`
 - Плагин helm-diff устанавливается из локальной копии
 - cert-manager манифест устанавливается из OCI чарта (локальный `.tgz`)
 - Helm-чарты (MetalLB, Ingress Nginx, ArgoCD, NFS CSI Driver, Reloader, Envoy Gateway) устанавливаются из локальных `.tgz`
 
 Каталоги offline-артефактов:
-```
+
+```text
 tmp/offline/utils/
 ├── helm-*.tar.gz              # бинарный архив Helm
 ├── cert-manager-*.tgz         # OCI чарт cert-manager
@@ -101,6 +103,7 @@ tmp/offline/utils/
 ### Gateway API vs Ingress Nginx
 
 Роль поддерживает оба ingress controller одновременно:
+
 - **Ingress Nginx** — классический ingress controller, проверенный временем
 - **Envoy Gateway** — современный Gateway API controller от Envoy Proxy
 

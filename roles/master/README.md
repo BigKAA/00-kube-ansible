@@ -29,12 +29,14 @@
 ## Offline-режим
 
 При `k8s_install_mode: "offline"`:
+
 - Образы Kubernetes загружаются из `k8s-images.tar` (через `ctr images import`)
 - Tigera Operator устанавливается из локального файла `cni/tigera-operator.yaml`
 - CNI-образы Calico загружаются из `calico-images.tar`
 
 Каталоги offline-артефактов:
-```
+
+```text
 tmp/offline/
 ├── images/
 │   ├── k8s-images.tar        # образы Kubernetes

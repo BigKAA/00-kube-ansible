@@ -13,7 +13,8 @@ Playbook для установки и управления тестовым кл
 - **CNI**: Calico (с eBPF), Flannel
 - **HA**: HAProxy + Keepalived (virtual IP)
 - **etcd**: stacked (встроенный) или external (отдельный кластер)
-- **Утилиты**: Helm, NFS CSI Driver, cert-manager, Metrics Server, MetalLB, Ingress Nginx, Envoy Gateway (Gateway API), Stakater Reloader, ArgoCD
+- **Утилиты**: Helm, NFS CSI Driver, cert-manager, Metrics Server,
+  MetalLB, Ingress Nginx, Envoy Gateway (Gateway API), Stakater Reloader, ArgoCD
 - **Управление**: установка, обновление, удаление кластера
 
 ## Быстрый старт
@@ -21,11 +22,13 @@ Playbook для установки и управления тестовым кл
 ### 1. Подготовка
 
 **Требования к Ansible control node:**
+
 - Python 3.10+
 - Ansible 13.6 (ansible-core 2.20.5)
 - SSH-ключ для доступа к нодам
 
 **Требования к нодам кластера:**
+
 - Минимум 2 CPU, 2 GB RAM (control plane)
 - Минимум 2 CPU, 4 GB RAM (worker)
 - 20 GB свободного диска
@@ -228,7 +231,8 @@ ansible-playbook services/06-utils.yaml
 make utils
 ```
 
-Устанавливает: Helm, NFS CSI Driver, cert-manager, Metrics Server, MetalLB, Ingress Nginx, Envoy Gateway, Stakater Reloader, ArgoCD.
+Устанавливает: Helm, NFS CSI Driver, cert-manager, Metrics Server, MetalLB,
+Ingress Nginx, Envoy Gateway, Stakater Reloader, ArgoCD.
 
 ### Сервисные playbook'и
 
@@ -325,6 +329,7 @@ ntpq -p           # для Debian
 ### External etcd не запускается
 
 Убедитесь, что:
+
 - Docker установлен на etcd нодах
 - Количество etcd нод нечётное
 - Порты 2379/2380 открыты между etcd нодами и control plane
@@ -341,7 +346,7 @@ ntpq -p           # для Debian
 
 ## Структура проекта
 
-```
+```text
 ├── ansible.cfg              # Конфигурация Ansible
 ├── hosts.yaml               # Инвентори хостов
 ├── install-cluster.yaml     # Основной playbook установки

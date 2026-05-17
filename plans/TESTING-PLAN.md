@@ -43,6 +43,7 @@
 | Ansible become | `--become-user=root --become` |
 
 Пример проверки доступа:
+
 ```bash
 ssh artur@e1.kryukov.lan "sudo whoami"  # должно вернуть root
 ```
@@ -60,6 +61,7 @@ ssh artur@e1.kryukov.lan "sudo whoami"  # должно вернуть root
 - [ ] Подготовить Docker-образ с Ansible для запуска playbooks
 
 **Результаты проверки (2026-05-16):**
+
 - SSH: все 8 нод доступны, sudo работает без пароля
 - ОС: Rocky Linux 10.1 (Red Quartz) на всех нодах
 - Python: 3.12.12 (`/usr/bin/python3`)
@@ -103,6 +105,7 @@ make install ENV=homelab EXTRA='-e "kube_version=1.35.0" -e "etcd_mode=external"
 > **СТАТУС: ✅ ВЫПОЛНЕНО (2026-05-16)**
 >
 > Скачанные файлы:
+>
 > - `tmp/rpms/kubeadm-1.35.0.rpm` (12.5 MB)
 > - `tmp/rpms/kubelet-1.35.0.rpm` (13.0 MB)
 > - `tmp/rpms/kubectl-1.35.0.rpm` (11.6 MB)
@@ -116,6 +119,7 @@ make install ENV=homelab EXTRA='-e "kube_version=1.35.0" -e "etcd_mode=external"
 > **СТАТУС: ✅ ВЫПОЛНЕНО (2026-05-16)**
 >
 > Скачанные файлы:
+>
 > - `tmp/rpms/kubeadm-1.36.1.rpm` (12.7 MB)
 > - `tmp/rpms/kubelet-1.36.1.rpm` (13.5 MB)
 > - `tmp/rpms/kubectl-1.36.1.rpm` (11.9 MB)
@@ -150,7 +154,7 @@ rpm -qp --requires tmp/rpms/kubeadm-1.35.0.rpm
 Директория `tmp/` используется для хранения данных, которые должны сохраняться
 между запусками Docker-контейнера:
 
-```
+```text
 tmp/
 ├── rpms/                  # Скачанные RPM-пакеты k8s (persistent)
 │   ├── kubeadm-1.35.0.rpm
@@ -165,6 +169,7 @@ tmp/
 ```
 
 Создать структуру:
+
 ```bash
 mkdir -p tmp/{rpms,ansible-cache,ssh,logs}
 ```
@@ -225,6 +230,7 @@ become_ask_pass = False
 ```
 
 **Pre-flight проверки** запускаются автоматически перед установкой:
+
 - Проверка SSH connectivity
 - Проверка Python3 на remote хостах
 - Проверка занятости портов (6443, HA virtual port)
@@ -307,6 +313,7 @@ ssh artur@e1.kryukov.lan "sudo docker exec etcd etcdctl \
 ```
 
 **Критерии успеха:**
+
 - [ ] Все 3 ноды etcd в состоянии `healthy`
 - [ ] Кластер имеет 3 члена
 - [ ] Версия etcd соответствует матрице совместимости для v1.35 (`registry.k8s.io/etcd:3.5.24-0`)
@@ -331,6 +338,7 @@ ssh artur@r1.kryukov.lan "sudo kubectl cluster-info"
 ```
 
 > **Совет:** Для удобства можно скопировать kubeconfig локально:
+>
 > ```bash
 > scp artur@r1.kryukov.lan:/etc/kubernetes/admin.conf ~/.kube/config-homelab
 > export KUBECONFIG=~/.kube/config-homelab
@@ -339,6 +347,7 @@ ssh artur@r1.kryukov.lan "sudo kubectl cluster-info"
 > ```
 
 **Критерии успеха:**
+
 - [ ] Все 5 нод (3 control + 2 worker) в состоянии `Ready`
 - [ ] Версия Kubernetes: `v1.35.0`
 - [ ] Все поды в kube-system в состоянии `Running` (или `Completed` для jobs)
@@ -361,6 +370,7 @@ curl -k https://192.168.218.130:7443/version
 ```
 
 **Критерии успеха:**
+
 - [ ] HAProxy запущен на всех control plane нодах
 - [ ] Keepalived запущен на всех control plane нодах
 - [ ] Virtual IP 192.168.218.130 активен на одной из нод
@@ -380,6 +390,7 @@ ssh artur@r1.kryukov.lan "sudo kubectl exec test-pod-1 -- ping -c 3 <IP_test-pod
 ```
 
 **Критерии успеха:**
+
 - [ ] Все поды Calico в состоянии `Running`
 - [ ] Поды на разных нодах могут общаться друг с другом
 
@@ -393,6 +404,7 @@ ssh artur@r1.kryukov.lan "sudo crictl ps"
 ```
 
 **Критерии успеха:**
+
 - [ ] containerd запущен на всех нодах
 - [ ] crictl показывает работающие контейнеры
 
@@ -458,6 +470,7 @@ export KUBE_VERSION="1.36.1"
 #### 4.1.3. Проверить матрицу совместимости etcd
 
 Согласно обновлённой матрице совместимости:
+
 - Для k8s v1.35 → etcd `3.5.24-0`
 - Для k8s v1.36 → etcd `3.6.6-0`
 
@@ -519,6 +532,7 @@ ssh artur@e1.kryukov.lan "sudo docker exec etcd etcdctl \
 ```
 
 **Критерии успеха:**
+
 - [ ] Версия etcd: `3.6.6`
 - [ ] Все 3 ноды healthy
 - [ ] Кластер функционирует без потерь данных
@@ -543,6 +557,7 @@ ssh artur@r1.kryukov.lan "sudo kubectl get pods -n kube-system | grep -E 'apiser
 ```
 
 **Критерии успеха:**
+
 - [ ] Версия Kubernetes: `v1.36.1`
 - [ ] Все 5 нод в состоянии `Ready`
 - [ ] Все ноды показывают версию `v1.36.1`
@@ -566,6 +581,7 @@ ssh artur@r1.kryukov.lan "sudo kubectl run dns-test --image=busybox:1.36 --resta
 ```
 
 **Критерии успеха:**
+
 - [ ] Deployment создан, 3 реплики Running
 - [ ] Поды распределены по разным нодам
 - [ ] Service доступен
@@ -683,6 +699,7 @@ ansible-playbook -i hosts-homelab.yaml install-cluster.yaml \
 ```
 
 **Критерии успеха:**
+
 - [ ] Pre-flight завершается с ошибкой при некорректной версии
 - [ ] Pre-flight завершается с ошибкой при чётном количестве control plane
 - [ ] Pre-flight завершается с ошибкой при недопустимом CRI/CNI
@@ -716,6 +733,7 @@ ansible-playbook -i hosts-homelab.yaml install-cluster.yaml \
 ```
 
 **Критерии успеха:**
+
 - [ ] Pre-prepare hook выполняется перед подготовкой хостов
 - [ ] Post-master-init hook выполняется после инициализации master
 - [ ] Hooks не влияют на основной процесс установки
