@@ -13,7 +13,7 @@ Playbook для установки и управления тестовым кл
 - **CNI**: Calico (с eBPF), Flannel
 - **HA**: HAProxy + Keepalived (virtual IP)
 - **etcd**: stacked (встроенный) или external (отдельный кластер)
-- **Утилиты**: Helm, NFS provisioner, cert-manager, Metrics Server, MetalLB, Ingress Nginx, ArgoCD
+- **Утилиты**: Helm, NFS CSI Driver, cert-manager, Metrics Server, MetalLB, Ingress Nginx, Envoy Gateway (Gateway API), Stakater Reloader, ArgoCD
 - **Управление**: установка, обновление, удаление кластера
 
 ## Быстрый старт
@@ -228,7 +228,7 @@ ansible-playbook services/06-utils.yaml
 make utils
 ```
 
-Устанавливает: Helm, NFS provisioner, cert-manager, Metrics Server, MetalLB, Ingress Nginx, ArgoCD.
+Устанавливает: Helm, NFS CSI Driver, cert-manager, Metrics Server, MetalLB, Ingress Nginx, Envoy Gateway, Stakater Reloader, ArgoCD.
 
 ### Сервисные playbook'и
 
@@ -348,14 +348,17 @@ ntpq -p           # для Debian
 ├── reset.yaml               # Playbook удаления кластера
 ├── upgrade.yaml             # Playbook обновления кластера
 ├── Makefile                 # Удобное управление через make
+├── hosts.template.yaml      # Шаблон инвентори
 ├── group_vars/
 │   ├── all.yaml             # Общие переменные для всех групп
+│   ├── all/hooks.yaml       # Точки расширения (pre/post hooks)
 │   ├── k8s_cluster/         # Конфигурация кластера
 │   └── etcd_nodes/          # Переменные для external etcd
 ├── examples/                # Примеры конфигураций
 │   ├── single-node/
 │   ├── ha-stacked/
 │   └── ha-external-etcd/
+├── scripts/                 # Скрипты утилит (offline-артефакты)
 ├── roles/
 │   ├── prepare-hosts/       # Подготовка хостов (CRI, пакеты)
 │   ├── ha/                  # HAProxy + Keepalived
