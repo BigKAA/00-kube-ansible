@@ -98,11 +98,11 @@
 - [x] Файлы: `group_vars/`
 
 ### 1.5 Примеры конфигураций
-- [ ] Создать `examples/single-node/hosts.yaml` + `group_vars/`
-- [ ] Создать `examples/ha-stacked/hosts.yaml` + `group_vars/`
-- [ ] Создать `examples/ha-external-etcd/hosts.yaml` + `group_vars/`
-- [ ] Создать `hosts.template.yaml` с placeholder'ами
-- [ ] Файлы: `examples/`, `hosts.template.yaml`
+- [x] Создать `examples/single-node/hosts.yaml` + `group_vars/`
+- [x] Создать `examples/ha-stacked/hosts.yaml` + `group_vars/`
+- [x] Создать `examples/ha-external-etcd/hosts.yaml` + `group_vars/`
+- [x] Создать `hosts.template.yaml` с placeholder'ами
+- [x] Файлы: `examples/`, `hosts.template.yaml`
 
 ### 2.1 Переписать README.md
 - [ ] Добавить секцию «Быстрый старт» — single-node кластер за 5 минут
@@ -211,7 +211,7 @@
 | Фаза | Задач | Выполнено | Осталось | Прогресс |
 |------|-------|-----------|----------|----------|
 | Фаза 1 — Быстрые победы | 7 | 7 | 0 | 100% |
-| Фаза 2 — Основная работа | 6 | 3 | 3 | 50% |
+| Фаза 2 — Основная работа | 6 | 4 | 2 | 67% |
 | Фаза 3 — Архитектура | 6 | 1 | 5 | 17% |
 | Фаза 4 — По необходимости | 3 | 0 | 3 | 0% |
-| **Итого** | **22** | **11** | **11** | **50%** |
+| **Итого** | **22** | **12** | **10** | **55%** |
