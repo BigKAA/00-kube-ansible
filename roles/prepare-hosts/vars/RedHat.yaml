@@ -1,0 +1,34 @@
+# Переменные для семейства RedHat (Rocky, Alma, CentOS, RHEL)
+
+# Системные пакеты
+packages_common:
+  - net-tools
+  - mc
+  - iproute-tc
+  - vim
+  - git
+  - bash-completion
+  - nfs-utils
+  - tar
+  - chrony
+  - jq
+  - ipvsadm
+  - python3-pyyaml
+
+# Пакеты Kubernetes
+packages_k8s:
+  - kubectl
+  - kubelet
+  - kubeadm
+  - ipvsadm
+
+# NTP сервис
+ntp_service: chronyd
+
+# Firewall сервис
+firewall_service: firewalld
+
+# HA пакеты
+packages_ha:
+  - keepalived
+  - haproxy
