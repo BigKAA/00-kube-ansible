@@ -61,21 +61,29 @@
     owner: root
     mode: u=rw,g=r,o=r
 
-- name: Create containerd config.toml
+- name: Создать containerd config.toml
   ansible.builtin.shell: containerd config default > /etc/containerd/config.toml
+  args:
+    creates: /etc/containerd/config.toml
 
-- name: Add cgroup v2 [config.toml]
-  ansible.builtin.shell: |
-    sed -i 's|SystemdCgroup = false|SystemdCgroup = true|' /etc/containerd/config.toml
+- name: Включить cgroup v2 [config.toml]
+  ansible.builtin.lineinfile:
+    path: /etc/containerd/config.toml
+    regexp: '^\s*SystemdCgroup = false'
+    line: '    SystemdCgroup = true'
 
-- name: Add conf dir /etc/containerd/certs.d [config.toml]
-  ansible.builtin.shell: |
-    sed -i 's|config_path = ""|config_path = "/etc/containerd/certs.d"|' /etc/containerd/config.toml
+- name: Включить каталог сертификов [config.toml]
+  ansible.builtin.lineinfile:
+    path: /etc/containerd/config.toml
+    regexp: '^\s*config_path = ""'
+    line: '    config_path = "/etc/containerd/certs.d"'
 
-- name: Add change Sandbox Image [config.toml]
+- name: Настроить sandbox image [config.toml]
   when: sandbox_image is defined
-  ansible.builtin.shell: |
-    sed -i 's|sandbox_image = ".*"|sandbox_image = "{{ sandbox_image }}"|' /etc/containerd/config.toml
+  ansible.builtin.lineinfile:
+    path: /etc/containerd/config.toml
+    regexp: '^\s*sandbox_image = ".*"'
+    line: '    sandbox_image = "{{ sandbox_image }}"'
 
 - name: Enable and start Containerd service
   ansible.builtin.service:

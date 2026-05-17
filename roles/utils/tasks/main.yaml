@@ -1,24 +1,28 @@
 ### Helm
-- name: "Install Helm"
+- name: Установить Helm
   ansible.builtin.unarchive:
     src: "https://get.helm.sh/helm-{{ helmVersion }}-linux-amd64.tar.gz"
     dest: /root/
     remote_src: true
-    creates: /root/linux-amd64
+    creates: /root/linux-amd64/helm
   register: helm
 
-- name: "Move helm in /usr/local/bin"
-  ansible.builtin.command: mv /root/linux-amd64/helm /usr/local/bin/helm
+- name: Переместить helm в /usr/local/bin
+  ansible.builtin.copy:
+    src: /root/linux-amd64/helm
+    dest: /usr/local/bin/helm
+    remote_src: true
+    mode: '0755'
   when: helm.changed
 
-- name: Check is helm-diff plugin installed
-  ansible.builtin.shell: helm plugin list | grep -q diff
-  register: helm_diff
-  ignore_errors: true
+- name: Проверить наличие helm-diff
+  ansible.builtin.stat:
+    path: /root/.local/share/helm/plugins/helm-diff
+  register: helm_diff_plugin
 
-- name: "Helm, install plugin helm-diff"
+- name: Установить плагин helm-diff
   ansible.builtin.command: helm plugin install https://github.com/databus23/helm-diff
-  when: helm_diff.rc != 0
+  when: not helm_diff_plugin.stat.exists
 
 - name: Create utils manifests directory
   ansible.builtin.file:
