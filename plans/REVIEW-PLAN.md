@@ -185,11 +185,13 @@
 - [x] Добавить комментарии в `calico-install.j2`
 
 ### 3.7 Расширенный offline режим
-- [ ] Добавить поддержку `.deb` offline (Debian/Ubuntu)
-- [ ] Добавить offline для CRI (containerd, crio)
-- [ ] Добавить offline для CNI (Calico, Flannel)
-- [ ] Добавить offline для утилит (Helm, cert-manager и др.)
-- [ ] Файлы: `roles/prepare-hosts/`, `roles/master/`, `roles/utils/`
+- [x] Добавить поддержку `.deb` offline (Debian/Ubuntu)
+- [x] Добавить offline для CRI (containerd, crio)
+- [x] Добавить offline для CNI (Calico, Flannel)
+- [x] Добавить offline для утилит (Helm, cert-manager и др.)
+- [x] Создать скрипт скачивания артефактов `scripts/download-offline-artifacts.sh`
+- [x] Добавить `make download-artifacts` в Makefile
+- [x] Файлы: `group_vars/k8s_cluster`, `roles/prepare-hosts/`, `roles/master/`, `roles/utils/`, `scripts/`
 
 ---
 
@@ -199,6 +201,6 @@
 |------|-------|-----------|----------|----------|
 | Фаза 1 — Быстрые победы | 7 | 7 | 0 | 100% |
 | Фаза 2 — Основная работа | 6 | 6 | 0 | 100% |
-| Фаза 3 — Архитектура | 6 | 5 | 1 | 83% |
-| Фаза 4 — По необходимости | 3 | 2 | 1 | 67% |
-| **Итого** | **22** | **19** | **3** | **86%** |
+| Фаза 3 — Архитектура | 6 | 6 | 0 | 100% |
+| Фаза 4 — По необходимости | 3 | 3 | 0 | 100% |
+| **Итого** | **22** | **22** | **0** | **100%** |

@@ -20,7 +20,8 @@
 | `cri` | `containerd` | Container Runtime: `containerd` или `crio` |
 | `cri_socket` | авто | Сокет CRI (вычисляется автоматически) |
 | `k8s_install_mode` | `online` | Режим установки: `online` или `offline` |
-| `k8s_rpm_remote_dir` | `/tmp/k8s-rpms` | Путь к RPM для offline-режима |
+| `k8s_offline_dir` | `tmp/offline` | Базовый каталог offline-артефактов (относительно playbook_dir) |
+| `k8s_packages_remote_dir` | `/tmp/k8s-packages` | Путь на удалённом хосте для временных файлов |
 | `dockerhubMirror` | `false` | Включить зеркало Docker Hub |
 | `crio_version` | авто | Версия CRI-O (вычисляется по kube_version) |
 | `stage` | `stable` | Стадия CRI-O: `stable` или `prerelease` |

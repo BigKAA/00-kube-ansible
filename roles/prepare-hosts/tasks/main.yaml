@@ -162,7 +162,7 @@
 - name: Установка Kubernetes
   block:
     # ============================================================
-    # Online mode — установка из репозитория
+    # Online mode — настройка репозиториев
     # ============================================================
 
     - name: Репозиторий Kubernetes [Debian, ключ]
@@ -198,42 +198,10 @@
         state: present
 
     # ============================================================
-    # Offline mode — установка из локальных RPM
+    # Online — установка пакетов из репозитория
     # ============================================================
 
-    - name: Создать каталог для RPM
-      when: k8s_install_mode == "offline"
-      ansible.builtin.file:
-        path: "{{ k8s_rpm_remote_dir }}"
-        state: directory
-        mode: "0755"
-
-    - name: Скопировать RPM на ноды
-      when: k8s_install_mode == "offline"
-      ansible.builtin.copy:
-        src: "{{ item }}"
-        dest: "{{ k8s_rpm_remote_dir }}/"
-        mode: "0644"
-      with_fileglob:
-        - "{{ playbook_dir }}/tmp/rpms/kubeadm-{{ kube_version }}*.rpm"
-        - "{{ playbook_dir }}/tmp/rpms/kubelet-{{ kube_version }}*.rpm"
-        - "{{ playbook_dir }}/tmp/rpms/kubectl-{{ kube_version }}*.rpm"
-
-    - name: Установить Kubernetes из RPM [RedHat offline]
-      when:
-        - ansible_facts['os_family'] == "RedHat"
-        - k8s_install_mode == "offline"
-      ansible.builtin.shell: >
-        dnf install -y
-        {{ k8s_rpm_remote_dir }}/kubeadm-{{ kube_version }}*.rpm
-        {{ k8s_rpm_remote_dir }}/kubelet-{{ kube_version }}*.rpm
-        {{ k8s_rpm_remote_dir }}/kubectl-{{ kube_version }}*.rpm
-
-    # ============================================================
-    # Online mode — установка пакетов
-    # ============================================================
-
-    - name: Установить Kubernetes [RedHat]
+    - name: Установить Kubernetes [RedHat, online]
       when:
         - ansible_facts['os_family'] == "RedHat"
         - k8s_install_mode == "online"
@@ -241,11 +209,77 @@
         name: "{{ packages_k8s }}"
         state: present
 
-    - name: Установить Kubernetes [Debian]
-      when: ansible_facts['os_family'] == "Debian"
+    - name: Установить Kubernetes [Debian, online]
+      when:
+        - ansible_facts['os_family'] == "Debian"
+        - k8s_install_mode == "online"
       ansible.builtin.apt:
         pkg: "{{ packages_k8s }}"
         state: present
+
+    # ============================================================
+    # Offline — установка из локальных пакетов
+    # ============================================================
+
+    - name: Создать каталог для пакетов [offline]
+      when: k8s_install_mode == "offline"
+      ansible.builtin.file:
+        path: "{{ k8s_packages_remote_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Скопировать пакеты Kubernetes на ноды [offline]
+      when: k8s_install_mode == "offline"
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "{{ k8s_packages_remote_dir }}/"
+        mode: "0644"
+      with_fileglob:
+        - "{{ playbook_dir }}/{{ k8s_offline_dir }}/packages/*.rpm"
+        - "{{ playbook_dir }}/{{ k8s_offline_dir }}/packages/*.deb"
+
+    - name: Скопировать архив образов Kubernetes [offline]
+      when: k8s_install_mode == "offline"
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/{{ k8s_offline_dir }}/images/k8s-images.tar"
+        dest: "{{ k8s_packages_remote_dir }}/k8s-images.tar"
+        mode: "0644"
+
+    - name: Скопировать архив CNI-образов [offline]
+      when:
+        - k8s_install_mode == "offline"
+        - cni == 'calico'
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/{{ k8s_offline_dir }}/images/calico-images.tar"
+        dest: "{{ k8s_packages_remote_dir }}/calico-images.tar"
+        mode: "0644"
+
+    - name: Загрузить CNI-образы [offline, Calico]
+      when:
+        - k8s_install_mode == "offline"
+        - cni == 'calico'
+      ansible.builtin.shell: |
+        ctr -n k8s.io images import {{ k8s_packages_remote_dir }}/calico-images.tar
+      args:
+        warn: false
+
+    - name: Установить Kubernetes из RPM [RedHat, offline]
+      when:
+        - ansible_facts['os_family'] == "RedHat"
+        - k8s_install_mode == "offline"
+      ansible.builtin.shell: >
+        dnf install -y {{ k8s_packages_remote_dir }}/*.rpm
+      args:
+        warn: false
+
+    - name: Установить Kubernetes из DEB [Debian, offline]
+      when:
+        - ansible_facts['os_family'] == "Debian"
+        - k8s_install_mode == "offline"
+      ansible.builtin.shell: >
+        dpkg -i {{ k8s_packages_remote_dir }}/*.deb
+      args:
+        warn: false
 
 # Точка расширения: post-prepare hooks
 - name: Выполнить post-prepare hooks

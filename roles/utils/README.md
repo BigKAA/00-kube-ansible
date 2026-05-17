@@ -34,6 +34,27 @@
 | `argoCDURL` | `argocd.kryukov.local` | URL ArgoCD |
 | `argoCDAdminPassword` | см. group_vars | Bcrypt hash пароля ArgoCD |
 
+## Offline-режим
+
+При `k8s_install_mode: "offline"`:
+- Helm скачивается из локального архива вместо `get.helm.sh`
+- Плагин helm-diff устанавливается из локальной копии
+- cert-manager манифест копируется из локального файла
+- Helm-чарты (MetalLB, Ingress Nginx, ArgoCD) устанавливаются из локальных `.tgz`
+
+Каталоги offline-артефактов:
+```
+tmp/offline/utils/
+├── helm-*.tar.gz              # бинарный архив Helm
+├── cert-manager.yaml          # манифест cert-manager
+├── helm-charts/
+│   ├── metallb-*.tgz          # чарт MetalLB
+│   ├── ingress-nginx-*.tgz    # чарт Ingress Nginx
+│   └── argo-cd-*.tgz          # чарт ArgoCD
+└── helm-plugins/
+    └── helm-diff/             # плагин helm-diff
+```
+
 ## Зависимости
 
 - Рабочий Kubernetes кластер с настроенным kubectl

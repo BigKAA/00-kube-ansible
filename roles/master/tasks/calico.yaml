@@ -13,9 +13,26 @@
   register: tigera_operator_out
   ignore_errors: true
 
-- name: Установить tigera-operator
-  when: tigera_operator_out.rc == 1
+- name: Установить tigera-operator [online]
+  when:
+    - tigera_operator_out.rc == 1
+    - k8s_install_mode == "online"
   ansible.builtin.shell: "kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/{{ tigera_operator_version }}/manifests/tigera-operator.yaml"
+
+- name: Скопировать tigera-operator.yaml [offline]
+  when:
+    - tigera_operator_out.rc == 1
+    - k8s_install_mode == "offline"
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/{{ k8s_offline_dir }}/cni/tigera-operator.yaml"
+    dest: /etc/kubernetes/tigera-operator.yaml
+    mode: "0644"
+
+- name: Установить tigera-operator [offline]
+  when:
+    - tigera_operator_out.rc == 1
+    - k8s_install_mode == "offline"
+  ansible.builtin.command: kubectl create -f /etc/kubernetes/tigera-operator.yaml
 
 - name: Скопировать calico-install.yaml
   ansible.builtin.template:

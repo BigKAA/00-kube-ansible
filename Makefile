@@ -37,6 +37,7 @@ help: ## Показать справку
 	@echo "  make debug [ENV=homelab]                  — отладочная информация"
 	@echo "  make poweroff [ENV=homelab]               — выключить все ноды"
 	@echo "  make check-syntax                         — проверить синтаксис playbook'ов"
+	@echo "  make download-artifacts                   — скачать артефакты для offline-установки"
 	@echo ""
 	@echo "Окружения:"
 	@echo "  ENV=homelab     — homelab (по умолчанию)"
@@ -84,3 +85,7 @@ check-syntax: ## Проверить синтаксис playbook'ов
 	ansible-playbook --syntax-check -i $(INVENTORY) install-cluster.yaml
 	ansible-playbook --syntax-check -i $(INVENTORY) reset.yaml
 	ansible-playbook --syntax-check -i $(INVENTORY) upgrade.yaml
+
+download-artifacts: ## Скачать артефакты для offline-установки
+	@echo "Скачивание offline-артефактов..."
+	./scripts/download-offline-artifacts.sh --output tmp/offline

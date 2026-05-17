@@ -26,6 +26,23 @@
 | `nodelocaldns_image` | см. group_vars | Образ NodeLocalDNS |
 | `nodelocaldns_local_ip` | `169.254.25.10` | IP NodeLocalDNS |
 
+## Offline-режим
+
+При `k8s_install_mode: "offline"`:
+- Образы Kubernetes загружаются из `k8s-images.tar` (через `ctr images import`)
+- Tigera Operator устанавливается из локального файла `cni/tigera-operator.yaml`
+- CNI-образы Calico загружаются из `calico-images.tar`
+
+Каталоги offline-артефактов:
+```
+tmp/offline/
+├── images/
+│   ├── k8s-images.tar        # образы Kubernetes
+│   └── calico-images.tar     # образы Calico (при cni: calico)
+└── cni/
+    └── tigera-operator.yaml  # манифест Calico Operator
+```
+
 ## Зависимости
 
 - `prepare-hosts` — должна быть выполнена до master

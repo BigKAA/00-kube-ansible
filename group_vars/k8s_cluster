@@ -209,11 +209,22 @@ argoCDTrackingMethod: "annotation"
 argoCDIgnoreAggregateRoles: "true"
 
 # ============================================================
+# [ОПЦИОНАЛЬНО] Offline-режим (air-gap)
+# ============================================================
+# online — установка из интернет-репозиториев
+# offline — установка из предзагруженных файлов
+k8s_install_mode: "online"
+
+# Базовый каталог с offline-артефактами (относительно playbook_dir)
+k8s_offline_dir: "tmp/offline"
+
+# Каталог на удалённом хосте для временных файлов
+k8s_packages_remote_dir: "/tmp/k8s-packages"
+
+# ============================================================
 # [ВНУТРЕННИЕ] Служебные переменные — не трогать
 # ============================================================
 
 kubectl_config: /etc/kubernetes/admin.conf
 kubeadmin_config: /etc/kubernetes/kubeadm.conf
-k8s_install_mode: "online"
-k8s_rpm_remote_dir: "/tmp/k8s-rpms"
 helmVersion: v3.16.3
