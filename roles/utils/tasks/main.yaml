@@ -17,7 +17,7 @@
   ignore_errors: true
 
 - name: "Helm, install plugin helm-diff"
-  command: helm plugin install https://github.com/databus23/helm-diff
+  ansible.builtin.command: helm plugin install https://github.com/databus23/helm-diff
   when: helm_diff.rc != 0
 
 - name: Create utils manifests directory

@@ -14,7 +14,7 @@
     kubectl -n kube-system get svc kube-dns -o jsonpath='{.spec.clusterIP}'
   register: dns_ip
 
-- set_fact:
+- ansible.builtin.set_fact:
     coredns_ip: "{{ dns_ip.stdout }}"
 
 - name: Copy nodelocaldns manifest

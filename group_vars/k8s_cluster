@@ -32,11 +32,9 @@ pod_network_cidr: "10.233.64.0/18"
 # crio или containerd
 cri: containerd
 
-# Необходимо указать путь к сокету.
-# containerd
-cri_socket: unix:///run/containerd/containerd.sock
-# crio
-# cri_socket: unix:///var/run/crio/crio.sock
+# Сокет CRI — вычисляется автоматически на основе выбранного CRI.
+# Для переопределения задайте cri_socket явно в user-config.
+cri_socket: "{{ 'unix:///run/containerd/containerd.sock' if cri == 'containerd' else 'unix:///var/run/crio/crio.sock' }}"
 
 # Sanbox image
 # k8s v3.11 -> registry.k8s.io/pause:3.10
@@ -44,8 +42,23 @@ cri_socket: unix:///run/containerd/containerd.sock
 # Если сомневаетесь - закоментируйте строку ниже
 # sandbox_image: "registry.k8s.io/pause:3.10"
 
-# Если используется crio, необходимо указать его версию.
-crio_version: v1.32
+# Матрица совместимости Kubernetes ↔ CRI-O.
+# Ключ — мажорная.минорная версия k8s, значение — версия CRI-O.
+# https://github.com/cri-o/cri-o#version-compatibility
+crio_version_matrix:
+  "1.28": "v1.28"
+  "1.29": "v1.29"
+  "1.30": "v1.30"
+  "1.31": "v1.31"
+  "1.32": "v1.32"
+  "1.33": "v1.33"
+  "1.34": "v1.34"
+  "1.35": "v1.35"
+  "1.36": "v1.36"
+
+# Версия CRI-O — вычисляется автоматически по матрице совместимости.
+# Для переопределения задайте crio_version явно в user-config.
+crio_version: "{{ crio_version_matrix[kube_version | regex_replace('^(\\d+\\.\\d+).*', '\\1')] | default('v1.32') }}"
 
 # Enable cri-o image volumes
 # https://github.com/cri-o/cri-o/blob/main/docs/crio.conf.5.md#crioimage-table
@@ -70,7 +83,7 @@ cni: calico
 encapsulation: "IPIPCrossSubnet"
 # https://github.com/projectcalico/calico
 tigera_operator_version: v3.28.1
-### To install ePBF uncomment next line
+### To install eBPF uncomment next line
 # enableBPF: yes
 
 # Kubelet configuration
@@ -95,7 +108,7 @@ nodelocaldns_image: "registry.k8s.io/dns/k8s-dns-node-cache:1.23.1"
 ## Change only if this IP is already taken.
 nodelocaldns_local_ip: 169.254.25.10
 
-## HA cluser
+## HA cluster
 # If you need disable HA, undefine ha_cluster_virtual_ip
 ha_cluster_virtual_ip: 192.168.218.130
 ha_cluster_virtual_port: 7443

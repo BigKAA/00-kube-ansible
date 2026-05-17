@@ -7,7 +7,7 @@
 | 1.35.0 → 1.36.1 | Rocky Linux 10.1 | containerd | **OK** |
 | 1.32            | Debian 12 | CRI-O 1.32   | *Не стартует harbor.* |
 | 1.31            | Ubuntu 22.04.4 LTS | CRI-O 1.31   |  *Не стартует harbor. Не монтируется emptyDir.* |
-| 1.3x            | Ubuntu 22.04.4 LTS | containerd 1.7.12  | С последним обновление должен работать. *На проверке* |
+| 1.30            | Ubuntu 22.04.4 LTS | containerd 1.7.12  | На проверке |
 | 1.31.2          | Rocky Linux 9.4 | containerd 1.7.23-3.1 | **OK** |
 | 1.31            | Rocky Linux 8.10 | CRI-O 1.31 | *Не стартует harbor. Не монтируется emptyDir.*  |
 | 1.31            | Rocky Linux 8.10 | containerd 1.6.32 | **OK** *Приложения пока не тестил* |
@@ -35,7 +35,7 @@
 ```shell
 python3 -m venv venv
 . ~/venv/bin/activate
-pip3 install "ansible-core<2.17"
+pip3 install ansible-core
 ```
 
 Или собираем и используем собственный контейнер с Ansible на основе `Dockerfile.ansible`:
@@ -56,7 +56,7 @@ ansible-playbook --version
 ssh-keygen
 ```
 
-Копируем ключики в виртуальные машины из [hosts.yaml](hosts.yml):
+Копируем ключики в виртуальные машины из [hosts.yaml](hosts.yaml):
 
  ```shell
 ssh-copy-id root@control1.kryukov.local
@@ -112,7 +112,7 @@ ansible-playbook reset.yaml
 
 ## Апдейт кластера
 
-Изменяете версию кластера в `group_vars\k8s_cluster` и запускаете апдейт.
+Изменяете версию кластера в `group_vars/k8s_cluster` и запускаете апдейт.
 
 ```shell
 ansible-playbook upgrade.yaml
@@ -189,4 +189,29 @@ reset_etcd: true
 
 ## Сервисные функции
 
-Сервисные функции находятся в директории `services`
+Сервисные функции находятся в директории `services`. Их можно запускать
+как отдельно, так и в составе `install-cluster.yaml`.
+
+| Playbook | Описание |
+|----------|----------|
+| `services/01-prepare-hosts.yaml` | Подготовка хостов: установка пакетов, настройка CRI, sysctl, модули ядра |
+| `services/02-install-ha.yaml` | Установка HAProxy + Keepalived для HA доступа к API |
+| `services/03-install-1st-control.yaml` | Инициализация первой control plane ноды |
+| `services/04-install-another-controls.yaml` | Подключение дополнительных control plane нод |
+| `services/05-install-workers.yaml` | Подключение worker нод к кластеру |
+| `services/06-utils.yaml` | Установка утилит: Helm, NFS provisioner, cert-manager, Metrics Server, MetalLB, Ingress Nginx, ArgoCD |
+| `services/ping.yaml` | Проверка доступности хостов |
+| `services/debug.yaml` | Отладочная информация о кластере |
+| `services/poweroff.yaml` | Выключение всех нод кластера |
+
+Для запуска отдельного playbook'а:
+
+```shell
+ansible-playbook services/06-utils.yaml
+```
+
+Или через Makefile:
+
+```shell
+make utils ENV=homelab
+```

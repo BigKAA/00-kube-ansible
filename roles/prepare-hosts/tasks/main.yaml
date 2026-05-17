@@ -160,7 +160,6 @@
         - ansible_facts['os_family'] == "Debian"
         - k8s_install_mode == "online"
       ansible.builtin.apt_key:
-        # url: "https://pkgs.k8s.io/core:/stable:/v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}/deb/Release.key"
         url: "https://prod-cdn.packages.k8s.io/repositories/isv:/kubernetes:/core:/stable:/v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}/deb/Release.key"
         state: present
         keyring: /etc/apt/trusted.gpg.d/k8s.gpg
@@ -170,7 +169,6 @@
         - ansible_facts['os_family'] == "Debian"
         - k8s_install_mode == "online"
       ansible.builtin.apt_repository:
-        # repo: "deb [signed-by=/etc/apt/trusted.gpg.d/k8s.gpg] https://pkgs.k8s.io/core:/stable:/v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}/deb/ /"
         repo: "deb [signed-by=/etc/apt/trusted.gpg.d/k8s.gpg] https://prod-cdn.packages.k8s.io/repositories/isv:/kubernetes:/core:/stable:/v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}/deb/ /"
         state: present
         filename: kubernetes

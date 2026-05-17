@@ -1,5 +1,5 @@
 - name: Get current version of 1-st master
-  shell:
+  ansible.builtin.shell:
     cmd: "kubectl get nodes {{ ansible_fqdn }} -o=jsonpath='{.status.nodeInfo.kubeletVersion}'"
   register: version_current_1st_master
 
@@ -7,12 +7,12 @@
 - name: Version check. 
   when: version_current_1st_master.stdout is match(".*" + kube_version)
   block:
-    - name: Nothing todo
-      debug: 
+    - name: Nothing to do
+      ansible.builtin.debug: 
         msg: "Current cluster version {{ version_current_1st_master.stdout }} equal a new version in variables {{ kube_version }}"
 
     - name: Stop upgrade 1-st control
-      meta: end_host
+      ansible.builtin.meta: end_host
 
 # Иначе обновим версию.
 
@@ -21,7 +21,7 @@
   when:
     - ansible_facts['os_family'] == "RedHat"
     - k8s_install_mode == "online"
-  yum_repository:
+  ansible.builtin.yum_repository:
     name: kubernetes
     state: absent
 
@@ -30,7 +30,7 @@
   when:
     - ansible_facts['os_family'] == "RedHat"
     - k8s_install_mode == "online"
-  yum_repository:
+  ansible.builtin.yum_repository:
     name: kubernetes
     description: "Base programs for k8s, version: v{{ kube_version[:4] }}"
     baseurl: "https://pkgs.k8s.io/core:/stable:/v{{ kube_version[:4] }}/rpm/"
@@ -47,19 +47,15 @@
   when: ansible_facts['os_family'] == "RedHat"
 
 - name: Drain node
-  shell: 
+  ansible.builtin.shell:
     cmd: kubectl drain {{ ansible_fqdn }} --ignore-daemonsets --delete-emptydir-data
 
-# - name: Sleep for 180 seconds
-#   wait_for:
-#     timeout: 60
-
 - name: Upgrade master node
-  shell: 
+  ansible.builtin.shell: 
     cmd: "kubeadm upgrade apply v{{ kube_version }} -y"
 
 - name: Restart kubelet
-  systemd:
+  ansible.builtin.systemd:
     state: restarted
     daemon_reload: yes
     name: kubelet
@@ -73,5 +69,5 @@
   changed_when: false
 
 - name: Uncordon master node
-  shell:
+  ansible.builtin.shell:
     cmd: "kubectl uncordon {{ ansible_fqdn }}"

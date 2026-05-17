@@ -33,27 +33,6 @@
         mode: '0600'
       when: etcd_mode is not defined or etcd_mode == "stacked"
 
-    # Для future: kubeadm-config.v4.j2 (>= 1.31)
-    # - name: Copy kubeadm-config.yaml >= 1.31 (external etcd)
-    #   ansible.builtin.template:
-    #     src: kubeadm-config-v4-external-etcd.j2
-    #     dest: /etc/kubernetes/kubeadm-config.yaml
-    #     mode: '0600'
-    #   when: (etcd_mode is defined and etcd_mode == "external") and k8s_middle_version >= '31'
-
-    # - name: Copy kubeadm-config.yaml >= 1.31 (stacked etcd)
-    #   ansible.builtin.template:
-    #     src: kubeadm-config.v4.j2
-    #     dest: /etc/kubernetes/kubeadm-config.yaml
-    #     mode: '0600'
-    #   when: (etcd_mode is not defined or etcd_mode == "stacked") and k8s_middle_version >= '31'
-
-    # - name: Install Calicoctl
-    #   ansible.builtin.get_url:
-    #     url: https://github.com/projectcalico/calico/releases/download/{{ tigera_operator_version }}/calicoctl-linux-amd64
-    #     dest: /usr/local/bin/calicoctl
-    #     mode: '0755'
-
     # При external etcd не нужно загружать образ etcd — тянем только необходимые образы
     - name: Load k8s containers (external etcd — без etcd image)
       ansible.builtin.shell: |
