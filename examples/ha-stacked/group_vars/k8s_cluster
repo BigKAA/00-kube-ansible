@@ -1,0 +1,20 @@
+# Конфигурация для HA кластера с stacked etcd
+# Скопируйте в group_vars/k8s_cluster и настройте под своё окружение
+
+kube_version: 1.36.1
+cri: containerd
+cni: calico
+
+# HA — виртуальный IP для HAProxy + Keepalived
+ha_cluster_virtual_ip: 192.168.1.100
+ha_cluster_virtual_port: 7443
+
+# etcd — встроенный (stacked)
+etcd_mode: "stacked"
+
+# Утилиты — настройте под своё окружение
+nfsServerHost: "192.168.1.50"
+nfsServerPath: "/var/nfs-disk"
+metallbAddresses:
+  - 192.168.1.180-192.168.1.190
+argoCDURL: "argocd.example.local"

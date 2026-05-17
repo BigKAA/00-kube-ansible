@@ -1,0 +1,17 @@
+# Single-node кластер — 1 control plane + 1 worker
+#
+# Использование:
+#   ansible-playbook -i examples/single-node/hosts.yaml install-cluster.yaml
+#
+k8s_masters:
+  hosts:
+    master1:
+      ansible_host: 192.168.1.10
+k8s_workers:
+  hosts:
+    worker1:
+      ansible_host: 192.168.1.11
+k8s_cluster:
+  children:
+    k8s_masters:
+    k8s_workers:

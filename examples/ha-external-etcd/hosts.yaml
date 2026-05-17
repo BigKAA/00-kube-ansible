@@ -1,0 +1,34 @@
+# HA кластер — 3 control plane + 2 worker + 3 external etcd
+#
+# Использование:
+#   ansible-playbook -i examples/ha-external-etcd/hosts.yaml install-cluster.yaml
+#
+k8s_masters:
+  hosts:
+    master1:
+      ansible_host: 192.168.1.10
+    master2:
+      ansible_host: 192.168.1.11
+    master3:
+      ansible_host: 192.168.1.12
+k8s_workers:
+  hosts:
+    worker1:
+      ansible_host: 192.168.1.20
+    worker2:
+      ansible_host: 192.168.1.21
+k8s_cluster:
+  children:
+    k8s_masters:
+    k8s_workers:
+etcd_nodes:
+  hosts:
+    etcd1:
+      ansible_host: 192.168.1.30
+      etcd_short_name: etcd1
+    etcd2:
+      ansible_host: 192.168.1.31
+      etcd_short_name: etcd2
+    etcd3:
+      ansible_host: 192.168.1.32
+      etcd_short_name: etcd3
