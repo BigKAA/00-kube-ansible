@@ -1,4 +1,10 @@
 ---
+# Точка расширения: pre-prepare hooks
+- name: Выполнить pre-prepare hooks
+  ansible.builtin.include_tasks: "{{ item }}"
+  loop: "{{ pre_prepare_tasks | default([]) }}"
+  when: pre_prepare_tasks | default([]) | length > 0
+
 # Загрузка переменных семейства ОС
 - name: Загрузить переменные семейства ОС
   ansible.builtin.include_vars: "{{ ansible_os_family }}.yaml"
@@ -240,3 +246,9 @@
       ansible.builtin.apt:
         pkg: "{{ packages_k8s }}"
         state: present
+
+# Точка расширения: post-prepare hooks
+- name: Выполнить post-prepare hooks
+  ansible.builtin.include_tasks: "{{ item }}"
+  loop: "{{ post_prepare_tasks | default([]) }}"
+  when: post_prepare_tasks | default([]) | length > 0

@@ -1,0 +1,32 @@
+# Точки расширения (hooks)
+#
+# Позволяют добавить пользовательские задачи до/после каждой роли.
+# Каждая переменная — список файлов задач для include_tasks.
+#
+# Пример:
+#   post_prepare_tasks:
+#     - "{{ playbook_dir }}/custom/my-task.yaml"
+
+# До/после подготовки хостов
+pre_prepare_tasks: []
+post_prepare_tasks: []
+
+# До/после установки HA
+pre_ha_tasks: []
+post_ha_tasks: []
+
+# До/после инициализации первого master
+pre_master_init_tasks: []
+post_master_init_tasks: []
+
+# До/после подключения дополнительных control plane
+pre_second_controls_tasks: []
+post_second_controls_tasks: []
+
+# До/после подключения worker нод
+pre_worker_join_tasks: []
+post_worker_join_tasks: []
+
+# До/после установки утилит
+pre_utils_tasks: []
+post_utils_tasks: []
