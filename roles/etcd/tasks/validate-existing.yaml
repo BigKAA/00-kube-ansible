@@ -1,0 +1,281 @@
+---
+# Валидация существующего кластера etcd
+# Проверка health, совместимости версий, распределение клиентских сертификатов
+
+# ============================================================
+# 1. Проверка обязательных переменных
+# ============================================================
+
+- name: Проверка — etcd_existing_ca_cert задан
+  ansible.builtin.assert:
+    that:
+      - etcd_existing_ca_cert is defined and etcd_existing_ca_cert != ""
+    fail_msg: "При etcd_use_existing: true необходимо указать etcd_existing_ca_cert (путь к CA сертификату на Ansible control node)"
+    quiet: true
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Проверка — etcd_existing_client_cert задан
+  ansible.builtin.assert:
+    that:
+      - etcd_existing_client_cert is defined and etcd_existing_client_cert != ""
+    fail_msg: "При etcd_use_existing: true необходимо указать etcd_existing_client_cert (путь к клиентскому сертификату apiserver)"
+    quiet: true
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Проверка — etcd_existing_client_key задан
+  ansible.builtin.assert:
+    that:
+      - etcd_existing_client_key is defined and etcd_existing_client_key != ""
+    fail_msg: "При etcd_use_existing: true необходимо указать etcd_existing_client_key (путь к ключу клиентского сертификата)"
+    quiet: true
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Проверка — CA сертификат существует локально
+  ansible.builtin.stat:
+    path: "{{ etcd_existing_ca_cert }}"
+  register: _ca_cert_stat
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Ошибка — CA сертификат не найден
+  ansible.builtin.fail:
+    msg: "CA сертификат не найден: {{ etcd_existing_ca_cert }}"
+  when: not _ca_cert_stat.stat.exists
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Проверка — клиентский сертификат существует локально
+  ansible.builtin.stat:
+    path: "{{ etcd_existing_client_cert }}"
+  register: _client_cert_stat
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Ошибка — клиентский сертификат не найден
+  ansible.builtin.fail:
+    msg: "Клиентский сертификат не найден: {{ etcd_existing_client_cert }}"
+  when: not _client_cert_stat.stat.exists
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Проверка — ключ клиентского сертификата существует локально
+  ansible.builtin.stat:
+    path: "{{ etcd_existing_client_key }}"
+  register: _client_key_stat
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Ошибка — ключ не найден
+  ansible.builtin.fail:
+    msg: "Ключ клиентского сертификата не найден: {{ etcd_existing_client_key }}"
+  when: not _client_key_stat.stat.exists
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+# ============================================================
+# 2. Проверка health кластера
+# ============================================================
+
+- name: Сформировать список endpoints кластера
+  ansible.builtin.set_fact:
+    _etcd_endpoints: >-
+      {% for host in groups['etcd_nodes'] %}https://{{ hostvars[host].ansible_host }}:2379{% if not loop.last %},{% endif %}{% endfor %}
+  run_once: true
+
+- name: Проверка health всех нод etcd
+  ansible.builtin.uri:
+    url: "https://{{ hostvars[item].ansible_host }}:2379/health"
+    method: GET
+    ca_path: "{{ etcd_existing_ca_cert }}"
+    client_cert: "{{ etcd_existing_client_cert }}"
+    client_key: "{{ etcd_existing_client_key }}"
+    status_code: 200
+    return_content: true
+  register: _etcd_health_results
+  loop: "{{ groups['etcd_nodes'] }}"
+  retries: 5
+  delay: 5
+  changed_when: false
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Проверить, что все ноды здоровы
+  ansible.builtin.assert:
+    that:
+      - (item.json | default({})).health == "true" or (item.content | default('{}') | from_json).health == "true"
+    fail_msg: "etcd-нода {{ item.item }} не прошла health check. Проверьте состояние кластера."
+    quiet: true
+  loop: "{{ _etcd_health_results.results }}"
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Вывести результат проверки health
+  ansible.builtin.debug:
+    msg: "✓ {{ item.item }}: {{ (item.json | default(item.content | default('{}')) | from_json).health | default('unknown') }}"
+  loop: "{{ _etcd_health_results.results }}"
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+# ============================================================
+# 3. Проверка совместимости версий
+# ============================================================
+
+- name: Запросить версию etcd с каждой ноды
+  ansible.builtin.uri:
+    url: "https://{{ hostvars[item].ansible_host }}:2379/version"
+    method: GET
+    ca_path: "{{ etcd_existing_ca_cert }}"
+    client_cert: "{{ etcd_existing_client_cert }}"
+    client_key: "{{ etcd_existing_client_key }}"
+    status_code: 200
+    return_content: true
+  register: _etcd_version_results
+  loop: "{{ groups['etcd_nodes'] }}"
+  changed_when: false
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Определить требуемую версию etcd для Kubernetes {{ kube_version }}
+  ansible.builtin.set_fact:
+    _required_etcd_image: "{{ etcd_version_matrix[kube_version | regex_replace('^(\\d+\\.\\d+).*', '\\1')] | default('') }}"
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Ошибка — версия etcd не найдена в матрице для k8s {{ kube_version }}
+  ansible.builtin.fail:
+    msg: "Версия etcd не найдена в etcd_version_matrix для Kubernetes {{ kube_version }}. Проверьте матрицу в roles/etcd/defaults/main.yaml"
+  when: _required_etcd_image == ""
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+# Извлекаем числовую версию из образа (например, "3.6.6-0" → "3.6.6")
+- name: Определить требуемую версию etcd (число)
+  ansible.builtin.set_fact:
+    _required_etcd_version: "{{ _required_etcd_image | regex_replace('^[^:]+:(.+)$', '\\1') | regex_replace('-\\d+$', '') }}"
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Собрать версии etcd со всех нод
+  ansible.builtin.set_fact:
+    _etcd_versions: "{{ _etcd_version_results.results | map(attribute='json') | map(attribute='etcdserver') | list }}"
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Вывести информацию о версиях
+  ansible.builtin.debug:
+    msg:
+      - "Установленный etcd: {{ _etcd_versions | unique | join(', ') }}"
+      - "Требуется для k8s {{ kube_version }}: {{ _required_etcd_version }} (образ: {{ _required_etcd_image }})"
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Проверить, что все ноды одной версии
+  ansible.builtin.assert:
+    that:
+      - _etcd_versions | unique | length == 1
+    fail_msg: "Ноды etcd имеют разные версии: {{ _etcd_versions | join(', ') }}. Все ноды должны быть одной версии."
+    quiet: true
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Проверить совместимость версии etcd с Kubernetes
+  ansible.builtin.assert:
+    that:
+      - _etcd_versions[0] is version(_required_etcd_version, '>=')
+    fail_msg: >-
+      etcd {{ _etcd_versions[0] }} несовместим с Kubernetes {{ kube_version }}.
+      Требуется etcd >= {{ _required_etcd_version }} (образ: {{ _required_etcd_image }}).
+      Обновите etcd или используйте совместимую версию Kubernetes.
+    quiet: true
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+# ============================================================
+# 4. Распределение клиентских сертификатов на k8s control plane
+# ============================================================
+
+- name: Создать каталог etcd PKI на control plane нодах
+  ansible.builtin.file:
+    path: /etc/kubernetes/pki/etcd
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+  delegate_to: "{{ _k8s_master }}"
+  loop: "{{ groups['k8s_masters'] }}"
+  loop_control:
+    loop_var: _k8s_master
+
+- name: Скопировать CA сертификат etcd на control plane ноды
+  ansible.builtin.copy:
+    src: "{{ etcd_existing_ca_cert }}"
+    dest: /etc/kubernetes/pki/etcd/ca.crt
+    mode: '0644'
+    owner: root
+    group: root
+  delegate_to: "{{ _k8s_master }}"
+  loop: "{{ groups['k8s_masters'] }}"
+  loop_control:
+    loop_var: _k8s_master
+
+- name: Скопировать клиентский сертификат на control plane ноды
+  ansible.builtin.copy:
+    src: "{{ etcd_existing_client_cert }}"
+    dest: /etc/kubernetes/pki/apiserver-etcd-client.crt
+    mode: '0644'
+    owner: root
+    group: root
+  delegate_to: "{{ _k8s_master }}"
+  loop: "{{ groups['k8s_masters'] }}"
+  loop_control:
+    loop_var: _k8s_master
+
+- name: Скопировать ключ клиентского сертификата на control plane ноды
+  ansible.builtin.copy:
+    src: "{{ etcd_existing_client_key }}"
+    dest: /etc/kubernetes/pki/apiserver-etcd-client.key
+    mode: '0600'
+    owner: root
+    group: root
+  delegate_to: "{{ _k8s_master }}"
+  loop: "{{ groups['k8s_masters'] }}"
+  loop_control:
+    loop_var: _k8s_master
+
+- name: Вывести итог валидации
+  ansible.builtin.debug:
+    msg:
+      - "============================================"
+      - "Existing etcd cluster validation OK"
+      - "============================================"
+      - "  etcd version : {{ _etcd_versions[0] }}"
+      - "  k8s version  : {{ kube_version }}"
+      - "  Endpoints    : {{ _etcd_endpoints }}"
+      - "  Nodes healthy: {{ _etcd_health_results.results | length }}"
+      - "============================================"
+  delegate_to: localhost
+  become: false
+  run_once: true

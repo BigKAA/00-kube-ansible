@@ -154,8 +154,37 @@ etcd_nodes:
       etcd_short_name: etcd3
 ```
 
+Playbook автоматически:
+
+- Проверяет доступность etcd-нод (SSH, Python3, порты 2379/2380)
+- Устанавливает Docker на etcd-ноды (RedHat и Debian)
+- Разворачивает etcd-кластер в контейнере
+
 Версия etcd определяется автоматически по `kube_version`.
 Матрица совместимости: [roles/etcd/defaults/main.yaml](roles/etcd/defaults/main.yaml)
+
+#### Подключение к существующему кластеру etcd
+
+Если etcd-кластер уже установлен и управляется отдельно, можно подключиться к нему без повторной установки:
+
+```yaml
+# group_vars/k8s_cluster
+etcd_mode: "external"
+etcd_use_existing: true
+
+# Пути к сертификатам на Ansible control node
+etcd_existing_ca_cert: "/path/to/etcd-ca.crt"
+etcd_existing_client_cert: "/path/to/apiserver-etcd-client.crt"
+etcd_existing_client_key: "/path/to/apiserver-etcd-client.key"
+```
+
+При `etcd_use_existing: true` playbook:
+
+1. Проверяет health всех etcd-нод через HTTPS API
+2. Проверяет совместимость версии etcd с `kube_version`
+3. Распределяет клиентские сертификаты на control plane ноды
+
+Если версия etcd несовместима с Kubernetes — playbook завершится с ошибкой и рекомендацией.
 
 ## Конфигурация
 
@@ -169,6 +198,10 @@ etcd_nodes:
 | `service_cidr` | `10.233.0.0/18` | CIDR для сервисов |
 | `pod_network_cidr` | `10.233.64.0/18` | CIDR для подов |
 | `etcd_mode` | `stacked` | Режим etcd: `stacked` или `external` |
+| `etcd_use_existing` | `false` | Подключиться к существующему etcd кластеру |
+| `etcd_existing_ca_cert` | `""` | CA сертификат существующего etcd (при `etcd_use_existing: true`) |
+| `etcd_existing_client_cert` | `""` | Клиентский сертификат apiserver для существующего etcd |
+| `etcd_existing_client_key` | `""` | Ключ клиентского сертификата для существующего etcd |
 | `ha_cluster_virtual_ip` | `192.168.218.130` | Virtual IP для HA (убрать для отключения HA) |
 | `ha_cluster_virtual_port` | `7443` | Порт для HA (не должен быть 6443) |
 
@@ -330,9 +363,20 @@ ntpq -p           # для Debian
 
 Убедитесь, что:
 
-- Docker установлен на etcd нодах
 - Количество etcd нод нечётное
 - Порты 2379/2380 открыты между etcd нодами и control plane
+- Docker будет установлен автоматически; при ручной установке проверьте: `docker --version`
+
+### Ошибка совместимости версий etcd
+
+При `etcd_use_existing: true` playbook проверяет совместимость. Пример ошибки:
+
+```text
+etcd 3.5.9 несовместим с Kubernetes 1.36.1. Требуется etcd >= 3.6.6.
+Обновите etcd или используйте совместимую версию Kubernetes.
+```
+
+Список поддерживаемых комбинаций: [roles/etcd/defaults/main.yaml](roles/etcd/defaults/main.yaml)
 
 ## Совместимость
 

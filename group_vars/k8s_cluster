@@ -149,6 +149,17 @@ etcd_image: "registry.k8s.io/etcd:3.6.6-0"
 # Очистка external etcd при reset
 reset_etcd: false
 
+# Использовать существующий кластер etcd (пропустить установку)
+# При true — playbook проверяет health, совместимость версий
+# и распределяет клиентские сертификаты на control plane ноды
+etcd_use_existing: false
+
+# Пути к сертификатам существующего кластера (на Ansible control node)
+# Обязательны при etcd_use_existing: true
+etcd_existing_ca_cert: ""        # CA сертификат
+etcd_existing_client_cert: ""    # Клиентский сертификат для apiserver
+etcd_existing_client_key: ""     # Ключ клиентского сертификата
+
 # ============================================================
 # [ОБЯЗАТЕЛЬНО] Утилиты — Helm
 # ============================================================

@@ -1,6 +1,7 @@
 ---
 # Установка контейнерного etcd
 # Создание каталогов, env-файл, systemd unit, запуск
+# Docker устанавливается в install-cluster.yaml (play "Prepare etcd hosts")
 
 - name: Проверить наличие Docker
   ansible.builtin.stat:
@@ -9,7 +10,10 @@
 
 - name: Ошибка — Docker не установлен
   ansible.builtin.fail:
-    msg: "Docker не найден на {{ inventory_hostname }}. Установите Docker перед запуском роли etcd."
+    msg: >-
+      Docker не найден на {{ inventory_hostname }}.
+      Убедитесь, что play "Prepare etcd hosts" в install-cluster.yaml отработал корректно,
+      или установите Docker вручную.
   when: not _docker_binary.stat.exists
 
 - name: Включить и запустить Docker

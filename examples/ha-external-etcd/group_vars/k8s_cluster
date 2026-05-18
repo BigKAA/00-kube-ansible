@@ -12,6 +12,17 @@ ha_cluster_virtual_port: 7443
 # etcd — внешний кластер
 etcd_mode: "external"
 
+# Использовать уже установленный кластер etcd (пропустить установку)
+# При false — playbook установит Docker на etcd-ноды и развернёт кластер
+# При true — необходимы etcd_existing_ca_cert, etcd_existing_client_cert, etcd_existing_client_key
+etcd_use_existing: false
+
+# Раскомментировать при использовании существующего кластера:
+# etcd_use_existing: true
+# etcd_existing_ca_cert: "/path/to/etcd-ca.crt"
+# etcd_existing_client_cert: "/path/to/apiserver-etcd-client.crt"
+# etcd_existing_client_key: "/path/to/apiserver-etcd-client.key"
+
 # Утилиты — настройте под своё окружение
 nfsServerHost: "192.168.1.50"
 nfsServerPath: "/var/nfs-disk"

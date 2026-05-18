@@ -160,6 +160,190 @@
   roles:
     - prepare-hosts
 
+# ============================================================
+# Pre-flight: проверка доступности etcd-нод
+# ============================================================
+- name: Pre-flight etcd nodes
+  hosts: etcd_nodes
+  gather_facts: true
+  tasks:
+    - name: Проверка — доступность etcd-ноды
+      ansible.builtin.ping:
+      register: etcd_ping_result
+      ignore_errors: true
+      when:
+        - etcd_mode is defined
+        - etcd_mode == "external"
+
+    - name: Проверка — ошибка ping etcd-ноды
+      ansible.builtin.fail:
+        msg: "etcd-нода {{ inventory_hostname }} ({{ ansible_host | default(inventory_hostname) }}) недоступна. Проверьте SSH и сеть."
+      when:
+        - etcd_mode is defined
+        - etcd_mode == "external"
+        - etcd_ping_result.failed
+
+    - name: Проверка — Python3 на etcd-ноде
+      ansible.builtin.command: python3 --version
+      register: etcd_python_check
+      changed_when: false
+      failed_when: false
+      when:
+        - etcd_mode is defined
+        - etcd_mode == "external"
+
+    - name: Проверка — ошибка Python3 на etcd-ноде
+      ansible.builtin.fail:
+        msg: "Python3 не найден на etcd-ноде {{ inventory_hostname }}. Установите python3."
+      when:
+        - etcd_mode is defined
+        - etcd_mode == "external"
+        - etcd_python_check.rc != 0
+
+    - name: Проверка — порт 2379 свободен
+      ansible.builtin.wait_for:
+        port: 2379
+        host: 0.0.0.0
+        timeout: 2
+        state: stopped
+      ignore_errors: true
+      register: etcd_port_2379
+      when:
+        - etcd_mode is defined
+        - etcd_mode == "external"
+        - not (etcd_use_existing | default(false))
+
+    - name: Проверка — предупреждение о занятом порту 2379
+      ansible.builtin.debug:
+        msg: "ВНИМАНИЕ: Порт 2379 уже используется на {{ inventory_hostname }}. etcd не сможет запуститься."
+      when:
+        - etcd_mode is defined
+        - etcd_mode == "external"
+        - not (etcd_use_existing | default(false))
+        - etcd_port_2379.failed
+
+    - name: Проверка — порт 2380 свободен
+      ansible.builtin.wait_for:
+        port: 2380
+        host: 0.0.0.0
+        timeout: 2
+        state: stopped
+      ignore_errors: true
+      register: etcd_port_2380
+      when:
+        - etcd_mode is defined
+        - etcd_mode == "external"
+        - not (etcd_use_existing | default(false))
+
+    - name: Проверка — предупреждение о занятом порту 2380
+      ansible.builtin.debug:
+        msg: "ВНИМАНИЕ: Порт 2380 уже используется на {{ inventory_hostname }}. etcd peer communication не сможет работать."
+      when:
+        - etcd_mode is defined
+        - etcd_mode == "external"
+        - not (etcd_use_existing | default(false))
+        - etcd_port_2380.failed
+
+# ============================================================
+# Подготовка etcd-нод: установка Docker
+# ============================================================
+- name: Prepare etcd hosts
+  hosts: etcd_nodes
+  tasks:
+    - name: Проверить наличие Docker
+      ansible.builtin.stat:
+        path: /usr/bin/docker
+      register: _etcd_docker_binary
+      when:
+        - etcd_mode is defined
+        - etcd_mode == "external"
+        - not (etcd_use_existing | default(false))
+
+    - name: Docker repository [RedHat]
+      when:
+        - etcd_mode is defined
+        - etcd_mode == "external"
+        - not (etcd_use_existing | default(false))
+        - not _etcd_docker_binary.stat.exists
+        - ansible_facts['os_family'] == "RedHat"
+      ansible.builtin.yum_repository:
+        name: docker-ce-stable
+        enabled: true
+        baseurl: "https://download.docker.com/linux/centos/$releasever/$basearch/stable"
+        description: 'Docker CE Stable - $basearch'
+        gpgcheck: true
+        gpgkey:
+          - 'https://download.docker.com/linux/centos/gpg'
+
+    - name: Docker repository [Debian, key]
+      when:
+        - etcd_mode is defined
+        - etcd_mode == "external"
+        - not (etcd_use_existing | default(false))
+        - not _etcd_docker_binary.stat.exists
+        - ansible_facts['os_family'] == "Debian"
+      ansible.builtin.apt_key:
+        url: "https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg"
+        state: present
+        keyring: /etc/apt/trusted.gpg.d/docker.gpg
+
+    - name: Docker repository [Debian]
+      when:
+        - etcd_mode is defined
+        - etcd_mode == "external"
+        - not (etcd_use_existing | default(false))
+        - not _etcd_docker_binary.stat.exists
+        - ansible_facts['os_family'] == "Debian"
+      ansible.builtin.apt_repository:
+        repo: >-
+          deb [signed-by=/etc/apt/trusted.gpg.d/docker.gpg]
+          https://download.docker.com/linux/{{ ansible_distribution | lower }}
+          {{ ansible_distribution_release }} stable
+        state: present
+        filename: docker-ce-stable
+
+    - name: Установить Docker [RedHat]
+      when:
+        - etcd_mode is defined
+        - etcd_mode == "external"
+        - not (etcd_use_existing | default(false))
+        - not _etcd_docker_binary.stat.exists
+        - ansible_facts['os_family'] == "RedHat"
+      ansible.builtin.dnf:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+        state: present
+
+    - name: Установить Docker [Debian]
+      when:
+        - etcd_mode is defined
+        - etcd_mode == "external"
+        - not (etcd_use_existing | default(false))
+        - not _etcd_docker_binary.stat.exists
+        - ansible_facts['os_family'] == "Debian"
+      ansible.builtin.apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+        state: present
+        update_cache: true
+
+    - name: Включить и запустить Docker
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
+      when:
+        - etcd_mode is defined
+        - etcd_mode == "external"
+        - not (etcd_use_existing | default(false))
+
+# ============================================================
+# Установка external etcd кластера
+# ============================================================
 - name: Install external etcd cluster
   hosts: etcd_nodes
   roles:

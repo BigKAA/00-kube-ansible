@@ -3,6 +3,10 @@
 # Использование:
 #   ansible-playbook -i examples/ha-external-etcd/hosts.yaml install-cluster.yaml
 #
+# Для подключения к существующему кластеру etcd:
+#   Установите etcd_use_existing: true и укажите пути к сертификатам
+#   в group_vars/k8s_cluster
+#
 k8s_masters:
   hosts:
     master1:
