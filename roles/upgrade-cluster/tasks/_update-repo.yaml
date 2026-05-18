@@ -1,0 +1,31 @@
+---
+# Общая задача: обновление репозитория Kubernetes
+# Используется при upgrade для переключения на новую версию
+
+- name: Удалить старый репозиторий Kubernetes [RedHat]
+  when:
+    - ansible_facts['os_family'] == "RedHat"
+    - k8s_install_mode == "online"
+  ansible.builtin.yum_repository:
+    name: kubernetes
+    state: absent
+
+- name: Добавить новый репозиторий Kubernetes [RedHat]
+  when:
+    - ansible_facts['os_family'] == "RedHat"
+    - k8s_install_mode == "online"
+  ansible.builtin.yum_repository:
+    name: kubernetes
+    description: "Base programs for k8s, version: v{{ kube_version[:4] }}"
+    baseurl: "https://pkgs.k8s.io/core:/stable:/v{{ kube_version[:4] }}/rpm/"
+    gpgcheck: true
+    gpgkey:
+      - "https://pkgs.k8s.io/core:/stable:/v{{ kube_version[:4] }}/rpm/repodata/repomd.xml.key"
+
+- name: Установить пакеты Kubernetes [RedHat]
+  when: ansible_facts['os_family'] == "RedHat"
+  ansible.builtin.shell: >
+    dnf install -y
+    {{ k8s_rpm_remote_dir }}/kubeadm-{{ kube_version }}*.rpm
+    {{ k8s_rpm_remote_dir }}/kubelet-{{ kube_version }}*.rpm
+    {{ k8s_rpm_remote_dir }}/kubectl-{{ kube_version }}*.rpm

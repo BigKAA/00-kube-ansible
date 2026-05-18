@@ -1,0 +1,19 @@
+---
+# Общая задача: проверка версии ноды
+# Входные переменные: kube_version
+# Выходные переменные: version_current.stdout
+
+- name: Получить текущую версию ноды
+  ansible.builtin.shell:
+    cmd: "kubectl get nodes {{ ansible_facts['fqdn'] }} -o=jsonpath='{.status.nodeInfo.kubeletVersion}'"
+  register: version_current
+
+- name: Проверка версии — пропуск если совпадает
+  when: version_current.stdout is match(".*" + kube_version)
+  block:
+    - name: Версия совпадает
+      ansible.builtin.debug:
+        msg: "Текущая версия {{ version_current.stdout }} совпадает с целевой {{ kube_version }}"
+
+    - name: Пропустить ноду
+      ansible.builtin.meta: end_host

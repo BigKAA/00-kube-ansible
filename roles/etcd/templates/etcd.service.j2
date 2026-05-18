@@ -1,3 +1,6 @@
+# ============================================================
+# etcd.service — systemd unit для запуска etcd в контейнере
+# ============================================================
 [Unit]
 Description=etcd key-value store in container
 Documentation=https://etcd.io/docs/
@@ -7,8 +10,13 @@ Wants=network-online.target
 [Service]
 Type=simple
 EnvironmentFile=/etc/etcd/etcd.env
+
+# Очистка предыдущего контейнера
 ExecStartPre=-/usr/bin/docker rm -f etcd
+# Загрузка актуального образа
 ExecStartPre=/usr/bin/docker pull ${ETCD_IMAGE}
+
+# Запуск etcd в контейнере с TLS
 ExecStart=/usr/bin/docker run \
   --rm \
   --name etcd \
@@ -21,28 +29,38 @@ ExecStart=/usr/bin/docker run \
   /usr/local/bin/etcd \
   --name=${ETCD_NAME} \
   --data-dir=/var/lib/etcd \
+  # Клиентские порты (TLS)
   --listen-client-urls=https://${THIS_IP}:2379,https://127.0.0.1:2379 \
   --advertise-client-urls=https://${THIS_IP}:2379 \
+  # Peer порты (TLS)
   --listen-peer-urls=https://${THIS_IP}:2380 \
   --initial-advertise-peer-urls=https://${THIS_IP}:2380 \
+  # Кластер
   --initial-cluster=${ETCD_INITIAL_CLUSTER} \
   --initial-cluster-token=${ETCD_INITIAL_CLUSTER_TOKEN} \
   --initial-cluster-state=${ETCD_INITIAL_CLUSTER_STATE} \
+  # TLS — клиентская аутентификация
   --client-cert-auth=true \
   --trusted-ca-file=/etc/etcd/pki/ca.crt \
   --cert-file=/etc/etcd/pki/server.crt \
   --key-file=/etc/etcd/pki/server.key \
+  # TLS — peer аутентификация
   --peer-client-cert-auth=true \
   --peer-trusted-ca-file=/etc/etcd/pki/ca.crt \
   --peer-cert-file=/etc/etcd/pki/server.crt \
   --peer-key-file=/etc/etcd/pki/server.key \
+  # Автокомпакция
   --auto-compaction-mode={{ etcd_auto_compaction_mode }} \
   --auto-compaction-retention={{ etcd_auto_compaction_retention }} \
+  # Квота backend
   --quota-backend-bytes={{ etcd_quota_backend_bytes }} \
   --snapshot-count={{ etcd_snapshot_count }} \
-{% if '3.6' in etcd_resolved_image %}  --feature-gates={{ etcd_feature_gates }} \
+{% if '3.6' in etcd_resolved_image %}  # Feature gates (только для etcd 3.6+)
+  --feature-gates={{ etcd_feature_gates }} \
   --watch-progress-notify-interval={{ etcd_watch_progress_notify_interval }} \
-{% endif %}  --listen-metrics-urls=${METRICS_URL}
+{% endif %}  # Метрики
+  --listen-metrics-urls=${METRICS_URL}
+
 ExecStop=/usr/bin/docker stop -t {{ etcd_stop_timeout }} etcd
 Restart=always
 RestartSec={{ etcd_restart_sec }}

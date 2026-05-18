@@ -1,0 +1,20 @@
+# Конфигурация для single-node кластера
+# Скопируйте в group_vars/k8s_cluster и настройте под своё окружение
+
+kube_version: 1.36.1
+cri: containerd
+cni: calico
+
+# HA отключён — уберите ha_cluster_virtual_ip для single-node
+# ha_cluster_virtual_ip: ""
+
+# etcd — встроенный (stacked)
+etcd_mode: "stacked"
+
+# Утилиты — отключены для минимальной установки
+nfsEnable: false
+certManagerEnable: false
+metricsServerEnable: true
+metallbEnable: false
+ingressControllerEnable: false
+argoCDEnable: false

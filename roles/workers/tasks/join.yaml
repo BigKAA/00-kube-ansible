@@ -1,22 +1,23 @@
 ---
-- name: Check if kubelet.conf exists
+# Подключение worker нод к кластеру
+
+- name: Проверить наличие kubelet.conf
   ansible.builtin.stat:
     path: "/etc/kubernetes/kubelet.conf"
   register: kubelet_conf
 
-- name: Join worker nodes
+- name: Подключить worker ноду
   when: not kubelet_conf.stat.exists
-  ansible.builtin.shell: 
+  ansible.builtin.shell:
     cmd: |
       kubeadm join {{ hostvars[groups['k8s_masters'][0]].join_path.stdout }} \
       --token {{ hostvars[groups['k8s_masters'][0]].join_token.stdout }} \
       --discovery-token-ca-cert-hash sha256:{{ hostvars[groups['k8s_masters'][0]].discovery_token_ca_cert_hash.stdout }}
-      
 
 #  --discovery-token-unsafe-skip-ca-verification
 
-# Почему то в 1.25 на AlmaLinux 8 не ставится enabled
-- name: Kubelet enable
+# Почему-то в 1.25 на AlmaLinux 8 не ставится enabled автоматически
+- name: Включить kubelet
   ansible.builtin.service:
     name: kubelet
     state: started

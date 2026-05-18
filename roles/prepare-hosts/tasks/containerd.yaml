@@ -1,5 +1,11 @@
+# ============================================================
+# Online — настройка репозиториев и установка
+# ============================================================
+
 - name: Docker repository for containerd RedHat
-  when: ansible_facts['os_family'] == "RedHat"
+  when:
+    - ansible_facts['os_family'] == "RedHat"
+    - k8s_install_mode == "online"
   ansible.builtin.yum_repository:
     name: docker-ce-stable
     enabled: true
@@ -10,14 +16,19 @@
       - 'https://download.docker.com/linux/centos/gpg'
 
 - name: Docker repository for Ubuntu [Key]
-  when: ansible_facts['os_family'] == "Debian"
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - k8s_install_mode == "online"
   ansible.builtin.apt_key:
     url: "https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg"
     state: present
     keyring: /etc/apt/trusted.gpg.d/docker.gpg
 
 - name: Docker repository for Ubuntu
-  when: ansible_facts['os_family'] == "Debian" and ansible_facts['distribution'] == "Ubuntu"
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - ansible_facts['distribution'] == "Ubuntu"
+    - k8s_install_mode == "online"
   ansible.builtin.apt_repository:
     repo: >
       deb [signed-by=/etc/apt/trusted.gpg.d/docker.gpg]
@@ -26,19 +37,55 @@
     state: present
     filename: docker-ce-stable
 
-- name: Install containerd [rpm]
-  when: ansible_facts['os_family'] == "RedHat"
+- name: Install containerd [rpm, online]
+  when:
+    - ansible_facts['os_family'] == "RedHat"
+    - k8s_install_mode == "online"
   ansible.builtin.dnf:
     name:
       - containerd
     state: present
 
-- name: Install containerd [deb]
-  when: ansible_facts['os_family'] == "Debian"
+- name: Install containerd [deb, online]
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - k8s_install_mode == "online"
   ansible.builtin.apt:
     name:
       - containerd
     state: present
+
+# ============================================================
+# Offline — установка из локальных пакетов
+# ============================================================
+
+- name: Скопировать пакеты containerd [offline]
+  when: k8s_install_mode == "offline"
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ k8s_packages_remote_dir }}/"
+    mode: "0644"
+  with_fileglob:
+    - "{{ playbook_dir }}/{{ k8s_offline_dir }}/cri/containerd/*.rpm"
+    - "{{ playbook_dir }}/{{ k8s_offline_dir }}/cri/containerd/*.deb"
+
+- name: Установить containerd из RPM [RedHat, offline]
+  when:
+    - ansible_facts['os_family'] == "RedHat"
+    - k8s_install_mode == "offline"
+  ansible.builtin.command: >
+    dnf install -y {{ k8s_packages_remote_dir }}/containerd*.rpm
+  args:
+    creates: /usr/bin/containerd
+
+- name: Установить containerd из DEB [Debian, offline]
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - k8s_install_mode == "offline"
+  ansible.builtin.command: >
+    apt install -y --allow-downgrades {{ k8s_packages_remote_dir }}/containerd*.deb
+  args:
+    creates: /usr/bin/containerd
 
 - name: Enable dockerhub mirror on containerd [mkdir certs.d]
   ansible.builtin.file:
@@ -61,21 +108,28 @@
     owner: root
     mode: u=rw,g=r,o=r
 
-- name: Create containerd config.toml
+- name: Создать containerd config.toml
   ansible.builtin.shell: containerd config default > /etc/containerd/config.toml
+  changed_when: true
 
-- name: Add cgroup v2 [config.toml]
-  ansible.builtin.shell: |
-    sed -i 's|SystemdCgroup = false|SystemdCgroup = true|' /etc/containerd/config.toml
+- name: Включить cgroup v2 [config.toml]
+  ansible.builtin.lineinfile:
+    path: /etc/containerd/config.toml
+    regexp: '^\s*SystemdCgroup = false'
+    line: '    SystemdCgroup = true'
 
-- name: Add conf dir /etc/containerd/certs.d [config.toml]
-  ansible.builtin.shell: |
-    sed -i 's|config_path = ""|config_path = "/etc/containerd/certs.d"|' /etc/containerd/config.toml
+- name: Включить каталог сертификов [config.toml]
+  ansible.builtin.lineinfile:
+    path: /etc/containerd/config.toml
+    regexp: '^\s*config_path = ""'
+    line: '    config_path = "/etc/containerd/certs.d"'
 
-- name: Add change Sandbox Image [config.toml]
+- name: Настроить sandbox image [config.toml]
   when: sandbox_image is defined
-  ansible.builtin.shell: |
-    sed -i 's|sandbox_image = ".*"|sandbox_image = "{{ sandbox_image }}"|' /etc/containerd/config.toml
+  ansible.builtin.lineinfile:
+    path: /etc/containerd/config.toml
+    regexp: '^\s*sandbox_image = ".*"'
+    line: '    sandbox_image = "{{ sandbox_image }}"'
 
 - name: Enable and start Containerd service
   ansible.builtin.service:

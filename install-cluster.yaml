@@ -1,13 +1,279 @@
-## ansible-palybook install-cluster.yaml --become-user=root --become
+## ansible-playbook install-cluster.yaml --become-user=root --become
 ---
-- name: Checking for an odd number of nodes.
-  hosts: groups['k8s_masters'][0]
-    
+# ============================================================
+# Pre-flight: вывод параметров и базовая валидация
+# ============================================================
+- name: Pre-flight checks
+  hosts: k8s_cluster
+  gather_facts: false
   tasks:
-    - name: Abort if an even number of nodes
+    - name: Показать параметры установки
       ansible.builtin.debug:
-        msg: "Abort. Аn even number of nodes"
-      failed_when: groups['k8s_masters'] | length | int is divisibleby 2
+        msg:
+          - "============================================"
+          - "Kubernetes Cluster Installation"
+          - "============================================"
+          - "  Kubernetes version : {{ kube_version }}"
+          - "  CRI                : {{ cri }}"
+          - "  CRI socket         : {{ cri_socket }}"
+          - "  CNI                : {{ cni }}"
+          - "  etcd mode          : {{ etcd_mode | default('stacked') }}"
+          - "  HA virtual IP      : {{ ha_cluster_virtual_ip | default('disabled') }}"
+          - "  HA virtual port    : {{ ha_cluster_virtual_port | default('N/A') }}"
+          - "  Control plane nodes: {{ groups['k8s_masters'] | length }}"
+          - "  Worker nodes       : {{ groups['k8s_workers'] | default([]) | length }}"
+          - "  etcd nodes         : {{ groups['etcd_nodes'] | default([]) | length }}"
+          - "  Install mode       : {{ k8s_install_mode | default('online') }}"
+          - "============================================"
+      run_once: true
+
+    - name: Проверка — нечётное количество control plane нод
+      ansible.builtin.assert:
+        that:
+          - groups['k8s_masters'] | length is not divisibleby 2
+        fail_msg: "Количество control plane нод должно быть нечётным (сейчас: {{ groups['k8s_masters'] | length }})"
+        quiet: true
+      run_once: true
+
+    - name: Проверка — нечётное количество etcd нод при external etcd
+      ansible.builtin.assert:
+        that:
+          - groups['etcd_nodes'] | length is not divisibleby 2
+        fail_msg: "При external etcd количество etcd нод должно быть нечётным (сейчас: {{ groups['etcd_nodes'] | length }})"
+        quiet: true
+      when:
+        - etcd_mode is defined
+        - etcd_mode == "external"
+      run_once: true
+
+    - name: Проверка — HA virtual port не равен 6443
+      ansible.builtin.assert:
+        that:
+          - ha_cluster_virtual_port | int != 6443
+        fail_msg: "ha_cluster_virtual_port не должен быть равен 6443"
+        quiet: true
+      when: ha_cluster_virtual_ip is defined and ha_cluster_virtual_ip != ""
+      run_once: true
+
+    - name: Проверка — kube_version в допустимом диапазоне
+      ansible.builtin.assert:
+        that:
+          - kube_version is version('1.28', '>=')
+          - kube_version is version('1.36.1', '<=')
+        fail_msg: "kube_version {{ kube_version }} вне допустимого диапазона (1.28 — 1.36.1)"
+        quiet: true
+      run_once: true
+
+    - name: Проверка — cri_socket задан
+      ansible.builtin.assert:
+        that:
+          - cri_socket is defined and cri_socket != ""
+        fail_msg: "cri_socket не задан. Проверьте значение cri: {{ cri }}"
+        quiet: true
+      run_once: true
+
+    - name: Проверка — CRI допустимое значение
+      ansible.builtin.assert:
+        that:
+          - cri in ['containerd', 'crio']
+        fail_msg: "cri должен быть 'containerd' или 'crio' (сейчас: {{ cri }})"
+        quiet: true
+      run_once: true
+
+    - name: Проверка — CNI допустимое значение
+      ansible.builtin.assert:
+        that:
+          - cni in ['calico', 'flannel']
+        fail_msg: "cni должен быть 'calico' или 'flannel' (сейчас: {{ cni }})"
+        quiet: true
+      run_once: true
+
+# ============================================================
+# Pre-flight: проверка offline-пакетов (только для offline-режима)
+# ============================================================
+- name: Pre-flight offline packages
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  vars:
+    _offline_dir: "{{ k8s_offline_dir | default('tmp/offline') }}"
+    _cri: "{{ cri | default('containerd') }}"
+    _cni: "{{ cni | default('calico') }}"
+  tasks:
+    - name: Проверить kubeadm пакеты
+      ansible.builtin.find:
+        paths: "{{ _offline_dir }}/packages"
+        patterns: "kubeadm*.rpm,kubeadm*.deb"
+      register: _find_kubeadm
+      when: k8s_install_mode is defined and k8s_install_mode == "offline"
+
+    - name: Проверить kubelet пакеты
+      ansible.builtin.find:
+        paths: "{{ _offline_dir }}/packages"
+        patterns: "kubelet*.rpm,kubelet*.deb"
+      register: _find_kubelet
+      when: k8s_install_mode is defined and k8s_install_mode == "offline"
+
+    - name: Проверить kubectl пакеты
+      ansible.builtin.find:
+        paths: "{{ _offline_dir }}/packages"
+        patterns: "kubectl*.rpm,kubectl*.deb"
+      register: _find_kubectl
+      when: k8s_install_mode is defined and k8s_install_mode == "offline"
+
+    - name: Проверить k8s images archive
+      ansible.builtin.stat:
+        path: "{{ _offline_dir }}/images/k8s-images.tar"
+      register: _find_k8s_images
+      when: k8s_install_mode is defined and k8s_install_mode == "offline"
+
+    - name: Проверить containerd пакеты
+      ansible.builtin.find:
+        paths: "{{ _offline_dir }}/cri/containerd"
+        patterns: "*.rpm,*.deb"
+      register: _find_containerd
+      when:
+        - k8s_install_mode is defined and k8s_install_mode == "offline"
+        - _cri == "containerd"
+
+    - name: Проверить CRI-O пакеты
+      ansible.builtin.find:
+        paths: "{{ _offline_dir }}/cri/cri-o"
+        patterns: "*.rpm,*.deb"
+      register: _find_crio
+      when:
+        - k8s_install_mode is defined and k8s_install_mode == "offline"
+        - _cri == "crio"
+
+    - name: Проверить Calico manifest
+      ansible.builtin.stat:
+        path: "{{ _offline_dir }}/cni/tigera-operator.yaml"
+      register: _find_calico_manifest
+      when:
+        - k8s_install_mode is defined and k8s_install_mode == "offline"
+        - _cni == "calico"
+
+    - name: Проверить Calico images archive
+      ansible.builtin.stat:
+        path: "{{ _offline_dir }}/images/calico-images.tar"
+      register: _find_calico_images
+      when:
+        - k8s_install_mode is defined and k8s_install_mode == "offline"
+        - _cni == "calico"
+
+    - name: Собрать список отсутствующих файлов
+      ansible.builtin.set_fact:
+        _missing: "{{ _missing_list }}"
+      vars:
+        _missing_list: >-
+          {{
+            ([] if (_find_kubeadm is not defined or _find_kubeadm.skipped | default(false) or _find_kubeadm.matched | default(0) > 0) else ['packages/kubeadm-*.rpm или *.deb'])
+            + ([] if (_find_kubelet is not defined or _find_kubelet.skipped | default(false) or _find_kubelet.matched | default(0) > 0) else ['packages/kubelet-*.rpm или *.deb'])
+            + ([] if (_find_kubectl is not defined or _find_kubectl.skipped | default(false) or _find_kubectl.matched | default(0) > 0) else ['packages/kubectl-*.rpm или *.deb'])
+            + ([] if (_find_k8s_images is not defined or _find_k8s_images.skipped | default(false) or _find_k8s_images.stat.exists | default(false)) else ['images/k8s-images.tar'])
+            + ([] if (_find_containerd is not defined or _find_containerd.skipped | default(false) or _find_containerd.matched | default(0) > 0) else ['cri/containerd/*.rpm или *.deb'])
+            + ([] if (_find_crio is not defined or _find_crio.skipped | default(false) or _find_crio.matched | default(0) > 0) else ['cri/cri-o/*.rpm или *.deb'])
+            + ([] if (_find_calico_manifest is not defined or _find_calico_manifest.skipped | default(false) or _find_calico_manifest.stat.exists | default(false)) else ['cni/tigera-operator.yaml'])
+            + ([] if (_find_calico_images is not defined or _find_calico_images.skipped | default(false) or _find_calico_images.stat.exists | default(false)) else ['images/calico-images.tar'])
+          }}
+      when: k8s_install_mode is defined and k8s_install_mode == "offline"
+
+    - name: Ошибка — отсутствуют offline-пакеты
+      ansible.builtin.fail:
+        msg: >-
+
+
+          Offline-режим активен, но отсутствуют необходимые файлы в '{{ _offline_dir }}':
+
+          Отсутствуют:
+          {% for item in _missing | default([]) %}
+            - {{ item }}
+          {% endfor %}
+
+          Скачайте необходимые пакеты и разместите их в соответствующих директориях:
+            - {{ _offline_dir }}/packages/       — kubeadm, kubelet, kubectl (RPM/DEB)
+            - {{ _offline_dir }}/cri/containerd/  — containerd (если cri=containerd)
+            - {{ _offline_dir }}/cri/cri-o/       — CRI-O (если cri=crio)
+            - {{ _offline_dir }}/images/          — k8s-images.tar, calico-images.tar
+            - {{ _offline_dir }}/cni/             — tigera-operator.yaml (если cni=calico)
+            - {{ _offline_dir }}/utils/           — helm, helm-charts
+      when:
+        - k8s_install_mode is defined and k8s_install_mode == "offline"
+        - (_missing | default([])) | length > 0
+
+    - name: Offline-пакеты проверены
+      ansible.builtin.debug:
+        msg: "Все необходимые offline-пакеты найдены в '{{ _offline_dir }}'"
+      when:
+        - k8s_install_mode is defined and k8s_install_mode == "offline"
+        - (_missing | default([])) | length == 0
+
+# ============================================================
+# Pre-flight: проверка доступности хостов
+# ============================================================
+- name: Pre-flight connectivity
+  hosts: k8s_cluster
+  gather_facts: false
+  tasks:
+    - name: Проверка — доступность хоста
+      ansible.builtin.ping:
+      register: ping_result
+      ignore_errors: true
+
+    - name: Проверка — ошибка ping
+      ansible.builtin.fail:
+        msg: "Хост {{ inventory_hostname }} ({{ ansible_host | default(inventory_hostname) }}) недоступен. Проверьте SSH и сеть."
+      when: ping_result.failed
+
+    - name: Проверка — Python3 на remote хосте
+      ansible.builtin.command: python3 --version
+      register: python_check
+      changed_when: false
+      failed_when: false
+
+    - name: Проверка — ошибка Python3
+      ansible.builtin.fail:
+        msg: "Python3 не найден на {{ inventory_hostname }}. Установите python3 или задайте ansible_python_interpreter."
+      when: python_check.rc != 0
+
+# ============================================================
+# Pre-flight: проверка портов (только на control plane)
+# ============================================================
+- name: Pre-flight port checks
+  hosts: k8s_masters
+  gather_facts: false
+  tasks:
+    - name: Проверка — порт 6443 не занят
+      ansible.builtin.wait_for:
+        port: 6443
+        host: 0.0.0.0
+        timeout: 2
+        state: stopped
+      ignore_errors: true
+      register: port_6443
+
+    - name: Проверка — предупреждение о занятом порту 6443
+      ansible.builtin.debug:
+        msg: "ВНИМАНИЕ: Порт 6443 уже используется на {{ inventory_hostname }}. kubeadm init может завершиться с ошибкой."
+      when: port_6443.failed
+
+    - name: Проверка — HA virtual port не занят
+      ansible.builtin.wait_for:
+        port: "{{ ha_cluster_virtual_port }}"
+        host: 0.0.0.0
+        timeout: 2
+        state: stopped
+      ignore_errors: true
+      register: port_ha
+      when: ha_cluster_virtual_ip is defined and ha_cluster_virtual_ip != ""
+
+    - name: Проверка — предупреждение о занятом HA virtual port
+      ansible.builtin.debug:
+        msg: "ВНИМАНИЕ: Порт {{ ha_cluster_virtual_port }} уже используется на {{ inventory_hostname }}."
+      when:
+        - ha_cluster_virtual_ip is defined and ha_cluster_virtual_ip != ""
+        - port_ha.failed
 
 - name: Install packages
   hosts: k8s_cluster
@@ -15,6 +281,190 @@
   roles:
     - prepare-hosts
 
+# ============================================================
+# Pre-flight: проверка доступности etcd-нод
+# ============================================================
+- name: Pre-flight etcd nodes
+  hosts: etcd_nodes
+  gather_facts: true
+  tasks:
+    - name: Проверка — доступность etcd-ноды
+      ansible.builtin.ping:
+      register: etcd_ping_result
+      ignore_errors: true
+      when:
+        - etcd_mode is defined
+        - etcd_mode == "external"
+
+    - name: Проверка — ошибка ping etcd-ноды
+      ansible.builtin.fail:
+        msg: "etcd-нода {{ inventory_hostname }} ({{ ansible_host | default(inventory_hostname) }}) недоступна. Проверьте SSH и сеть."
+      when:
+        - etcd_mode is defined
+        - etcd_mode == "external"
+        - etcd_ping_result.failed
+
+    - name: Проверка — Python3 на etcd-ноде
+      ansible.builtin.command: python3 --version
+      register: etcd_python_check
+      changed_when: false
+      failed_when: false
+      when:
+        - etcd_mode is defined
+        - etcd_mode == "external"
+
+    - name: Проверка — ошибка Python3 на etcd-ноде
+      ansible.builtin.fail:
+        msg: "Python3 не найден на etcd-ноде {{ inventory_hostname }}. Установите python3."
+      when:
+        - etcd_mode is defined
+        - etcd_mode == "external"
+        - etcd_python_check.rc != 0
+
+    - name: Проверка — порт 2379 свободен
+      ansible.builtin.wait_for:
+        port: 2379
+        host: 0.0.0.0
+        timeout: 2
+        state: stopped
+      ignore_errors: true
+      register: etcd_port_2379
+      when:
+        - etcd_mode is defined
+        - etcd_mode == "external"
+        - not (etcd_use_existing | default(false))
+
+    - name: Проверка — предупреждение о занятом порту 2379
+      ansible.builtin.debug:
+        msg: "ВНИМАНИЕ: Порт 2379 уже используется на {{ inventory_hostname }}. etcd не сможет запуститься."
+      when:
+        - etcd_mode is defined
+        - etcd_mode == "external"
+        - not (etcd_use_existing | default(false))
+        - etcd_port_2379.failed
+
+    - name: Проверка — порт 2380 свободен
+      ansible.builtin.wait_for:
+        port: 2380
+        host: 0.0.0.0
+        timeout: 2
+        state: stopped
+      ignore_errors: true
+      register: etcd_port_2380
+      when:
+        - etcd_mode is defined
+        - etcd_mode == "external"
+        - not (etcd_use_existing | default(false))
+
+    - name: Проверка — предупреждение о занятом порту 2380
+      ansible.builtin.debug:
+        msg: "ВНИМАНИЕ: Порт 2380 уже используется на {{ inventory_hostname }}. etcd peer communication не сможет работать."
+      when:
+        - etcd_mode is defined
+        - etcd_mode == "external"
+        - not (etcd_use_existing | default(false))
+        - etcd_port_2380.failed
+
+# ============================================================
+# Подготовка etcd-нод: установка Docker
+# ============================================================
+- name: Prepare etcd hosts
+  hosts: etcd_nodes
+  tasks:
+    - name: Проверить наличие Docker
+      ansible.builtin.stat:
+        path: /usr/bin/docker
+      register: _etcd_docker_binary
+      when:
+        - etcd_mode is defined
+        - etcd_mode == "external"
+        - not (etcd_use_existing | default(false))
+
+    - name: Docker repository [RedHat]
+      when:
+        - etcd_mode is defined
+        - etcd_mode == "external"
+        - not (etcd_use_existing | default(false))
+        - not _etcd_docker_binary.stat.exists
+        - ansible_facts['os_family'] == "RedHat"
+      ansible.builtin.yum_repository:
+        name: docker-ce-stable
+        enabled: true
+        baseurl: "https://download.docker.com/linux/centos/$releasever/$basearch/stable"
+        description: 'Docker CE Stable - $basearch'
+        gpgcheck: true
+        gpgkey:
+          - 'https://download.docker.com/linux/centos/gpg'
+
+    - name: Docker repository [Debian, key]
+      when:
+        - etcd_mode is defined
+        - etcd_mode == "external"
+        - not (etcd_use_existing | default(false))
+        - not _etcd_docker_binary.stat.exists
+        - ansible_facts['os_family'] == "Debian"
+      ansible.builtin.apt_key:
+        url: "https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg"
+        state: present
+        keyring: /etc/apt/trusted.gpg.d/docker.gpg
+
+    - name: Docker repository [Debian]
+      when:
+        - etcd_mode is defined
+        - etcd_mode == "external"
+        - not (etcd_use_existing | default(false))
+        - not _etcd_docker_binary.stat.exists
+        - ansible_facts['os_family'] == "Debian"
+      ansible.builtin.apt_repository:
+        repo: >-
+          deb [signed-by=/etc/apt/trusted.gpg.d/docker.gpg]
+          https://download.docker.com/linux/{{ ansible_distribution | lower }}
+          {{ ansible_distribution_release }} stable
+        state: present
+        filename: docker-ce-stable
+
+    - name: Установить Docker [RedHat]
+      when:
+        - etcd_mode is defined
+        - etcd_mode == "external"
+        - not (etcd_use_existing | default(false))
+        - not _etcd_docker_binary.stat.exists
+        - ansible_facts['os_family'] == "RedHat"
+      ansible.builtin.dnf:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+        state: present
+
+    - name: Установить Docker [Debian]
+      when:
+        - etcd_mode is defined
+        - etcd_mode == "external"
+        - not (etcd_use_existing | default(false))
+        - not _etcd_docker_binary.stat.exists
+        - ansible_facts['os_family'] == "Debian"
+      ansible.builtin.apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+        state: present
+        update_cache: true
+
+    - name: Включить и запустить Docker
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
+      when:
+        - etcd_mode is defined
+        - etcd_mode == "external"
+        - not (etcd_use_existing | default(false))
+
+# ============================================================
+# Установка external etcd кластера
+# ============================================================
 - name: Install external etcd cluster
   hosts: etcd_nodes
   roles:

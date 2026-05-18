@@ -1,181 +1,189 @@
 ---
-- name: Install packages dnf
+# Точка расширения: pre-prepare hooks
+- name: Выполнить pre-prepare hooks
+  ansible.builtin.include_tasks: "{{ item }}"
+  loop: "{{ pre_prepare_tasks | default([]) }}"
+  when: pre_prepare_tasks | default([]) | length > 0
+
+# Загрузка переменных семейства ОС
+- name: Загрузить переменные семейства ОС
+  ansible.builtin.include_vars: "{{ ansible_facts['os_family'] }}.yaml"
+
+# ============================================================
+# Системные пакеты
+# ============================================================
+
+- name: Установка системных пакетов [RedHat]
   when: ansible_facts['os_family'] == "RedHat"
   ansible.builtin.dnf:
-    name:
-      - net-tools
-      - mc
-      - iproute-tc
-      - vim
-      - git
-      - bash-completion
-      - nfs-utils
-      - tar
-      - chrony
-      - jq
-      - ipvsadm
-      - python3-pyyaml
+    name: "{{ packages_common }}"
     state: present
 
-- name: Install packages apt
+- name: Установка системных пакетов [Debian]
   when: ansible_facts['os_family'] == "Debian"
   ansible.builtin.apt:
-    pkg:
-      - net-tools
-      - mc
-      - gpg
-      - iproute2
-      - iptables
-      - vim
-      - git
-      - bash-completion
-      - nfs-common
-      - tar
-      - ntp
-      - jq
-      - ipvsadm
-      - python3-yaml
+    pkg: "{{ packages_common }}"
     state: present
 
-- name: Enable NTP server chrony
-  when: ansible_facts['os_family'] == "RedHat"
+# ============================================================
+# NTP
+# ============================================================
+
+- name: Включить NTP сервер
   ansible.builtin.service:
-    name: chronyd
+    name: "{{ ntp_service }}"
     state: started
     enabled: true
 
-- name: Enable NTP server
-  when: ansible_facts['os_family'] == "Debian"
-  ansible.builtin.service:
-    name: ntp
-    state: started
-    enabled: true
+# ============================================================
+# Firewall (только RedHat)
+# ============================================================
 
-- name: Disable firewalld
-  when: ansible_facts['os_family'] == "RedHat"
+- name: Отключить firewalld
+  when:
+    - ansible_facts['os_family'] == "RedHat"
+    - firewall_service != ""
   block:
-    - name: Check if firewalld exists
-      ansible.builtin.command: systemctl list-unit-files firewalld.service
+    - name: Проверить наличие firewalld
+      ansible.builtin.command: systemctl list-unit-files "{{ firewall_service }}.service"
       register: firewalld_check
       changed_when: false
       failed_when: false
 
-    - name: Stop and disable firewalld
+    - name: Остановить и отключить firewalld
       ansible.builtin.service:
-        name: firewalld
+        name: "{{ firewall_service }}"
         state: stopped
         enabled: false
-      when: "'firewalld.service' in firewalld.stdout"
+      when: "'firewalld.service' in firewalld_check.stdout"
   rescue:
-    - name: Firewalld not found - skip
+    - name: Firewalld не найден — пропуск
       ansible.builtin.debug:
-        msg: "firewalld not installed, skipping"
+        msg: "firewalld не установлен, пропуск"
 
-- name: Test swap
-  ansible.builtin.shell: "swapon --show --noheadings | wc -l"
+# ============================================================
+# Swap
+# ============================================================
+
+- name: Проверить swap
+  ansible.builtin.command: swapon --show --noheadings
   register: swap_ret
+  changed_when: false
 
-- name: If swap is enabled - disable it
+- name: Отключить swap
   ansible.builtin.command: swapoff -a
-  when: swap_ret.stdout != "0"
+  when: swap_ret.stdout != ""
 
-- name: Disable SWAP in fstab
-  when: swap_ret.stdout != "0"
+- name: Закомментировать swap в fstab
+  when: swap_ret.stdout != ""
   ansible.builtin.replace:
     path: /etc/fstab
     regexp: '^([^#].*\s*swap\s*.*)$'
     replace: '# \1'
 
-- name: Check Disable SELinux
+# ============================================================
+# SELinux (только RedHat)
+# ============================================================
+
+- name: Отключить SELinux
   when: ansible_facts['os_family'] == "RedHat"
-  selinux:
+  ansible.builtin.selinux:
     state: disabled
   register: selinux_ret
 
 - name: Setenforce 0
-  when: ansible_facts['os_family'] == "RedHat" and selinux_ret.changed 
+  when: ansible_facts['os_family'] == "RedHat" and selinux_ret.changed
   ansible.builtin.command:
     cmd: setenforce 0
 
-- name: Set crictl.yaml
+# ============================================================
+# Общие настройки
+# ============================================================
+
+- name: Настроить crictl.yaml
   ansible.builtin.template:
     src: crictl.j2
     dest: /etc/crictl.yaml
     owner: root
     mode: u=rw,g=r,o=r
 
-- name: Load modules br_netfilter
+- name: Загрузить модуль br_netfilter
   community.general.modprobe:
     name: br_netfilter
 
-- name: Load modules overlay
+- name: Загрузить модуль overlay
   community.general.modprobe:
     name: overlay
 
-- name: Load module permanet
+- name: Загрузить модули постоянно
   ansible.builtin.copy:
     src: modules-kubernetes.conf
     dest: /etc/modules-load.d/modules-kubernetes.conf
     owner: root
     mode: u=rw,g=r,o=r
 
-- name: Set Sysctl on all nodes
+- name: Настроить sysctl
   ansible.posix.sysctl:
     name: "{{ item.name }}"
     value: "{{ item.value }}"
     state: present
-  with_items:
+  loop:
     - name: net.ipv4.ip_forward
       value: 1
     - name: net.bridge.bridge-nf-call-iptables
       value: 1
     - name: net.bridge.bridge-nf-call-ip6tables
       value: 1
-    - name: vm.max_map_count # for opensearch & elasticserarch
+    - name: vm.max_map_count
       value: 262144
 
-- name: Add PS1
+- name: Настроить PS1
   ansible.builtin.lineinfile:
     path: ~/.bashrc
     state: present
     line: "PS1='\\[\\e[44;36m\\]\\t:[\\w]\\[\\e[0;0m\\]\\n\\[\\e[0;31;04m\\]\\u\\[\\e[0;0m\\]@\\[\\e[0;32m\\]\\h\\[\\e[0;0m\\] \\$ '"
 
-- name: Install CRI-O
+# ============================================================
+# CRI
+# ============================================================
+
+- name: Установить CRI-O
   when: cri == "crio"
   ansible.builtin.include_tasks: crio.yaml
 
-- name: Install containerd
+- name: Установить containerd
   when: cri == "containerd"
   ansible.builtin.include_tasks: containerd.yaml
 
-- name: Install k8s files
+# ============================================================
+# Kubernetes пакеты
+# ============================================================
+
+- name: Установка Kubernetes
   block:
-
     # ============================================================
-    # Online mode — установка из репозитория
+    # Online mode — настройка репозиториев
     # ============================================================
 
-    - name: K8s repository for Ubuntu|Debian [Key]
+    - name: Репозиторий Kubernetes [Debian, ключ]
       when:
         - ansible_facts['os_family'] == "Debian"
         - k8s_install_mode == "online"
       ansible.builtin.apt_key:
-        # url: "https://pkgs.k8s.io/core:/stable:/v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}/deb/Release.key"
         url: "https://prod-cdn.packages.k8s.io/repositories/isv:/kubernetes:/core:/stable:/v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}/deb/Release.key"
         state: present
         keyring: /etc/apt/trusted.gpg.d/k8s.gpg
 
-    - name: K8s repository for Ubuntu|Debian
+    - name: Репозиторий Kubernetes [Debian]
       when:
         - ansible_facts['os_family'] == "Debian"
         - k8s_install_mode == "online"
       ansible.builtin.apt_repository:
-        # repo: "deb [signed-by=/etc/apt/trusted.gpg.d/k8s.gpg] https://pkgs.k8s.io/core:/stable:/v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}/deb/ /"
         repo: "deb [signed-by=/etc/apt/trusted.gpg.d/k8s.gpg] https://prod-cdn.packages.k8s.io/repositories/isv:/kubernetes:/core:/stable:/v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}/deb/ /"
         state: present
         filename: kubernetes
 
-    - name: Add kubernetes repository RedHat
+    - name: Репозиторий Kubernetes [RedHat]
       when:
         - ansible_facts['os_family'] == "RedHat"
         - k8s_install_mode == "online"
@@ -190,58 +198,89 @@
         state: present
 
     # ============================================================
-    # Offline mode — установка из локальных RPM
+    # Online — установка пакетов из репозитория
     # ============================================================
 
-    - name: Create RPM directory on target
-      when: k8s_install_mode == "offline"
-      ansible.builtin.file:
-        path: "{{ k8s_rpm_remote_dir }}"
-        state: directory
-        mode: "0755"
-
-    - name: Copy k8s RPMs to target
-      when: k8s_install_mode == "offline"
-      ansible.builtin.copy:
-        src: "{{ item }}"
-        dest: "{{ k8s_rpm_remote_dir }}/"
-        mode: "0644"
-      with_fileglob:
-        - "{{ playbook_dir }}/tmp/rpms/kubeadm-{{ kube_version }}*.rpm"
-        - "{{ playbook_dir }}/tmp/rpms/kubelet-{{ kube_version }}*.rpm"
-        - "{{ playbook_dir }}/tmp/rpms/kubectl-{{ kube_version }}*.rpm"
-
-    - name: Install k8s utils from RPM [RedHat offline]
-      when:
-        - ansible_facts['os_family'] == "RedHat"
-        - k8s_install_mode == "offline"
-      ansible.builtin.shell: |
-        dnf install -y --disableplugin=fastestmirror \
-          {{ k8s_rpm_remote_dir }}/kubeadm-{{ kube_version }}*.rpm \
-          {{ k8s_rpm_remote_dir }}/kubelet-{{ kube_version }}*.rpm \
-          {{ k8s_rpm_remote_dir }}/kubectl-{{ kube_version }}*.rpm
-
-    # ============================================================
-    # Online mode — установка из репозитория (RedHat)
-    # ============================================================
-
-    - name: Install k8s utils [rpm]
+    - name: Установить Kubernetes [RedHat, online]
       when:
         - ansible_facts['os_family'] == "RedHat"
         - k8s_install_mode == "online"
       ansible.builtin.dnf:
-        name:
-          - kubectl
-          - kubelet
-          - kubeadm
-          - ipvsadm
+        name: "{{ packages_k8s }}"
         state: present
 
-    - name: Install k8s utils [deb]
-      when: ansible_facts['os_family'] == "Debian"
+    - name: Установить Kubernetes [Debian, online]
+      when:
+        - ansible_facts['os_family'] == "Debian"
+        - k8s_install_mode == "online"
       ansible.builtin.apt:
-        pkg:
-          - kubectl
-          - kubelet
-          - kubeadm
+        pkg: "{{ packages_k8s }}"
         state: present
+
+    # ============================================================
+    # Offline — установка из локальных пакетов
+    # ============================================================
+
+    - name: Создать каталог для пакетов [offline]
+      when: k8s_install_mode == "offline"
+      ansible.builtin.file:
+        path: "{{ k8s_packages_remote_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Скопировать пакеты Kubernetes на ноды [offline]
+      when: k8s_install_mode == "offline"
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "{{ k8s_packages_remote_dir }}/"
+        mode: "0644"
+      with_fileglob:
+        - "{{ playbook_dir }}/{{ k8s_offline_dir }}/packages/*.rpm"
+        - "{{ playbook_dir }}/{{ k8s_offline_dir }}/packages/*.deb"
+
+    - name: Скопировать архив образов Kubernetes [offline]
+      when: k8s_install_mode == "offline"
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/{{ k8s_offline_dir }}/images/k8s-images.tar"
+        dest: "{{ k8s_packages_remote_dir }}/k8s-images.tar"
+        mode: "0644"
+
+    - name: Скопировать архив CNI-образов [offline]
+      when:
+        - k8s_install_mode == "offline"
+        - cni == 'calico'
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/{{ k8s_offline_dir }}/images/calico-images.tar"
+        dest: "{{ k8s_packages_remote_dir }}/calico-images.tar"
+        mode: "0644"
+
+    - name: Загрузить CNI-образы [offline, Calico]
+      when:
+        - k8s_install_mode == "offline"
+        - cni == 'calico'
+      ansible.builtin.command: |
+        ctr -n k8s.io images import {{ k8s_packages_remote_dir }}/calico-images.tar
+
+    - name: Установить Kubernetes из RPM [RedHat, offline]
+      when:
+        - ansible_facts['os_family'] == "RedHat"
+        - k8s_install_mode == "offline"
+      ansible.builtin.command: >
+        dnf install -y {{ k8s_packages_remote_dir }}/kubeadm*.rpm {{ k8s_packages_remote_dir }}/kubelet*.rpm {{ k8s_packages_remote_dir }}/kubectl*.rpm
+      args:
+        creates: /usr/bin/kubeadm
+
+    - name: Установить Kubernetes из DEB [Debian, offline]
+      when:
+        - ansible_facts['os_family'] == "Debian"
+        - k8s_install_mode == "offline"
+      ansible.builtin.command: >
+        apt install -y --allow-downgrades {{ k8s_packages_remote_dir }}/kubeadm*.deb {{ k8s_packages_remote_dir }}/kubelet*.deb {{ k8s_packages_remote_dir }}/kubectl*.deb
+      args:
+        creates: /usr/bin/kubeadm
+
+# Точка расширения: post-prepare hooks
+- name: Выполнить post-prepare hooks
+  ansible.builtin.include_tasks: "{{ item }}"
+  loop: "{{ post_prepare_tasks | default([]) }}"
+  when: post_prepare_tasks | default([]) | length > 0

@@ -26,7 +26,7 @@
       - ha_cluster_virtual_ip is defined
       - ha_cluster_virtual_ip != ""
       - inventory_hostname in groups['k8s_masters']
-      - ansible_os_family == "RedHat"
+      - ansible_facts['os_family'] == "RedHat"
     ansible.builtin.dnf:
       name:
         - keepalived
@@ -55,7 +55,7 @@
 
   - name: Uninstall Kubernetes packages RedHat
     when:
-      - ansible_os_family == "RedHat"
+      - ansible_facts['os_family'] == "RedHat"
     ansible.builtin.dnf:
       name:
         - kubectl
@@ -65,7 +65,7 @@
 
   - name: Uninstall containerd
     when:
-      - ansible_os_family == "RedHat" and cri == "containerd"
+      - ansible_facts['os_family'] == "RedHat" and cri == "containerd"
     ansible.builtin.dnf:
       name:
         - containerd
@@ -73,7 +73,7 @@
 
   - name: Uninstall CRI-O
     when:
-      - ansible_os_family == "RedHat" and cri == "crio"
+      - ansible_facts['os_family'] == "RedHat" and cri == "crio"
     ansible.builtin.dnf:
       name:
         - crio
@@ -91,7 +91,7 @@
     ignore_errors: true
 
   - name: Delete k8s utils manifests
-    file:
+    ansible.builtin.file:
       path: /etc/kubernetes/utils
       state: absent
 
@@ -147,6 +147,7 @@
 - name: Cleanup etcd PKI on Ansible control node
   hosts: localhost
   connection: local
+  become: false
 
   tasks:
     - name: Check if external etcd reset is enabled

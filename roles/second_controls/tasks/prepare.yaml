@@ -1,27 +1,29 @@
 ---
-- name: Generate join token
+# Подготовка к подключению дополнительных control plane нод
+
+- name: Сгенерировать токен подключения
   ansible.builtin.command: kubeadm token create
   register: join_token
 
-- name: Get discovery-token-ca-cert-hash
+- name: Получить discovery-token-ca-cert-hash
   ansible.builtin.shell: |
     openssl x509 -pubkey -in /etc/kubernetes/pki/ca.crt | openssl rsa -pubin -outform der 2>/dev/null | openssl dgst -sha256 -hex | sed 's/^.* //'
   register: discovery_token_ca_cert_hash
 
 # Certificate-key нужен только для stacked etcd — для external etcd сертификаты копируются напрямую
-- name: Upload certs (stacked etcd)
+- name: Загрузить сертификаты (stacked etcd)
   ansible.builtin.shell: |
     kubeadm init phase upload-certs --upload-certs | tail -1
   register: certificate_key
   when: etcd_mode is not defined or etcd_mode == "stacked"
 
-- name: Set empty certificate-key for external etcd
+- name: Установить пустой certificate-key для external etcd
   ansible.builtin.set_fact:
     certificate_key:
       stdout: ""
   when: etcd_mode is defined and etcd_mode == "external"
 
-- name: Get join path
+- name: Получить адрес API сервера
   ansible.builtin.shell: |
     kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}' | cut -c9-
   register: join_path

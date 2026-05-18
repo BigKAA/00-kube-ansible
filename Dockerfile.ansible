@@ -14,8 +14,9 @@ RUN apt-get update && apt-get install -y \
 # cryptography — для community.crypto (SSL/TLS)
 # kubernetes — для kubernetes.core (Helm, k8s)
 # docker — для community.docker (управление контейнерами)
+# ansible 13.6.0 = ansible-core 2.20.5
 RUN pip install --no-cache-dir \
-    ansible \
+    ansible==13.6.0 \
     passlib \
     jmespath \
     cryptography \

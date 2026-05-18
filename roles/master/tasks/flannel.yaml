@@ -1,16 +1,18 @@
-- name: Init master control node
+---
+# Инициализация первой control plane ноды с Flannel
+
+- name: Инициализация master ноды
   ansible.builtin.command: kubeadm init --config /etc/kubernetes/kubeadm-config.yaml
   register: kubeadm_init
 
-
-- name: Install Utils
+- name: Установить утилиты
   ansible.builtin.include_tasks: utils.yaml
 
-- name: Add flannel.yaml
+- name: Скопировать flannel.yaml
   ansible.builtin.template:
     src: flannel.j2
     dest: /etc/kubernetes/flannel.yaml
     mode: '0644'
-    
-- name: Install Flannel
+
+- name: Установить Flannel
   ansible.builtin.command: kubectl apply -f /etc/kubernetes/flannel.yaml

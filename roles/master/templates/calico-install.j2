@@ -1,27 +1,27 @@
----
-# This section includes base Calico installation configuration.
-# For more information, see: https://projectcalico.docs.tigera.io/master/reference/installation/api#operator.tigera.io/v1.Installation
+# ============================================================
+# Calico Installation — конфигурация установки Calico через Tigera Operator
+# Подробнее: https://projectcalico.docs.tigera.io/master/reference/installation/api
+# ============================================================
+
 apiVersion: operator.tigera.io/v1
 kind: Installation
 metadata:
   name: default
 spec:
-  # Configures Calico networking.
+  # Настройка сети Calico
   calicoNetwork:
-    # Note: The ipPools section cannot be modified post-install.
+    # Внимание: ipPools нельзя изменить после установки
     ipPools:
     - name: default
       blockSize: 26
       cidr: {{ pod_network_cidr }}
       encapsulation: {{ encapsulation }}
       natOutgoing: Enabled
-      nodeSelector: all()  
+      nodeSelector: all()
 ---
-
-# This section configures the Calico API server.
-# For more information, see: https://projectcalico.docs.tigera.io/master/reference/installation/api#operator.tigera.io/v1.APIServer
+# Настройка Calico API server
 apiVersion: operator.tigera.io/v1
-kind: APIServer 
-metadata: 
-  name: default 
+kind: APIServer
+metadata:
+  name: default
 spec: {}

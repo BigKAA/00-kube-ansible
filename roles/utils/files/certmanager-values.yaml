@@ -1,2 +1,26 @@
-extraArgs:
-  - --enable-gateway-api
+# Значения для cert-manager Helm chart (OCI)
+# Используются при offline-установке или для кастомизации.
+#
+# При online-установке значения передаются напрямую в tasks/main.yaml.
+# Для offline — скопируйте этот файл и измените при необходимости.
+
+crds:
+  enabled: true
+
+global:
+  priorityClassName: high-priority
+
+# Конфигурация контроллера
+# Для включения Gateway API установите enableGatewayAPI: true
+config:
+  apiVersion: "controller.config.cert-manager.io/v1alpha1"
+  kind: "ControllerConfiguration"
+  enableGatewayAPI: false
+
+# Ресурсы
+resources:
+  requests:
+    cpu: 100m
+    memory: 100Mi
+  limits:
+    memory: 200Mi

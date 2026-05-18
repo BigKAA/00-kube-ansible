@@ -1,0 +1,7 @@
+# Общие переменные для всех групп хостов
+
+ansible_python_interpreter: /usr/bin/python3
+
+# Версия Kubernetes — используется всеми ролями, включая etcd.
+# Переопределяется в group_vars/k8s_cluster при необходимости.
+kube_version: "1.36.1"

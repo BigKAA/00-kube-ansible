@@ -1,47 +1,89 @@
+# ============================================================
+# Online — настройка репозиториев и установка
+# ============================================================
+
 - name: Add CRI-O repository Ubuntu key
-  when: ansible_facts['os_family'] == "Debian"
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - k8s_install_mode == "online"
   ansible.builtin.apt_key:
-    # url: "https://pkgs.k8s.io/addons:/cri-o:/{{ stage }}:/{{ crio_version }}/deb/Release.key"
     url: "https://download.opensuse.org/repositories/isv:/cri-o:/{{ stage }}:/{{ crio_version }}/deb/Release.key"
     state: present
     keyring: /etc/apt/trusted.gpg.d/crio.gpg
 
 - name: Add CRI-O repository Ubuntu
-  when: ansible_facts['os_family'] == "Debian"
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - k8s_install_mode == "online"
   ansible.builtin.apt_repository:
-    # repo: "deb [signed-by=/etc/apt/trusted.gpg.d/crio.gpg] https://pkgs.k8s.io/addons:/cri-o:/{{ stage }}:/{{ crio_version }}/deb/ /"
     repo: "deb [signed-by=/etc/apt/trusted.gpg.d/crio.gpg] https://download.opensuse.org/repositories/isv:/cri-o:/{{ stage }}:/{{ crio_version }}/deb/ /"
     state: present
     filename: "cri-o"
     update_cache: true
 
 - name: Add CRI-O repository RedHat
-  when: ansible_facts['os_family'] == "RedHat"
+  when:
+    - ansible_facts['os_family'] == "RedHat"
+    - k8s_install_mode == "online"
   ansible.builtin.yum_repository:
     name: cri-o
     description: CRI-O repository for version {{ crio_version }}
-    #baseurl: https://pkgs.k8s.io/addons:/cri-o:/{{ stage }}:/{{ crio_version }}/rpm/
     baseurl: https://download.opensuse.org/repositories/isv:/cri-o:/{{ stage }}:/{{ crio_version }}/rpm/
     gpgcheck: true
     enabled: true
     gpgkey:
-      # - https://pkgs.k8s.io/addons:/cri-o:/{{ stage }}:/{{ crio_version }}/rpm/repodata/repomd.xml.key
       - https://download.opensuse.org/repositories/isv:/cri-o:/{{ stage }}:/{{ crio_version }}/rpm/repodata/repomd.xml.key
     state: present
 
-- name: Install CRI-O [rpm]
-  when: ansible_facts['os_family'] == "RedHat"
+- name: Install CRI-O [rpm, online]
+  when:
+    - ansible_facts['os_family'] == "RedHat"
+    - k8s_install_mode == "online"
   ansible.builtin.dnf:
     name:
       - cri-o
     state: present
 
-- name: Install CRI-O [deb]
-  when: ansible_facts['os_family'] == "Debian"
+- name: Install CRI-O [deb, online]
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - k8s_install_mode == "online"
   ansible.builtin.apt:
     name:
       - cri-o
     state: present
+
+# ============================================================
+# Offline — установка из локальных пакетов
+# ============================================================
+
+- name: Скопировать пакеты CRI-O [offline]
+  when: k8s_install_mode == "offline"
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ k8s_packages_remote_dir }}/"
+    mode: "0644"
+  with_fileglob:
+    - "{{ playbook_dir }}/{{ k8s_offline_dir }}/cri/crio/*.rpm"
+    - "{{ playbook_dir }}/{{ k8s_offline_dir }}/cri/crio/*.deb"
+
+- name: Установить CRI-O из RPM [RedHat, offline]
+  when:
+    - ansible_facts['os_family'] == "RedHat"
+    - k8s_install_mode == "offline"
+  ansible.builtin.command: >
+    dnf install -y {{ k8s_packages_remote_dir }}/cri-o*.rpm
+  args:
+    creates: /usr/bin/crio
+
+- name: Установить CRI-O из DEB [Debian, offline]
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - k8s_install_mode == "offline"
+  ansible.builtin.command: >
+    apt install -y --allow-downgrades {{ k8s_packages_remote_dir }}/cri-o*.deb
+  args:
+    creates: /usr/bin/crio
 
 - name: CRI-O /etc/cni/net.d [del dir]
   ansible.builtin.file:
@@ -60,15 +102,7 @@
     mode: "0600"
     owner: root
 
-# - name: Set CRI-O net file
-#   ansible.builtin.template:
-#     src: crio-net.j2
-#     dest: /etc/cni/net.d/11-crio-ipv4-bridge.conf
-#     owner: root
-#     mode: u=rw,g=r,o=r
-
 # https://github.com/containers/image/blob/main/docs/containers-registries.conf.5.md
-# /etc/containers/registries.conf.d
 - name: Directory /etc/containers/registries.conf.d/
   ansible.builtin.file:
     path: /etc/containers/registries.conf.d/

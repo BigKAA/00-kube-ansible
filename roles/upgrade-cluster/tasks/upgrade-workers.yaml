@@ -1,66 +1,42 @@
-- name: Get current version 
-  delegate_to: "{{ groups['k8s_masters'][0] }}"
-  shell:
-    cmd: "kubectl get nodes {{ ansible_fqdn }} -o=jsonpath='{.status.nodeInfo.kubeletVersion}'"
-  register: version_current
+---
+# Обновление worker нод
 
-# Сравниваем новую и текущую версию. Если они равны, ничего на этой ноде не делаем.
-- name: Version check. 
-  when: version_current.stdout is match(".*" + kube_version)
+- name: Проверка версии
   block:
-    - name: Nothing todo
-      debug: 
-        msg: "Current version {{ version_current.stdout }} equal a new version in variables {{ kube_version }}"
+    - name: Получить текущую версию ноды
+      ansible.builtin.shell:
+        cmd: "kubectl get nodes {{ ansible_facts['fqdn'] }} -o=jsonpath='{.status.nodeInfo.kubeletVersion}'"
+      register: version_current
+      delegate_to: "{{ groups['k8s_masters'][0] }}"
 
-    - name: Stop upgrade worker node
-      meta: end_host
+    - name: Версия совпадает
+      ansible.builtin.debug:
+        msg: "Текущая версия {{ version_current.stdout }} совпадает с целевой {{ kube_version }}"
+      when: version_current.stdout is match(".*" + kube_version)
 
-# Иначе обновим версию.
+    - name: Пропустить ноду
+      ansible.builtin.meta: end_host
+      when: version_current.stdout is match(".*" + kube_version)
 
-- name: Remove repository kubernetes
-  when:
-    - ansible_facts['os_family'] == "RedHat"
-    - k8s_install_mode == "online"
-  yum_repository:
-    name: kubernetes
-    state: absent
+- name: Обновление репозитория и пакетов
+  ansible.builtin.include_tasks: _update-repo.yaml
 
-- name: Add repo kubernetes
-  when:
-    - ansible_facts['os_family'] == "RedHat"
-    - k8s_install_mode == "online"
-  yum_repository:
-    name: kubernetes
-    description: "Base programs for k8s, version: v{{ kube_version[:4] }}"
-    baseurl: "https://pkgs.k8s.io/core:/stable:/v{{ kube_version[:4] }}/rpm/"
-    gpgcheck: yes
-    gpgkey: 
-      - "https://pkgs.k8s.io/core:/stable:/v{{ kube_version[:4] }}/rpm/repodata/repomd.xml.key"
-
-- name: Install packages dnf
-  ansible.builtin.shell: |
-    dnf install -y \
-      {{ k8s_rpm_remote_dir }}/kubeadm-{{ kube_version }}*.rpm \
-      {{ k8s_rpm_remote_dir }}/kubelet-{{ kube_version }}*.rpm \
-      {{ k8s_rpm_remote_dir }}/kubectl-{{ kube_version }}*.rpm
-  when: ansible_facts['os_family'] == "RedHat"
-
-- name: Drain worker node
+- name: Drain worker ноды
   delegate_to: "{{ groups['k8s_masters'][0] }}"
-  shell: 
-    cmd: kubectl drain {{ ansible_fqdn }} --ignore-daemonsets --delete-emptydir-data
+  ansible.builtin.shell:
+    cmd: kubectl drain {{ ansible_facts['fqdn'] }} --ignore-daemonsets --delete-emptydir-data
 
-- name: Upgrade worker node
-  shell: 
+- name: Обновление worker ноды
+  ansible.builtin.shell:
     cmd: "kubeadm upgrade node"
 
-- name: Restart kubelet
-  systemd:
+- name: Перезапуск kubelet
+  ansible.builtin.systemd:
     state: restarted
-    daemon_reload: yes
+    daemon_reload: true
     name: kubelet
 
-- name: Uncordon worker node
+- name: Uncordon worker ноды
   delegate_to: "{{ groups['k8s_masters'][0] }}"
-  shell: 
-    cmd: "kubectl uncordon {{ ansible_fqdn }}" 
+  ansible.builtin.shell:
+    cmd: "kubectl uncordon {{ ansible_facts['fqdn'] }}"
