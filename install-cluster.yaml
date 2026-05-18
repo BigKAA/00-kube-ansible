@@ -89,6 +89,127 @@
       run_once: true
 
 # ============================================================
+# Pre-flight: проверка offline-пакетов (только для offline-режима)
+# ============================================================
+- name: Pre-flight offline packages
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  vars:
+    _offline_dir: "{{ k8s_offline_dir | default('tmp/offline') }}"
+    _cri: "{{ cri | default('containerd') }}"
+    _cni: "{{ cni | default('calico') }}"
+  tasks:
+    - name: Проверить kubeadm пакеты
+      ansible.builtin.find:
+        paths: "{{ _offline_dir }}/packages"
+        patterns: "kubeadm*.rpm,kubeadm*.deb"
+      register: _find_kubeadm
+      when: k8s_install_mode is defined and k8s_install_mode == "offline"
+
+    - name: Проверить kubelet пакеты
+      ansible.builtin.find:
+        paths: "{{ _offline_dir }}/packages"
+        patterns: "kubelet*.rpm,kubelet*.deb"
+      register: _find_kubelet
+      when: k8s_install_mode is defined and k8s_install_mode == "offline"
+
+    - name: Проверить kubectl пакеты
+      ansible.builtin.find:
+        paths: "{{ _offline_dir }}/packages"
+        patterns: "kubectl*.rpm,kubectl*.deb"
+      register: _find_kubectl
+      when: k8s_install_mode is defined and k8s_install_mode == "offline"
+
+    - name: Проверить k8s images archive
+      ansible.builtin.stat:
+        path: "{{ _offline_dir }}/images/k8s-images.tar"
+      register: _find_k8s_images
+      when: k8s_install_mode is defined and k8s_install_mode == "offline"
+
+    - name: Проверить containerd пакеты
+      ansible.builtin.find:
+        paths: "{{ _offline_dir }}/cri/containerd"
+        patterns: "*.rpm,*.deb"
+      register: _find_containerd
+      when:
+        - k8s_install_mode is defined and k8s_install_mode == "offline"
+        - _cri == "containerd"
+
+    - name: Проверить CRI-O пакеты
+      ansible.builtin.find:
+        paths: "{{ _offline_dir }}/cri/cri-o"
+        patterns: "*.rpm,*.deb"
+      register: _find_crio
+      when:
+        - k8s_install_mode is defined and k8s_install_mode == "offline"
+        - _cri == "crio"
+
+    - name: Проверить Calico manifest
+      ansible.builtin.stat:
+        path: "{{ _offline_dir }}/cni/tigera-operator.yaml"
+      register: _find_calico_manifest
+      when:
+        - k8s_install_mode is defined and k8s_install_mode == "offline"
+        - _cni == "calico"
+
+    - name: Проверить Calico images archive
+      ansible.builtin.stat:
+        path: "{{ _offline_dir }}/images/calico-images.tar"
+      register: _find_calico_images
+      when:
+        - k8s_install_mode is defined and k8s_install_mode == "offline"
+        - _cni == "calico"
+
+    - name: Собрать список отсутствующих файлов
+      ansible.builtin.set_fact:
+        _missing: "{{ _missing_list }}"
+      vars:
+        _missing_list: >-
+          {{
+            ([] if (_find_kubeadm is not defined or _find_kubeadm.skipped | default(false) or _find_kubeadm.matched | default(0) > 0) else ['packages/kubeadm-*.rpm или *.deb'])
+            + ([] if (_find_kubelet is not defined or _find_kubelet.skipped | default(false) or _find_kubelet.matched | default(0) > 0) else ['packages/kubelet-*.rpm или *.deb'])
+            + ([] if (_find_kubectl is not defined or _find_kubectl.skipped | default(false) or _find_kubectl.matched | default(0) > 0) else ['packages/kubectl-*.rpm или *.deb'])
+            + ([] if (_find_k8s_images is not defined or _find_k8s_images.skipped | default(false) or _find_k8s_images.stat.exists | default(false)) else ['images/k8s-images.tar'])
+            + ([] if (_find_containerd is not defined or _find_containerd.skipped | default(false) or _find_containerd.matched | default(0) > 0) else ['cri/containerd/*.rpm или *.deb'])
+            + ([] if (_find_crio is not defined or _find_crio.skipped | default(false) or _find_crio.matched | default(0) > 0) else ['cri/cri-o/*.rpm или *.deb'])
+            + ([] if (_find_calico_manifest is not defined or _find_calico_manifest.skipped | default(false) or _find_calico_manifest.stat.exists | default(false)) else ['cni/tigera-operator.yaml'])
+            + ([] if (_find_calico_images is not defined or _find_calico_images.skipped | default(false) or _find_calico_images.stat.exists | default(false)) else ['images/calico-images.tar'])
+          }}
+      when: k8s_install_mode is defined and k8s_install_mode == "offline"
+
+    - name: Ошибка — отсутствуют offline-пакеты
+      ansible.builtin.fail:
+        msg: >-
+
+
+          Offline-режим активен, но отсутствуют необходимые файлы в '{{ _offline_dir }}':
+
+          Отсутствуют:
+          {% for item in _missing | default([]) %}
+            - {{ item }}
+          {% endfor %}
+
+          Скачайте необходимые пакеты и разместите их в соответствующих директориях:
+            - {{ _offline_dir }}/packages/       — kubeadm, kubelet, kubectl (RPM/DEB)
+            - {{ _offline_dir }}/cri/containerd/  — containerd (если cri=containerd)
+            - {{ _offline_dir }}/cri/cri-o/       — CRI-O (если cri=crio)
+            - {{ _offline_dir }}/images/          — k8s-images.tar, calico-images.tar
+            - {{ _offline_dir }}/cni/             — tigera-operator.yaml (если cni=calico)
+            - {{ _offline_dir }}/utils/           — helm, helm-charts
+      when:
+        - k8s_install_mode is defined and k8s_install_mode == "offline"
+        - (_missing | default([])) | length > 0
+
+    - name: Offline-пакеты проверены
+      ansible.builtin.debug:
+        msg: "Все необходимые offline-пакеты найдены в '{{ _offline_dir }}'"
+      when:
+        - k8s_install_mode is defined and k8s_install_mode == "offline"
+        - (_missing | default([])) | length == 0
+
+# ============================================================
 # Pre-flight: проверка доступности хостов
 # ============================================================
 - name: Pre-flight connectivity

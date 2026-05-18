@@ -73,19 +73,19 @@
   when:
     - ansible_facts['os_family'] == "RedHat"
     - k8s_install_mode == "offline"
-  ansible.builtin.shell: >
+  ansible.builtin.command: >
     dnf install -y {{ k8s_packages_remote_dir }}/containerd*.rpm
   args:
-    warn: false
+    creates: /usr/bin/containerd
 
 - name: Установить containerd из DEB [Debian, offline]
   when:
     - ansible_facts['os_family'] == "Debian"
     - k8s_install_mode == "offline"
-  ansible.builtin.shell: >
+  ansible.builtin.command: >
     apt install -y --allow-downgrades {{ k8s_packages_remote_dir }}/containerd*.deb
   args:
-    warn: false
+    creates: /usr/bin/containerd
 
 - name: Enable dockerhub mirror on containerd [mkdir certs.d]
   ansible.builtin.file:

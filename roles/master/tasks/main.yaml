@@ -37,10 +37,8 @@
     # При offline-режиме образы загружаются из tar-файла, а не из сети
     - name: Загрузить образы k8s из архива [offline]
       when: k8s_install_mode == "offline"
-      ansible.builtin.shell: |
+      ansible.builtin.command: |
         ctr -n k8s.io images import {{ k8s_packages_remote_dir }}/k8s-images.tar
-      args:
-        warn: false
 
     # При external etcd не нужно загружать образ etcd — тянем только необходимые образы
     - name: Загрузить образы k8s (external etcd — без etcd) [online]

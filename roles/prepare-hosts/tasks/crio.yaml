@@ -71,19 +71,19 @@
   when:
     - ansible_facts['os_family'] == "RedHat"
     - k8s_install_mode == "offline"
-  ansible.builtin.shell: >
+  ansible.builtin.command: >
     dnf install -y {{ k8s_packages_remote_dir }}/cri-o*.rpm
   args:
-    warn: false
+    creates: /usr/bin/crio
 
 - name: Установить CRI-O из DEB [Debian, offline]
   when:
     - ansible_facts['os_family'] == "Debian"
     - k8s_install_mode == "offline"
-  ansible.builtin.shell: >
+  ansible.builtin.command: >
     apt install -y --allow-downgrades {{ k8s_packages_remote_dir }}/cri-o*.deb
   args:
-    warn: false
+    creates: /usr/bin/crio
 
 - name: CRI-O /etc/cni/net.d [del dir]
   ansible.builtin.file:

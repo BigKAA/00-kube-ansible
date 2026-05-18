@@ -55,7 +55,7 @@
         name: "{{ firewall_service }}"
         state: stopped
         enabled: false
-      when: "'firewalld.service' in firewalld.stdout"
+      when: "'firewalld.service' in firewalld_check.stdout"
   rescue:
     - name: Firewalld не найден — пропуск
       ansible.builtin.debug:
@@ -258,28 +258,26 @@
       when:
         - k8s_install_mode == "offline"
         - cni == 'calico'
-      ansible.builtin.shell: |
+      ansible.builtin.command: |
         ctr -n k8s.io images import {{ k8s_packages_remote_dir }}/calico-images.tar
-      args:
-        warn: false
 
     - name: Установить Kubernetes из RPM [RedHat, offline]
       when:
         - ansible_facts['os_family'] == "RedHat"
         - k8s_install_mode == "offline"
-      ansible.builtin.shell: >
+      ansible.builtin.command: >
         dnf install -y {{ k8s_packages_remote_dir }}/kubeadm*.rpm {{ k8s_packages_remote_dir }}/kubelet*.rpm {{ k8s_packages_remote_dir }}/kubectl*.rpm
       args:
-        warn: false
+        creates: /usr/bin/kubeadm
 
     - name: Установить Kubernetes из DEB [Debian, offline]
       when:
         - ansible_facts['os_family'] == "Debian"
         - k8s_install_mode == "offline"
-      ansible.builtin.shell: >
+      ansible.builtin.command: >
         apt install -y --allow-downgrades {{ k8s_packages_remote_dir }}/kubeadm*.deb {{ k8s_packages_remote_dir }}/kubelet*.deb {{ k8s_packages_remote_dir }}/kubectl*.deb
       args:
-        warn: false
+        creates: /usr/bin/kubeadm
 
 # Точка расширения: post-prepare hooks
 - name: Выполнить post-prepare hooks
