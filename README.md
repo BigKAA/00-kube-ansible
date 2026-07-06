@@ -4,7 +4,7 @@
 [![Ansible](https://img.shields.io/badge/Ansible-13.6-green)](https://www.ansible.com/)
 
 Playbook для установки и управления тестовым кластером Kubernetes.
-Проверен на наборе [приложений](https://github.com/BigKAA/youtube/tree/master/1.31).
+Проверен на наборе [приложений](https://github.com/BigKAA/youtube/tree/master/1.36).
 
 ## Возможности
 
