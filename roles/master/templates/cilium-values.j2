@@ -1,0 +1,59 @@
+# ============================================================
+# Cilium — Helm values
+# https://docs.cilium.io/en/stable/helm-reference/
+# ============================================================
+#
+# Шаблон общий для стандартного режима и режима замены kube-proxy.
+# Режим определяется переменной cilium_kube_proxy_replacement.
+# ============================================================
+
+# --- IPAM: CIDR подов согласован с kubeadm (pod_network_cidr) ---
+ipam:
+  mode: cluster-pool
+  clusterPoolIPv4PodCIDR: "{{ pod_network_cidr }}"
+
+# --- Режим инкапсуляции: tunnel (VXLAN) — работает без BGP/маршрутизации ---
+routingMode: tunnel
+tunnelProtocol: vxlan
+
+# --- Включение IPv4 ---
+ipv4:
+  enabled: true
+ipv6:
+  enabled: false
+
+# --- Режим работы kube-proxy ---
+{% if cilium_kube_proxy_replacement | default(false) | bool %}
+# Замена kube-proxy на eBPF-датаплейн
+# https://docs.cilium.io/en/stable/network/kubernetes/kubeproxy-free/
+kubeProxyReplacement: true
+{% if ha_cluster_virtual_ip is defined and ha_cluster_virtual_ip != "" %}
+k8sServiceHost: "{{ ha_cluster_virtual_ip }}"
+k8sServicePort: "{{ ha_cluster_virtual_port }}"
+{% else %}
+k8sServiceHost: "{{ hostvars[groups['k8s_masters'][0]].ansible_facts.default_ipv4.address }}"
+k8sServicePort: "6443"
+{% endif %}
+{% else %}
+# Стандартный режим — kube-proxy используется
+kubeProxyReplacement: false
+{% endif %}
+
+# --- Оператор Cilium ---
+operator:
+  replicas: 1
+
+# --- Masquerade подов (NAT для исходящего трафика) ---
+enableIPv4Masquerade: true
+
+# --- Hubble (наблюдаемость) — отключён по умолчанию, включить при необходимости ---
+hubble:
+  relay:
+    enabled: false
+  ui:
+    enabled: false
+
+# --- Логи ---
+logSystemLoad: false
+debug:
+  enabled: false

@@ -70,6 +70,18 @@
       when: cni == 'flannel'
       ansible.builtin.include_tasks: flannel.yaml
 
+    - name: Cilium
+      when: cni == 'cilium'
+      block:
+
+      - name: Установить Cilium
+        when: not (cilium_kube_proxy_replacement | default(false) | bool)
+        ansible.builtin.include_tasks: cilium.yaml
+
+      - name: Установить Cilium с заменой kube-proxy
+        when: cilium_kube_proxy_replacement | default(false) | bool
+        ansible.builtin.include_tasks: cilium-bpf.yaml
+
     - name: Настроить DNS
       ansible.builtin.include_tasks: dns.yaml
 

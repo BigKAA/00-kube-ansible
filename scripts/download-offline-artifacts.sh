@@ -191,9 +191,24 @@ if [[ "$CNI" == "calico" ]]; then
         "https://raw.githubusercontent.com/projectcalico/calico/${CALICO_VERSION}/manifests/tigera-operator.yaml" \
         "$OUTPUT_DIR/cni/tigera-operator.yaml" \
         "Calico tigera-operator v${CALICO_VERSION}"
-fi
 
 # Flannel использует шаблон, скачивать не нужно
+
+elif [[ "$CNI" == "cilium" ]]; then
+    # Определяем версию Cilium по матрице
+    declare -A CILIUM_MATRIX=(
+        ["1.28"]="1.16.7" ["1.29"]="1.16.7" ["1.30"]="1.17.8"
+        ["1.31"]="1.17.8" ["1.32"]="1.18.9" ["1.33"]="1.18.9"
+        ["1.34"]="1.19.3" ["1.35"]="1.19.3" ["1.36"]="1.19.3"
+    )
+    CILIUM_VERSION="${CILIUM_MATRIX[$KUBE_MAJOR_MINOR]:-1.19.3}"
+
+    # Helm-чарт Cilium (версия чарта совпадает с app-версией)
+    download \
+        "https://helm.cilium.io/cilium-${CILIUM_VERSION}.tgz" \
+        "$OUTPUT_DIR/cni/cilium-${CILIUM_VERSION}.tgz" \
+        "Cilium helm chart v${CILIUM_VERSION}"
+fi
 
 # ============================================================
 # 3. Утилиты
@@ -325,3 +340,10 @@ echo "Для Calico-образов:"
 echo "  ctr -n k8s.io images pull quay.io/tigera/operator:\${CALICO_VERSION}"
 echo "  ctr -n k8s.io images export $OUTPUT_DIR/images/calico-images.tar \\"
 echo "    \$(ctr -n k8s.io images list -q | grep -E 'calico|tigera')"
+echo ""
+echo "Для Cilium-образов:"
+echo "  helm template cilium cilium/cilium --version \${CILIUM_VERSION} |"
+echo "    grep 'image:' | awk '{print \$2}' | sed 's/\"//g' | sort -u"
+echo "  # затем pull каждого образа и export в cilium-images.tar:"
+echo "  ctr -n k8s.io images export $OUTPUT_DIR/images/cilium-images.tar \\"
+echo "    \$(ctr -n k8s.io images list -q | grep -E 'cilium')"

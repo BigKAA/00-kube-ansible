@@ -1,0 +1,81 @@
+---
+# Инициализация первой control plane ноды с Cilium
+# https://docs.cilium.io/en/stable/install/kubernetes/
+
+- name: Инициализация master ноды
+  ansible.builtin.command: kubeadm init --config /etc/kubernetes/kubeadm-config.yaml
+  register: kubeadm_init
+
+- name: Установить утилиты
+  ansible.builtin.include_tasks: utils.yaml
+
+# Helm ставится отдельно, т.к. роль master выполняется до роли utils,
+# где обычно устанавливается Helm. Бинарник переиспользуется ролью utils позже.
+- name: Установить Helm [online]
+  when:
+    - k8s_install_mode == "online"
+    - lookup('first_found', ["/usr/local/bin/helm"], errors='ignore') is none
+  ansible.builtin.unarchive:
+    src: "https://get.helm.sh/helm-{{ helmVersion }}-linux-amd64.tar.gz"
+    dest: /root/
+    remote_src: true
+    creates: /root/linux-amd64/helm
+
+- name: Установить Helm [offline]
+  when:
+    - k8s_install_mode == "offline"
+    - lookup('first_found', ["/usr/local/bin/helm"], errors='ignore') is none
+  ansible.builtin.unarchive:
+    src: "{{ playbook_dir }}/{{ k8s_offline_dir }}/utils/helm-{{ helmVersion }}-linux-amd64.tar.gz"
+    dest: /root/
+    creates: /root/linux-amd64/helm
+
+- name: Переместить helm в /usr/local/bin
+  when: lookup('first_found', ["/usr/local/bin/helm"], errors='ignore') is none
+  ansible.builtin.copy:
+    src: /root/linux-amd64/helm
+    dest: /usr/local/bin/helm
+    remote_src: true
+    mode: '0755'
+
+# Offline: предзагрузка образов Cilium до установки чарта
+- name: Загрузить образы Cilium из архива [offline]
+  when: k8s_install_mode == "offline"
+  ansible.builtin.command: "ctr -n k8s.io images import {{ k8s_packages_remote_dir }}/cilium-images.tar"
+
+- name: Добавить репозиторий Cilium [online]
+  when: k8s_install_mode == "online"
+  kubernetes.core.helm_repository:
+    name: cilium
+    repo_url: https://helm.cilium.io/
+
+- name: Скопировать cilium-values.yaml
+  ansible.builtin.template:
+    src: cilium-values.j2
+    dest: /etc/kubernetes/cilium-values.yaml
+    mode: '0644'
+
+- name: Установить Cilium [online]
+  when: k8s_install_mode == "online"
+  kubernetes.core.helm:
+    name: cilium
+    chart_ref: cilium/cilium
+    chart_version: "{{ cilium_chart_version }}"
+    release_namespace: kube-system
+    create_namespace: false
+    values_files:
+      - /etc/kubernetes/cilium-values.yaml
+    wait: true
+    timeout: 10m
+
+- name: Установить Cilium [offline]
+  when: k8s_install_mode == "offline"
+  kubernetes.core.helm:
+    name: cilium
+    chart_ref: "{{ playbook_dir }}/{{ k8s_offline_dir }}/cni/cilium-{{ cilium_chart_version }}.tgz"
+    release_namespace: kube-system
+    create_namespace: false
+    values_files:
+      - /etc/kubernetes/cilium-values.yaml
+    wait: true
+    timeout: 10m

@@ -10,7 +10,7 @@ Playbook для установки и управления тестовым кл
 
 - **Kubernetes** v1.28 — v1.36
 - **CRI**: containerd, CRI-O
-- **CNI**: Calico (с eBPF), Flannel
+- **CNI**: Calico (с eBPF), Flannel, Cilium (с eBPF kube-proxy replacement)
 - **HA**: HAProxy + Keepalived (virtual IP)
 - **etcd**: stacked (встроенный) или external (отдельный кластер)
 - **Утилиты**: Helm, NFS CSI Driver, cert-manager, Metrics Server,
@@ -218,10 +218,13 @@ cri: containerd  # или crio
 ### Выбор CNI
 
 ```yaml
-cni: calico  # или flannel
+cni: calico  # calico, flannel или cilium
 ```
 
 Для Calico с eBPF раскомментируйте `enableBPF: yes` в `group_vars/k8s_cluster`.
+
+Для Cilium с заменой kube-proxy на eBPF-датаплейн установите
+`cilium_kube_proxy_replacement: true` в `group_vars/k8s_cluster`.
 
 ## Управление кластером
 
@@ -303,8 +306,11 @@ make install ENV=production
 | 10259 | TCP | Control plane → Control plane | kube-scheduler |
 | 10257 | TCP | Control plane → Control plane | kube-controller-manager |
 | 179 | TCP | Все → Все | Calico BGP (при использовании) |
-| 4789 | UDP | Все → Все | Calico VXLAN |
+| 4789 | UDP | Все → Все | Calico VXLAN / Flannel VXLAN |
 | 5473 | TCP | Все → Все | Calico Typha (опционально) |
+| 8472 | UDP | Все → Все | Cilium VXLAN (при cni: cilium) |
+| 4244 | TCP | Все → Все | Cilium agent metrics (Hubble Relay) |
+| 4240 | TCP | Все → Все | Cilium health checks (опционально) |
 
 ### External etcd (дополнительно)
 

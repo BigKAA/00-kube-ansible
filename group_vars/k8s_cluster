@@ -69,7 +69,7 @@ stage: stable  # stable или prerelease
 # ============================================================
 # [ОПЦИОНАЛЬНО] CNI (Container Network Interface)
 # ============================================================
-# calico или flannel
+# calico, flannel или cilium
 cni: calico
 
 # Матрица совместимости Kubernetes ↔ Calico
@@ -98,6 +98,19 @@ flannel_version_matrix:
   "1.35": v0.26.3
   "1.36": v0.26.4
 
+# Матрица совместимости Kubernetes ↔ Cilium
+# https://docs.cilium.io/en/stable/network/kubernetes/compatibility/
+cilium_version_matrix:
+  "1.28": "1.16.7"
+  "1.29": "1.16.7"
+  "1.30": "1.17.8"
+  "1.31": "1.17.8"
+  "1.32": "1.18.9"
+  "1.33": "1.18.9"
+  "1.34": "1.19.3"
+  "1.35": "1.19.3"
+  "1.36": "1.19.3"
+
 # Версия Calico — вычисляется автоматически по матрице совместимости.
 # Для переопределения задайте tigera_operator_version явно.
 tigera_operator_version: "{{ calico_version_matrix[kube_version | regex_replace('^(\\d+\\.\\d+).*', '\\1')] | default('v3.28.1') }}"
@@ -105,11 +118,25 @@ tigera_operator_version: "{{ calico_version_matrix[kube_version | regex_replace(
 # Версия Flannel — вычисляется автоматически по матрице совместимости.
 flannel_version: "{{ flannel_version_matrix[kube_version | regex_replace('^(\\d+\\.\\d+).*', '\\1')] | default('v0.26.4') }}"
 
+# Версия Cilium — вычисляется автоматически по матрице совместимости.
+# Для переопределения задайте cilium_version явно.
+cilium_version: "{{ cilium_version_matrix[kube_version | regex_replace('^(\\d+\\.\\d+).*', '\\1')] | default('1.19.3') }}"
+
+# Версия Helm-чарта Cilium — обычно совпадает с cilium_version.
+# Для переопределения задайте cilium_chart_version явно.
+cilium_chart_version: "{{ cilium_version }}"
+
 # --- Calico параметры ---
 # One of: IPIP, VXLAN, IPIPCrossSubnet, VXLANCrossSubnet, None
 encapsulation: "IPIPCrossSubnet"
 # Для eBPF раскомментируйте:
 # enableBPF: yes
+
+# --- Cilium параметры ---
+# Замена kube-proxy на eBPF-датаплейн Cilium.
+# При true — kubeadm init выполняется с --skip-phases=addon/kube-proxy.
+# https://docs.cilium.io/en/stable/network/kubernetes/kubeproxy-free/
+cilium_kube_proxy_replacement: false
 
 # ============================================================
 # [ОПЦИОНАЛЬНО] Kubelet

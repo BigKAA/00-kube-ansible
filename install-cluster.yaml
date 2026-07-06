@@ -83,8 +83,8 @@
     - name: Проверка — CNI допустимое значение
       ansible.builtin.assert:
         that:
-          - cni in ['calico', 'flannel']
-        fail_msg: "cni должен быть 'calico' или 'flannel' (сейчас: {{ cni }})"
+          - cni in ['calico', 'flannel', 'cilium']
+        fail_msg: "cni должен быть 'calico', 'flannel' или 'cilium' (сейчас: {{ cni }})"
         quiet: true
       run_once: true
 
@@ -162,6 +162,22 @@
         - k8s_install_mode is defined and k8s_install_mode == "offline"
         - _cni == "calico"
 
+    - name: Проверить Cilium chart
+      ansible.builtin.stat:
+        path: "{{ _offline_dir }}/cni/cilium-{{ cilium_chart_version | default(cilium_version | default('1.19.3')) }}.tgz"
+      register: _find_cilium_chart
+      when:
+        - k8s_install_mode is defined and k8s_install_mode == "offline"
+        - _cni == "cilium"
+
+    - name: Проверить Cilium images archive
+      ansible.builtin.stat:
+        path: "{{ _offline_dir }}/images/cilium-images.tar"
+      register: _find_cilium_images
+      when:
+        - k8s_install_mode is defined and k8s_install_mode == "offline"
+        - _cni == "cilium"
+
     - name: Собрать список отсутствующих файлов
       ansible.builtin.set_fact:
         _missing: "{{ _missing_list }}"
@@ -176,6 +192,8 @@
             + ([] if (_find_crio is not defined or _find_crio.skipped | default(false) or _find_crio.matched | default(0) > 0) else ['cri/cri-o/*.rpm или *.deb'])
             + ([] if (_find_calico_manifest is not defined or _find_calico_manifest.skipped | default(false) or _find_calico_manifest.stat.exists | default(false)) else ['cni/tigera-operator.yaml'])
             + ([] if (_find_calico_images is not defined or _find_calico_images.skipped | default(false) or _find_calico_images.stat.exists | default(false)) else ['images/calico-images.tar'])
+            + ([] if (_find_cilium_chart is not defined or _find_cilium_chart.skipped | default(false) or _find_cilium_chart.stat.exists | default(false)) else ['cni/cilium-<version>.tgz'])
+            + ([] if (_find_cilium_images is not defined or _find_cilium_images.skipped | default(false) or _find_cilium_images.stat.exists | default(false)) else ['images/cilium-images.tar'])
           }}
       when: k8s_install_mode is defined and k8s_install_mode == "offline"
 
@@ -195,8 +213,8 @@
             - {{ _offline_dir }}/packages/       — kubeadm, kubelet, kubectl (RPM/DEB)
             - {{ _offline_dir }}/cri/containerd/  — containerd (если cri=containerd)
             - {{ _offline_dir }}/cri/cri-o/       — CRI-O (если cri=crio)
-            - {{ _offline_dir }}/images/          — k8s-images.tar, calico-images.tar
-            - {{ _offline_dir }}/cni/             — tigera-operator.yaml (если cni=calico)
+            - {{ _offline_dir }}/images/          — k8s-images.tar, calico-images.tar, cilium-images.tar
+            - {{ _offline_dir }}/cni/             — tigera-operator.yaml (если cni=calico), cilium-<version>.tgz (если cni=cilium)
             - {{ _offline_dir }}/utils/           — helm, helm-charts
       when:
         - k8s_install_mode is defined and k8s_install_mode == "offline"
