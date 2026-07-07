@@ -2,25 +2,26 @@
 
 # Системные пакеты
 packages_common:
-  - net-tools
-  - mc
-  - iproute-tc
-  - vim
-  - git
-  - bash-completion
-  - nfs-utils
-  - tar
-  - chrony
-  - jq
-  - ipvsadm
-  - python3-pyyaml
+    - net-tools
+    - mc
+    - iproute-tc
+    - vim
+    - git
+    - bash-completion
+    - nfs-utils
+    - tar
+    - chrony
+    - jq
+    - ipvsadm
+    - python3-pyyaml
+    - kernel-modules
 
 # Пакеты Kubernetes
 packages_k8s:
-  - kubectl
-  - kubelet
-  - kubeadm
-  - ipvsadm
+    - "kubectl-{{ kube_version }}"
+    - "kubelet-{{ kube_version }}"
+    - "kubeadm-{{ kube_version }}"
+    - ipvsadm
 
 # NTP сервис
 ntp_service: chronyd
@@ -30,5 +31,5 @@ firewall_service: firewalld
 
 # HA пакеты
 packages_ha:
-  - keepalived
-  - haproxy
+    - keepalived
+    - haproxy

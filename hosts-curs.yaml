@@ -1,0 +1,29 @@
+servers:
+    hosts:
+        # Rocky
+        cp1.local.lan:
+            ansible_host: 192.168.218.141
+        cp2.local.lan:
+            ansible_host: 192.168.218.142
+        cp3.local.lan:
+            ansible_host: 192.168.218.143
+        w1.local.lan:
+            ansible_host: 192.168.218.144
+        w2.local.lan:
+            ansible_host: 192.168.218.145
+
+k8s_cluster:
+    children:
+        k8s_masters:
+        k8s_workers:
+
+k8s_masters:
+    hosts:
+        cp1.local.lan:
+k8s_workers:
+    hosts:
+        cp2.local.lan:
+        cp3.local.lan:
+        w1.local.lan:
+        w2.local.lan:
+etcd_nodes:

@@ -161,7 +161,7 @@ nodelocaldns_local_ip: 169.254.25.10
 # Для отключения HA уберите ha_cluster_virtual_ip
 
 # Виртуальный IP для HAProxy + Keepalived
-ha_cluster_virtual_ip: 192.168.218.130
+ha_cluster_virtual_ip: 192.168.218.140
 ha_cluster_virtual_port: 7443
 
 # ============================================================
@@ -191,16 +191,16 @@ etcd_existing_client_key: ""     # Ключ клиентского сертиф�
 # [ОБЯЗАТЕЛЬНО] Утилиты — Helm
 # ============================================================
 
-helmVersion: v4.0.4
+helmVersion: v3.21.2
 
 # ============================================================
 # [ОБЯЗАТЕЛЬНО] Утилиты — NFS (CSI Driver)
 # ============================================================
 
 nfsEnable: true
-nfsCSIDriverVersion: "4.13.2"
-nfsServerHost: "192.168.218.170"
-nfsServerPath: "/var/nfs-disk"
+nfsCSIDriverVersion: "4.13.4"
+nfsServerHost: "192.168.218.13"
+nfsServerPath: "/volume1/nfs"
 nfsStorageClassName: "managed-nfs-storage"
 nfsReclaimPolicy: "Delete"
 nfsArchiveOnDelete: "false"
@@ -212,7 +212,7 @@ nfsMountOptions:
 # ============================================================
 
 certManagerEnable: true
-certManagerVersion: "v1.19.2"
+certManagerVersion: "v1.20.3"
 certManagerEnableGatewayAPI: false
 
 # ============================================================
@@ -220,14 +220,14 @@ certManagerEnableGatewayAPI: false
 # ============================================================
 
 metricsServerEnable: true
-metricsServerImage: "registry.k8s.io/metrics-server/metrics-server:v0.8.0"
+metricsServerImage: "registry.k8s.io/metrics-server/metrics-server:v0.8.1"
 
 # ============================================================
 # [ОБЯЗАТЕЛЬНО] Утилиты — MetalLB
 # ============================================================
 
 metallbEnable: true
-metallbChartVersion: "0.15.3"
+metallbChartVersion: "0.16.1"
 # Форматы: один IP (192.168.1.1/32), диапазон (192.168.218.180-192.168.218.185), сеть (192.168.1.64/30)
 metallbAddresses:
 - 192.168.218.180-192.168.218.185
@@ -236,8 +236,8 @@ metallbAddresses:
 # [ОПЦИОНАЛЬНО] Утилиты — Ingress Controller (ingress-nginx)
 # ============================================================
 
-ingressControllerEnable: true
-ingressControllerChartVersion: "4.12.0"
+ingressControllerEnable: false
+ingressControllerChartVersion: "4.15.1"
 ingressControllerClassName: "system-ingress"
 ingressControllerServiceType: "LoadBalancer"
 ingressControllerReplicaCount: 1
@@ -246,28 +246,28 @@ ingressControllerReplicaCount: 1
 # [ОПЦИОНАЛЬНО] Утилиты — Envoy Gateway (Gateway API)
 # ============================================================
 
-envoyGatewayEnable: false
-envoyGatewayVersion: "v1.8.0"
+envoyGatewayEnable: true
+envoyGatewayVersion: "v1.8.2"
 envoyGatewayReplicas: 1
 # IP для EnvoyProxy Service (LoadBalancer через MetalLB)
 envoyGatewayLoadBalancerIP: "192.168.218.180"
 # Домен для Gateway TLS сертификата
-envoyGatewayDomain: "kryukov.lan"
+envoyGatewayDomain: "local.lan"
 
 # ============================================================
 # [ОПЦИОНАЛЬНО] Утилиты — Stakater Reloader
 # ============================================================
 
 reloaderEnable: false
-reloaderChartVersion: "2.2.11"
+reloaderChartVersion: "2.2.14"
 reloaderReloadStrategy: "annotations"
 
 # ============================================================
 # [ОБЯЗАТЕЛЬНО] Утилиты — ArgoCD
 # ============================================================
 
-argoCDEnable: true
-argoCDChartVersion: "9.5.14"
+argoCDEnable: false
+argoCDChartVersion: "10.1.2"
 argoCDLoglevel: "info"
 argoCDControllerReplicaCount: 1
 argoCDServerReplicaCount: 1

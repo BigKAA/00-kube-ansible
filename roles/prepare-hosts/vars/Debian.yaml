@@ -2,26 +2,26 @@
 
 # Системные пакеты
 packages_common:
-  - net-tools
-  - mc
-  - gpg
-  - iproute2
-  - iptables
-  - vim
-  - git
-  - bash-completion
-  - nfs-common
-  - tar
-  - ntp
-  - jq
-  - ipvsadm
-  - python3-yaml
+    - net-tools
+    - mc
+    - gpg
+    - iproute2
+    - iptables
+    - vim
+    - git
+    - bash-completion
+    - nfs-common
+    - tar
+    - ntp
+    - jq
+    - ipvsadm
+    - python3-yaml
 
 # Пакеты Kubernetes
 packages_k8s:
-  - kubectl
-  - kubelet
-  - kubeadm
+    - "kubectl={{ kube_version }}-*"
+    - "kubelet={{ kube_version }}-*"
+    - "kubeadm={{ kube_version }}-*"
 
 # NTP сервис
 ntp_service: ntp
@@ -31,5 +31,5 @@ firewall_service: ""
 
 # HA пакеты
 packages_ha:
-  - keepalived
-  - haproxy
+    - keepalived
+    - haproxy

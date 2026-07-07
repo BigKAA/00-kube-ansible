@@ -90,17 +90,17 @@ make install
 
 ```yaml
 k8s_masters:
-  hosts:
-    master1:
-      ansible_host: 192.168.1.10
+    hosts:
+        master1:
+            ansible_host: 192.168.1.10
 k8s_workers:
-  hosts:
-    worker1:
-      ansible_host: 192.168.1.11
+    hosts:
+        worker1:
+            ansible_host: 192.168.1.11
 k8s_cluster:
-  children:
-    k8s_masters:
-    k8s_workers:
+    children:
+        k8s_masters:
+        k8s_workers:
 ```
 
 ```shell
@@ -115,13 +115,13 @@ ansible-playbook install-cluster.yaml
 
 ```yaml
 k8s_masters:
-  hosts:
-    master1:
-      ansible_host: 192.168.1.10
-    master2:
-      ansible_host: 192.168.1.11
-    master3:
-      ansible_host: 192.168.1.12
+    hosts:
+        master1:
+            ansible_host: 192.168.1.10
+        master2:
+            ansible_host: 192.168.1.11
+        master3:
+            ansible_host: 192.168.1.12
 ```
 
 Для HA доступа к API настройте virtual IP в `group_vars/k8s_cluster`:
@@ -142,16 +142,16 @@ ha_cluster_virtual_port: 7443
 
 ```yaml
 etcd_nodes:
-  hosts:
-    etcd1:
-      ansible_host: 192.168.1.30
-      etcd_short_name: etcd1
-    etcd2:
-      ansible_host: 192.168.1.31
-      etcd_short_name: etcd2
-    etcd3:
-      ansible_host: 192.168.1.32
-      etcd_short_name: etcd3
+    hosts:
+        etcd1:
+            ansible_host: 192.168.1.30
+            etcd_short_name: etcd1
+        etcd2:
+            ansible_host: 192.168.1.31
+            etcd_short_name: etcd2
+        etcd3:
+            ansible_host: 192.168.1.32
+            etcd_short_name: etcd3
 ```
 
 Playbook автоматически:
@@ -190,27 +190,27 @@ etcd_existing_client_key: "/path/to/apiserver-etcd-client.key"
 
 ### Основные параметры
 
-| Переменная | По умолчанию | Описание |
-|------------|-------------|----------|
-| `kube_version` | `1.36.1` | Версия Kubernetes (1.28 — 1.36.1) |
-| `cri` | `containerd` | Container Runtime: `containerd` или `crio` |
-| `cni` | `calico` | Container Network: `calico` или `flannel` |
-| `service_cidr` | `10.233.0.0/18` | CIDR для сервисов |
-| `pod_network_cidr` | `10.233.64.0/18` | CIDR для подов |
-| `etcd_mode` | `stacked` | Режим etcd: `stacked` или `external` |
-| `etcd_use_existing` | `false` | Подключиться к существующему etcd кластеру |
-| `etcd_existing_ca_cert` | `""` | CA сертификат существующего etcd (при `etcd_use_existing: true`) |
-| `etcd_existing_client_cert` | `""` | Клиентский сертификат apiserver для существующего etcd |
-| `etcd_existing_client_key` | `""` | Ключ клиентского сертификата для существующего etcd |
-| `ha_cluster_virtual_ip` | `192.168.218.130` | Virtual IP для HA (убрать для отключения HA) |
-| `ha_cluster_virtual_port` | `7443` | Порт для HA (не должен быть 6443) |
+| Переменная                  | По умолчанию      | Описание                                                         |
+| --------------------------- | ----------------- | ---------------------------------------------------------------- |
+| `kube_version`              | `1.36.1`          | Версия Kubernetes (1.28 — 1.36.1)                                |
+| `cri`                       | `containerd`      | Container Runtime: `containerd` или `crio`                       |
+| `cni`                       | `calico`          | Container Network: `calico` или `flannel`                        |
+| `service_cidr`              | `10.233.0.0/18`   | CIDR для сервисов                                                |
+| `pod_network_cidr`          | `10.233.64.0/18`  | CIDR для подов                                                   |
+| `etcd_mode`                 | `stacked`         | Режим etcd: `stacked` или `external`                             |
+| `etcd_use_existing`         | `false`           | Подключиться к существующему etcd кластеру                       |
+| `etcd_existing_ca_cert`     | `""`              | CA сертификат существующего etcd (при `etcd_use_existing: true`) |
+| `etcd_existing_client_cert` | `""`              | Клиентский сертификат apiserver для существующего etcd           |
+| `etcd_existing_client_key`  | `""`              | Ключ клиентского сертификата для существующего etcd              |
+| `ha_cluster_virtual_ip`     | `192.168.218.130` | Virtual IP для HA (убрать для отключения HA)                     |
+| `ha_cluster_virtual_port`   | `7443`            | Порт для HA (не должен быть 6443)                                |
 
 Полный список переменных: [group_vars/k8s_cluster](group_vars/k8s_cluster)
 
 ### Выбор CRI
 
 ```yaml
-cri: containerd  # или crio
+cri: containerd # или crio
 ```
 
 `cri_socket` вычисляется автоматически.
@@ -218,13 +218,104 @@ cri: containerd  # или crio
 ### Выбор CNI
 
 ```yaml
-cni: calico  # calico, flannel или cilium
+cni: calico # calico, flannel или cilium
 ```
 
 Для Calico с eBPF раскомментируйте `enableBPF: yes` в `group_vars/k8s_cluster`.
 
 Для Cilium с заменой kube-proxy на eBPF-датаплейн установите
 `cilium_kube_proxy_replacement: true` в `group_vars/k8s_cluster`.
+
+## Режимы установки
+
+Playbook поддерживает три режима установки пакетов Kubernetes, управляемых
+переменной `k8s_install_mode` в `group_vars/k8s_cluster`.
+
+### Online (по умолчанию)
+
+```yaml
+k8s_install_mode: "online"
+```
+
+Пакеты Kubernetes (`kubeadm`, `kubelet`, `kubectl`) и CRI (`containerd.io`)
+скачиваются из официальных репозиториев `pkgs.k8s.io` и `download.docker.com`.
+Образы контейнеров тянутся из `registry.k8s.io`.
+
+**Требование:** стабильный доступ к `pkgs.k8s.io` и `registry.k8s.io`.
+
+### Предзагруженные пакеты (гибридный режим)
+
+Если репозиторий `pkgs.k8s.io` недоступен или медленный (типично для
+некоторых регионов), RPM/DEB-пакеты можно скачать заранее и разместить
+локально. Этот режим работает **поверх `k8s_install_mode: "online"`** —
+образы контейнеров по-прежнему тянутся из сети, а бинарные пакеты — из
+локального каталога.
+
+```text
+tmp/offline/
+└── packages/
+    ├── kubeadm-<version>.x86_64.rpm
+    ├── kubelet-<version>.x86_64.rpm
+    ├── kubectl-<version>.x86_64.rpm
+    ├── kubernetes-cni-<version>.x86_64.rpm
+    └── cri-tools-<version>.x86_64.rpm
+```
+
+Playbook автоматически:
+
+1. Проверяет наличие `*.rpm` / `*.deb` в `tmp/offline/packages/`
+2. Копирует их на каждую ноду в `/tmp/k8s-packages/`
+3. Устанавливает через `dnf install` / `apt install` из локальных файлов
+
+Если каталог `packages/` пуст — выполняется стандартная установка из
+репозиториев.
+
+**Когда использовать:**
+
+- `pkgs.k8s.io` недоступен или отдаёт RPM на низкой скорости
+- Нужно установить конкретную версию пакета, отсутствующую в кэше зеркала
+- Корпоративный файрвол блокирует `pkgs.k8s.io`, но разрешает `registry.k8s.io`
+
+### Offline (полный air-gap)
+
+```yaml
+k8s_install_mode: "offline"
+```
+
+Все артефакты (пакеты **и** образы контейнеров) загружаются из локального
+каталога `tmp/offline/`. Используется для изолированных сетей без доступа
+в интернет.
+
+```text
+tmp/offline/
+├── packages/          # RPM/DEB пакеты k8s
+├── cri/
+│   ├── containerd/    # Пакеты containerd
+│   └── crio/           # Пакеты CRI-O
+├── cni/
+│   ├── tigera-operator.yaml
+│   └── calico-install.yaml
+└── images/
+    ├── k8s-images.tar    # Архив образов registry.k8s.io
+    └── calico-images.tar # Архив образов Calico
+```
+
+Скрипт загрузки: [`scripts/download-offline.sh`](scripts/download-offline.sh)
+
+### Где взять RPM-пакеты
+
+Список пакетов для Kubernetes `<version>` (пример для 1.36.1, x86_64):
+
+| Пакет          | URL                                                                                             |
+| -------------- | ----------------------------------------------------------------------------------------------- |
+| kubeadm        | `https://pkgs.k8s.io/core:/stable:/v1.36/rpm/x86_64/kubeadm-1.36.1-150500.1.1.x86_64.rpm`       |
+| kubelet        | `https://pkgs.k8s.io/core:/stable:/v1.36/rpm/x86_64/kubelet-1.36.1-150500.1.1.x86_64.rpm`       |
+| kubectl        | `https://pkgs.k8s.io/core:/stable:/v1.36/rpm/x86_64/kubectl-1.36.1-150500.1.1.x86_64.rpm`       |
+| kubernetes-cni | `https://pkgs.k8s.io/core:/stable:/v1.36/rpm/x86_64/kubernetes-cni-1.9.1-150500.1.1.x86_64.rpm` |
+| cri-tools      | `https://pkgs.k8s.io/core:/stable:/v1.36/rpm/x86_64/cri-tools-1.36.0-150500.1.1.x86_64.rpm`     |
+
+Полный список доступных версий:
+`https://pkgs.k8s.io/core:/stable:/v<MAJOR>.<MINOR>/rpm/x86_64/`
 
 ## Управление кластером
 
@@ -272,20 +363,20 @@ Ingress Nginx, Envoy Gateway, Stakater Reloader, ArgoCD.
 
 ### Сервисные playbook'и
 
-| Команда | Описание |
-|---------|----------|
-| `make install` | Полный цикл установки кластера |
-| `make reset` | Удаление кластера |
-| `make upgrade` | Обновление кластера |
-| `make utils` | Установка утилит |
-| `make prepare` | Подготовка хостов (CRI, пакеты, sysctl) |
-| `make ha` | Установка HA (HAProxy + Keepalived) |
-| `make master` | Установка первого control plane |
-| `make workers` | Установка worker нод |
-| `make ping` | Проверка доступности хостов |
-| `make debug` | Отладочная информация |
-| `make poweroff` | Выключение всех нод |
-| `make check-syntax` | Проверка синтаксиса playbook'ов |
+| Команда             | Описание                                |
+| ------------------- | --------------------------------------- |
+| `make install`      | Полный цикл установки кластера          |
+| `make reset`        | Удаление кластера                       |
+| `make upgrade`      | Обновление кластера                     |
+| `make utils`        | Установка утилит                        |
+| `make prepare`      | Подготовка хостов (CRI, пакеты, sysctl) |
+| `make ha`           | Установка HA (HAProxy + Keepalived)     |
+| `make master`       | Установка первого control plane         |
+| `make workers`      | Установка worker нод                    |
+| `make ping`         | Проверка доступности хостов             |
+| `make debug`        | Отладочная информация                   |
+| `make poweroff`     | Выключение всех нод                     |
+| `make check-syntax` | Проверка синтаксиса playbook'ов         |
 
 Переключайте окружение через `ENV`:
 
@@ -298,26 +389,26 @@ make install ENV=production
 
 ### Порты между нодами
 
-| Порт | Протокол | Направление | Описание |
-|------|----------|-------------|----------|
-| 6443 | TCP | Все → Control plane | Kubernetes API server |
-| 2379–2380 | TCP | Control plane ↔ Control plane | etcd client и peer |
-| 10250 | TCP | Control plane → Все | Kubelet API |
-| 10259 | TCP | Control plane → Control plane | kube-scheduler |
-| 10257 | TCP | Control plane → Control plane | kube-controller-manager |
-| 179 | TCP | Все → Все | Calico BGP (при использовании) |
-| 4789 | UDP | Все → Все | Calico VXLAN / Flannel VXLAN |
-| 5473 | TCP | Все → Все | Calico Typha (опционально) |
-| 8472 | UDP | Все → Все | Cilium VXLAN (при cni: cilium) |
-| 4244 | TCP | Все → Все | Cilium agent metrics (Hubble Relay) |
-| 4240 | TCP | Все → Все | Cilium health checks (опционально) |
+| Порт      | Протокол | Направление                   | Описание                            |
+| --------- | -------- | ----------------------------- | ----------------------------------- |
+| 6443      | TCP      | Все → Control plane           | Kubernetes API server               |
+| 2379–2380 | TCP      | Control plane ↔ Control plane | etcd client и peer                  |
+| 10250     | TCP      | Control plane → Все           | Kubelet API                         |
+| 10259     | TCP      | Control plane → Control plane | kube-scheduler                      |
+| 10257     | TCP      | Control plane → Control plane | kube-controller-manager             |
+| 179       | TCP      | Все → Все                     | Calico BGP (при использовании)      |
+| 4789      | UDP      | Все → Все                     | Calico VXLAN / Flannel VXLAN        |
+| 5473      | TCP      | Все → Все                     | Calico Typha (опционально)          |
+| 8472      | UDP      | Все → Все                     | Cilium VXLAN (при cni: cilium)      |
+| 4244      | TCP      | Все → Все                     | Cilium agent metrics (Hubble Relay) |
+| 4240      | TCP      | Все → Все                     | Cilium health checks (опционально)  |
 
 ### External etcd (дополнительно)
 
-| Порт | Протокол | Направление | Описание |
-|------|----------|-------------|----------|
-| 2379 | TCP | Control plane → etcd | etcd client |
-| 2380 | TCP | etcd ↔ etcd | etcd peer |
+| Порт | Протокол | Направление          | Описание    |
+| ---- | -------- | -------------------- | ----------- |
+| 2379 | TCP      | Control plane → etcd | etcd client |
+| 2380 | TCP      | etcd ↔ etcd          | etcd peer   |
 
 ## Примеры конфигураций
 
@@ -386,13 +477,13 @@ etcd 3.5.9 несовместим с Kubernetes 1.36.1. Требуется etcd 
 
 ## Совместимость
 
-| k8s ver | Distributive | CRI | Статус |
-|---------|-------------|-----|--------|
-| 1.35.0 → 1.36.1 | Rocky Linux 10.1 | containerd | **OK** |
-| 1.31.2 | Rocky Linux 9.4 | containerd 1.7.23 | **OK** |
-| 1.31 | Rocky Linux 8.10 | containerd 1.6.32 | **OK** |
-| 1.30 | Rocky Linux 8.10 | containerd 1.6.32 | **OK** |
-| 1.30 | Debian 12 | containerd.io 1.7.21 | **OK** |
+| k8s ver         | Distributive     | CRI                  | Статус |
+| --------------- | ---------------- | -------------------- | ------ |
+| 1.35.0 → 1.36.1 | Rocky Linux 10.1 | containerd           | **OK** |
+| 1.31.2          | Rocky Linux 9.4  | containerd 1.7.23    | **OK** |
+| 1.31            | Rocky Linux 8.10 | containerd 1.6.32    | **OK** |
+| 1.30            | Rocky Linux 8.10 | containerd 1.6.32    | **OK** |
+| 1.30            | Debian 12        | containerd.io 1.7.21 | **OK** |
 
 ## Структура проекта
 

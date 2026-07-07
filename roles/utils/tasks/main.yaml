@@ -2,67 +2,77 @@
 - name: Установить Helm [online]
   when: k8s_install_mode == "online"
   ansible.builtin.unarchive:
-    src: "https://get.helm.sh/helm-{{ helmVersion }}-linux-amd64.tar.gz"
-    dest: /root/
-    remote_src: true
-    creates: /root/linux-amd64/helm
+      src: "https://get.helm.sh/helm-{{ helmVersion }}-linux-amd64.tar.gz"
+      dest: /root/
+      remote_src: true
+      creates: /root/linux-amd64/helm
   register: helm_online
 
 - name: Установить Helm [offline]
   when: k8s_install_mode == "offline"
   ansible.builtin.unarchive:
-    src: "{{ playbook_dir }}/{{ k8s_offline_dir }}/utils/helm-{{ helmVersion }}-linux-amd64.tar.gz"
-    dest: /root/
-    creates: /root/linux-amd64/helm
+      src: "{{ playbook_dir }}/{{ k8s_offline_dir }}/utils/helm-{{ helmVersion }}-linux-amd64.tar.gz"
+      dest: /root/
+      creates: /root/linux-amd64/helm
   register: helm_offline
 
 - name: Переместить helm в /usr/local/bin
   ansible.builtin.copy:
-    src: /root/linux-amd64/helm
-    dest: /usr/local/bin/helm
-    remote_src: true
-    mode: '0755'
+      src: /root/linux-amd64/helm
+      dest: /usr/local/bin/helm
+      remote_src: true
+      mode: "0755"
+  when: helm_online.changed or helm_offline.changed
+
+- name: Создать symlink helm в /usr/local/sbin (для PATH ansible)
+  ansible.builtin.file:
+      src: /usr/local/bin/helm
+      dest: /usr/local/sbin/helm
+      state: link
+      force: true
   when: helm_online.changed or helm_offline.changed
 
 - name: Проверить наличие helm-diff
   ansible.builtin.stat:
-    path: /root/.local/share/helm/plugins/helm-diff
+      path: /root/.local/share/helm/plugins/helm-diff
   register: helm_diff_plugin
 
 - name: Установить плагин helm-diff [online]
   when:
-    - not helm_diff_plugin.stat.exists
-    - k8s_install_mode == "online"
-  ansible.builtin.command: helm plugin install https://github.com/databus23/helm-diff
+      - not helm_diff_plugin.stat.exists
+      - k8s_install_mode == "online"
+      - helmDiffEnable | default(true) | bool
+  ansible.builtin.shell: "export PATH=$PATH:/usr/local/bin; helm plugin install --verify=false https://github.com/databus23/helm-diff"
 
 - name: Скопировать плагин helm-diff на ноду [offline]
   when:
-    - not helm_diff_plugin.stat.exists
-    - k8s_install_mode == "offline"
+      - not helm_diff_plugin.stat.exists
+      - k8s_install_mode == "offline"
+      - helmDiffEnable | default(true) | bool
   ansible.posix.synchronize:
-    src: "{{ playbook_dir }}/{{ k8s_offline_dir }}/utils/helm-plugins/helm-diff/"
-    dest: /tmp/helm-diff
-    delegate_to: localhost
+      src: "{{ playbook_dir }}/{{ k8s_offline_dir }}/utils/helm-plugins/helm-diff/"
+      dest: /tmp/helm-diff
+      delegate_to: localhost
   register: helm_diff_copy
 
 - name: Установить плагин helm-diff [offline]
   when:
-    - not helm_diff_plugin.stat.exists
-    - k8s_install_mode == "offline"
+      - not helm_diff_plugin.stat.exists
+      - k8s_install_mode == "offline"
   ansible.builtin.command: helm plugin install /tmp/helm-diff
 
 - name: Создать каталог для манифестов утилит
   ansible.builtin.file:
-    path: /etc/kubernetes/utils
-    state: directory
-    mode: '0700'
+      path: /etc/kubernetes/utils
+      state: directory
+      mode: "0700"
 
 ### Priority classes
 - name: Скопировать манифест priority classes
   ansible.builtin.copy:
-    src: priorityclass.yaml
-    dest: /etc/kubernetes/utils/priorityclass.yaml
-    mode: '0600'
+      src: priorityclass.yaml
+      dest: /etc/kubernetes/utils/priorityclass.yaml
+      mode: "0600"
   register: priority_class
 
 - name: Применить манифест priority classes
@@ -73,63 +83,62 @@
 - name: Установить cert-manager
   when: certManagerEnable
   block:
-    - name: Установить cert-manager через OCI [online]
-      when: k8s_install_mode == "online"
-      kubernetes.core.helm:
-        name: cert-manager
-        chart_ref: "oci://quay.io/jetstack/charts/cert-manager"
-        chart_version: "{{ certManagerVersion }}"
-        release_namespace: cert-manager
-        create_namespace: true
-        update_repo_cache: true
-        values:
-          crds:
-            enabled: true
-          global:
-            priorityClassName: high-priority
-          config:
-            apiVersion: "controller.config.cert-manager.io/v1alpha1"
-            kind: "ControllerConfiguration"
-            enableGatewayAPI: "{{ certManagerEnableGatewayAPI }}"
+      - name: Установить cert-manager через OCI [online]
+        when: k8s_install_mode == "online"
+        kubernetes.core.helm:
+            name: cert-manager
+            chart_ref: "oci://quay.io/jetstack/charts/cert-manager"
+            chart_version: "{{ certManagerVersion }}"
+            release_namespace: cert-manager
+            create_namespace: true
+            values:
+                crds:
+                    enabled: true
+                global:
+                    priorityClassName: high-priority
+                config:
+                    apiVersion: "controller.config.cert-manager.io/v1alpha1"
+                    kind: "ControllerConfiguration"
+                    enableGatewayAPI: "{{ certManagerEnableGatewayAPI }}"
 
-    - name: Установить cert-manager через OCI [offline]
-      when: k8s_install_mode == "offline"
-      kubernetes.core.helm:
-        name: cert-manager
-        chart_ref: "{{ playbook_dir }}/{{ k8s_offline_dir }}/utils/cert-manager-{{ certManagerVersion }}.tgz"
-        release_namespace: cert-manager
-        create_namespace: true
-        values:
-          crds:
-            enabled: true
-          global:
-            priorityClassName: high-priority
-          config:
-            apiVersion: "controller.config.cert-manager.io/v1alpha1"
-            kind: "ControllerConfiguration"
-            enableGatewayAPI: "{{ certManagerEnableGatewayAPI }}"
+      - name: Установить cert-manager через OCI [offline]
+        when: k8s_install_mode == "offline"
+        kubernetes.core.helm:
+            name: cert-manager
+            chart_ref: "{{ playbook_dir }}/{{ k8s_offline_dir }}/utils/cert-manager-{{ certManagerVersion }}.tgz"
+            release_namespace: cert-manager
+            create_namespace: true
+            values:
+                crds:
+                    enabled: true
+                global:
+                    priorityClassName: high-priority
+                config:
+                    apiVersion: "controller.config.cert-manager.io/v1alpha1"
+                    kind: "ControllerConfiguration"
+                    enableGatewayAPI: "{{ certManagerEnableGatewayAPI }}"
 
-    - name: Ожидание запуска cert-manager (2 минуты)
-      ansible.builtin.wait_for:
-        timeout: 120
+      - name: Ожидание запуска cert-manager (2 минуты)
+        ansible.builtin.wait_for:
+            timeout: 120
 
-    - name: Скопировать манифест Issuer
-      ansible.builtin.copy:
-        src: certs.yaml
-        dest: /etc/kubernetes/utils/certs.yaml
-        mode: '0600'
-      register: issuer
+      - name: Скопировать манифест Issuer
+        ansible.builtin.copy:
+            src: certs.yaml
+            dest: /etc/kubernetes/utils/certs.yaml
+            mode: "0600"
+        register: issuer
 
-    - name: Применить манифест Issuer
-      ansible.builtin.command: kubectl apply -f /etc/kubernetes/utils/certs.yaml
-      when: issuer.changed
+      - name: Применить манифест Issuer
+        ansible.builtin.command: kubectl apply -f /etc/kubernetes/utils/certs.yaml
+        when: issuer.changed
 
 ### Metrics server
 - name: Скопировать манифест metrics server
   ansible.builtin.template:
-    src: metrics-server.j2
-    dest: /etc/kubernetes/utils/metrics-server.yaml
-    mode: '0600'
+      src: metrics-server.j2
+      dest: /etc/kubernetes/utils/metrics-server.yaml
+      mode: "0600"
   when: metricsServerEnable
   register: metrics_server
 
@@ -141,317 +150,401 @@
 - name: Установить NFS CSI Driver
   when: nfsEnable
   block:
-    - name: Добавить репозиторий NFS CSI Driver [online]
-      when: k8s_install_mode == "online"
-      kubernetes.core.helm_repository:
-        name: csi-driver-nfs
-        repo_url: https://raw.githubusercontent.com/kubernetes-csi/csi-driver-nfs/master/charts
+      # Проверка наличия предзагруженного chart на control node
+      - name: Найти предзагруженный chart NFS CSI Driver
+        ansible.builtin.find:
+            paths: "{{ playbook_dir }}/../{{ k8s_offline_dir }}/utils/helm-charts"
+            patterns: "csi-driver-nfs-*.tgz"
+        delegate_to: localhost
+        become: false
+        run_once: true
+        register: _nfs_chart_local
 
-    - name: Установить NFS CSI Driver [online]
-      when: k8s_install_mode == "online"
-      kubernetes.core.helm:
-        name: csi-driver-nfs
-        chart_ref: csi-driver-nfs/csi-driver-nfs
-        chart_version: "{{ nfsCSIDriverVersion }}"
-        release_namespace: kube-system
-        values:
-          controller:
-            runOnControlPlane: true
-            priorityClassName: system-cluster-critical
-          storageClass:
-            create: true
-            name: "{{ nfsStorageClassName }}"
-            reclaimPolicy: "{{ nfsReclaimPolicy }}"
-            volumeBindingMode: Immediate
-            parameters:
-              server: "{{ nfsServerHost }}"
-              share: "{{ nfsServerPath }}"
-              archiveOnDelete: "{{ nfsArchiveOnDelete }}"
-            mountOptions: "{{ nfsMountOptions }}"
+      - name: Скопировать предзагруженный chart на ноду
+        ansible.builtin.copy:
+            src: "{{ _nfs_chart_local.files[0].path }}"
+            dest: "/tmp/csi-driver-nfs-{{ nfsCSIDriverVersion }}.tgz"
+            mode: "0644"
+        when:
+            - k8s_install_mode == "online"
+            - _nfs_chart_local.matched | int > 0
 
-    - name: Установить NFS CSI Driver [offline]
-      when: k8s_install_mode == "offline"
-      kubernetes.core.helm:
-        name: csi-driver-nfs
-        chart_ref: "{{ playbook_dir }}/{{ k8s_offline_dir }}/utils/helm-charts/csi-driver-nfs-{{ nfsCSIDriverVersion }}.tgz"
-        release_namespace: kube-system
-        values:
-          controller:
-            runOnControlPlane: true
-            priorityClassName: system-cluster-critical
-          storageClass:
-            create: true
-            name: "{{ nfsStorageClassName }}"
-            reclaimPolicy: "{{ nfsReclaimPolicy }}"
-            volumeBindingMode: Immediate
-            parameters:
-              server: "{{ nfsServerHost }}"
-              share: "{{ nfsServerPath }}"
-              archiveOnDelete: "{{ nfsArchiveOnDelete }}"
-            mountOptions: "{{ nfsMountOptions }}"
+      - name: Добавить репозиторий NFS CSI Driver [online]
+        when:
+            - k8s_install_mode == "online"
+            - _nfs_chart_local.matched | int == 0
+        kubernetes.core.helm_repository:
+            name: csi-driver-nfs
+            repo_url: https://raw.githubusercontent.com/kubernetes-csi/csi-driver-nfs/master/charts
 
-    - name: Проверить статус NFS CSI Driver
-      ansible.builtin.command: kubectl -n kube-system get deployment/csi-nfs-controller -o jsonpath='{.status.readyReplicas}'
-      register: nfs_controller_status
-      until: nfs_controller_status.stdout | int > 0
-      retries: 10
-      delay: 10
+      - name: Установить NFS CSI Driver [online, repo]
+        when:
+            - k8s_install_mode == "online"
+            - _nfs_chart_local.matched | int == 0
+        kubernetes.core.helm:
+            name: csi-driver-nfs
+            chart_ref: csi-driver-nfs/csi-driver-nfs
+            chart_version: "{{ nfsCSIDriverVersion }}"
+            release_namespace: kube-system
+            values:
+                controller:
+                    runOnControlPlane: true
+                    priorityClassName: system-cluster-critical
+                storageClass:
+                    create: true
+                    name: "{{ nfsStorageClassName }}"
+                    reclaimPolicy: "{{ nfsReclaimPolicy }}"
+                    volumeBindingMode: Immediate
+                    parameters:
+                        server: "{{ nfsServerHost }}"
+                        share: "{{ nfsServerPath }}"
+                        archiveOnDelete: "{{ nfsArchiveOnDelete }}"
+                    mountOptions: "{{ nfsMountOptions }}"
+
+      - name: Установить NFS CSI Driver [online, local chart]
+        when:
+            - k8s_install_mode == "online"
+            - _nfs_chart_local.matched | int > 0
+        kubernetes.core.helm:
+            name: csi-driver-nfs
+            chart_ref: "/tmp/csi-driver-nfs-{{ nfsCSIDriverVersion }}.tgz"
+            release_namespace: kube-system
+            values:
+                controller:
+                    runOnControlPlane: true
+                    priorityClassName: system-cluster-critical
+                storageClass:
+                    create: true
+                    name: "{{ nfsStorageClassName }}"
+                    reclaimPolicy: "{{ nfsReclaimPolicy }}"
+                    volumeBindingMode: Immediate
+                    parameters:
+                        server: "{{ nfsServerHost }}"
+                        share: "{{ nfsServerPath }}"
+                        archiveOnDelete: "{{ nfsArchiveOnDelete }}"
+                    mountOptions: "{{ nfsMountOptions }}"
+
+      - name: Установить NFS CSI Driver [offline]
+        when: k8s_install_mode == "offline"
+        kubernetes.core.helm:
+            name: csi-driver-nfs
+            chart_ref: "{{ playbook_dir }}/../{{ k8s_offline_dir }}/utils/helm-charts/csi-driver-nfs-{{ nfsCSIDriverVersion }}.tgz"
+            release_namespace: kube-system
+            values:
+                controller:
+                    runOnControlPlane: true
+                    priorityClassName: system-cluster-critical
+                storageClass:
+                    create: true
+                    name: "{{ nfsStorageClassName }}"
+                    reclaimPolicy: "{{ nfsReclaimPolicy }}"
+                    volumeBindingMode: Immediate
+                    parameters:
+                        server: "{{ nfsServerHost }}"
+                        share: "{{ nfsServerPath }}"
+                        archiveOnDelete: "{{ nfsArchiveOnDelete }}"
+                    mountOptions: "{{ nfsMountOptions }}"
+
+      - name: Проверить статус NFS CSI Driver
+        ansible.builtin.command: kubectl -n kube-system get deployment/csi-nfs-controller -o jsonpath='{.status.readyReplicas}'
+        register: nfs_controller_status
+        until: nfs_controller_status.stdout | int > 0
+        retries: 10
+        delay: 10
 
 ### Stakater Reloader
 - name: Установить Stakater Reloader
   when: reloaderEnable
   block:
-    - name: Добавить репозиторий Stakater [online]
-      when: k8s_install_mode == "online"
-      kubernetes.core.helm_repository:
-        name: stakater
-        repo_url: https://stakater.github.io/stakater-charts
+      - name: Добавить репозиторий Stakater [online]
+        when: k8s_install_mode == "online"
+        kubernetes.core.helm_repository:
+            name: stakater
+            repo_url: https://stakater.github.io/stakater-charts
 
-    - name: Установить Stakater Reloader [online]
-      when: k8s_install_mode == "online"
-      kubernetes.core.helm:
-        name: reloader
-        chart_ref: stakater/reloader
-        chart_version: "{{ reloaderChartVersion }}"
-        release_namespace: kube-system
-        create_namespace: false
-        values:
-          reloader:
-            reloadStrategy: "{{ reloaderReloadStrategy }}"
+      - name: Установить Stakater Reloader [online]
+        when: k8s_install_mode == "online"
+        kubernetes.core.helm:
+            name: reloader
+            chart_ref: stakater/reloader
+            chart_version: "{{ reloaderChartVersion }}"
+            release_namespace: kube-system
+            create_namespace: false
+            values:
+                reloader:
+                    reloadStrategy: "{{ reloaderReloadStrategy }}"
 
-    - name: Установить Stakater Reloader [offline]
-      when: k8s_install_mode == "offline"
-      kubernetes.core.helm:
-        name: reloader
-        chart_ref: "{{ playbook_dir }}/{{ k8s_offline_dir }}/utils/helm-charts/reloader-{{ reloaderChartVersion }}.tgz"
-        release_namespace: kube-system
-        create_namespace: false
-        values:
-          reloader:
-            reloadStrategy: "{{ reloaderReloadStrategy }}"
+      - name: Установить Stakater Reloader [offline]
+        when: k8s_install_mode == "offline"
+        kubernetes.core.helm:
+            name: reloader
+            chart_ref: "{{ playbook_dir }}/{{ k8s_offline_dir }}/utils/helm-charts/reloader-{{ reloaderChartVersion }}.tgz"
+            release_namespace: kube-system
+            create_namespace: false
+            values:
+                reloader:
+                    reloadStrategy: "{{ reloaderReloadStrategy }}"
 
 ### MetalLB
 - name: MetalLB
   when: metallbEnable
   block:
-    - name: Добавить репозиторий MetalLB [online]
-      when: k8s_install_mode == "online"
-      kubernetes.core.helm_repository:
-        name: metallb
-        repo_url: https://metallb.github.io/metallb
+      - name: Найти предзагруженный chart MetalLB
+        ansible.builtin.find:
+            paths: "{{ playbook_dir }}/../{{ k8s_offline_dir }}/utils/helm-charts"
+            patterns: "metallb-*.tgz"
+        delegate_to: localhost
+        become: false
+        run_once: true
+        register: _metallb_chart_local
 
-    - name: Установить Helm-чарт MetalLB [online]
-      when: k8s_install_mode == "online"
-      kubernetes.core.helm:
-        name: metallb
-        chart_ref: metallb/metallb
-        chart_version: "{{ metallbChartVersion }}"
-        release_namespace: metallb
-        create_namespace: true
-        values:
-          controller:
-            image:
-              pullPolicy: IfNotPresent
-          speaker:
-            image:
-              pullPolicy: IfNotPresent
+      - name: Скопировать предзагруженный chart MetalLB на ноду
+        ansible.builtin.copy:
+            src: "{{ _metallb_chart_local.files[0].path }}"
+            dest: "/tmp/metallb-{{ metallbChartVersion }}.tgz"
+            mode: "0644"
+        when:
+            - k8s_install_mode == "online"
+            - _metallb_chart_local.matched | int > 0
 
-    - name: Установить Helm-чарт MetalLB [offline]
-      when: k8s_install_mode == "offline"
-      kubernetes.core.helm:
-        name: metallb
-        chart_ref: "{{ playbook_dir }}/{{ k8s_offline_dir }}/utils/helm-charts/metallb-{{ metallbChartVersion }}.tgz"
-        release_namespace: metallb
-        create_namespace: true
-        values:
-          controller:
-            image:
-              pullPolicy: IfNotPresent
-          speaker:
-            image:
-              pullPolicy: IfNotPresent
+      - name: Добавить репозиторий MetalLB [online]
+        when:
+            - k8s_install_mode == "online"
+            - _metallb_chart_local.matched | int == 0
+        kubernetes.core.helm_repository:
+            name: metallb
+            repo_url: https://metallb.github.io/metallb
 
-    - name: Проверить статус MetalLB
-      ansible.builtin.command: kubectl -n metallb get deployment.apps/metallb-controller -o jsonpath='{.status.readyReplicas}'
-      register: metallb_controller_status
-      until: metallb_controller_status.stdout | int > 0
-      retries: 10
-      delay: 10
+      - name: Установить Helm-чарт MetalLB [online, repo]
+        when:
+            - k8s_install_mode == "online"
+            - _metallb_chart_local.matched | int == 0
+        kubernetes.core.helm:
+            name: metallb
+            chart_ref: metallb/metallb
+            chart_version: "{{ metallbChartVersion }}"
+            release_namespace: metallb
+            create_namespace: true
+            values:
+                controller:
+                    image:
+                        pullPolicy: IfNotPresent
+                speaker:
+                    image:
+                        pullPolicy: IfNotPresent
 
-    - name: Скопировать манифест пула MetalLB
-      ansible.builtin.template:
-        src: mlb.j2
-        dest: /etc/kubernetes/utils/mlb.yaml
-        mode: '0600'
-      register: mlb_pool
+      - name: Установить Helm-чарт MetalLB [online, local chart]
+        when:
+            - k8s_install_mode == "online"
+            - _metallb_chart_local.matched | int > 0
+        kubernetes.core.helm:
+            name: metallb
+            chart_ref: "/tmp/metallb-{{ metallbChartVersion }}.tgz"
+            release_namespace: metallb
+            create_namespace: true
+            values:
+                controller:
+                    image:
+                        pullPolicy: IfNotPresent
+                speaker:
+                    image:
+                        pullPolicy: IfNotPresent
 
-    - name: Применить манифест пула MetalLB
-      ansible.builtin.command: kubectl -n metallb apply -f /etc/kubernetes/utils/mlb.yaml
-      when: mlb_pool.changed
+      - name: Установить Helm-чарт MetalLB [offline]
+        when: k8s_install_mode == "offline"
+        kubernetes.core.helm:
+            name: metallb
+            chart_ref: "{{ playbook_dir }}/../{{ k8s_offline_dir }}/utils/helm-charts/metallb-{{ metallbChartVersion }}.tgz"
+            release_namespace: metallb
+            create_namespace: true
+            values:
+                controller:
+                    image:
+                        pullPolicy: IfNotPresent
+                speaker:
+                    image:
+                        pullPolicy: IfNotPresent
+
+      - name: Проверить статус MetalLB
+        ansible.builtin.command: kubectl -n metallb get deployment.apps/metallb-controller -o jsonpath='{.status.readyReplicas}'
+        register: metallb_controller_status
+        until: metallb_controller_status.stdout | int > 0
+        retries: 10
+        delay: 10
+
+      - name: Скопировать манифест пула MetalLB
+        ansible.builtin.template:
+            src: mlb.j2
+            dest: /etc/kubernetes/utils/mlb.yaml
+            mode: "0600"
+        register: mlb_pool
+
+      - name: Применить манифест пула MetalLB
+        ansible.builtin.command: kubectl -n metallb apply -f /etc/kubernetes/utils/mlb.yaml
+        when: mlb_pool.changed
 
 ### Envoy Gateway (Gateway API)
 - name: Envoy Gateway
   when: envoyGatewayEnable
   block:
-    - name: Установить Envoy Gateway через OCI [online]
-      when: k8s_install_mode == "online"
-      kubernetes.core.helm:
-        name: eg
-        chart_ref: "oci://docker.io/envoyproxy/gateway-helm"
-        chart_version: "{{ envoyGatewayVersion }}"
-        release_namespace: envoy-gateway-system
-        create_namespace: true
-        update_repo_cache: true
-        skip_crds: false
-        values:
-          deployment:
-            priorityClassName: high-priority
-            replicas: "{{ envoyGatewayReplicas }}"
+      - name: Установить Envoy Gateway через OCI [online]
+        when: k8s_install_mode == "online"
+        kubernetes.core.helm:
+            name: eg
+            chart_ref: "oci://docker.io/envoyproxy/gateway-helm"
+            chart_version: "{{ envoyGatewayVersion }}"
+            release_namespace: envoy-gateway-system
+            create_namespace: true
+            skip_crds: false
+            values:
+                deployment:
+                    priorityClassName: high-priority
+                    replicas: "{{ envoyGatewayReplicas }}"
 
-    - name: Установить Envoy Gateway через OCI [offline]
-      when: k8s_install_mode == "offline"
-      kubernetes.core.helm:
-        name: eg
-        chart_ref: "{{ playbook_dir }}/{{ k8s_offline_dir }}/utils/helm-charts/envoy-gateway-{{ envoyGatewayVersion }}.tgz"
-        release_namespace: envoy-gateway-system
-        create_namespace: true
-        skip_crds: false
-        values:
-          deployment:
-            priorityClassName: high-priority
-            replicas: "{{ envoyGatewayReplicas }}"
+      - name: Установить Envoy Gateway через OCI [offline]
+        when: k8s_install_mode == "offline"
+        kubernetes.core.helm:
+            name: eg
+            chart_ref: "{{ playbook_dir }}/{{ k8s_offline_dir }}/utils/helm-charts/envoy-gateway-{{ envoyGatewayVersion }}.tgz"
+            release_namespace: envoy-gateway-system
+            create_namespace: true
+            skip_crds: false
+            values:
+                deployment:
+                    priorityClassName: high-priority
+                    replicas: "{{ envoyGatewayReplicas }}"
 
-    - name: Ожидание запуска Envoy Gateway
-      ansible.builtin.command: kubectl -n envoy-gateway-system get deployment/eg -o jsonpath='{.status.readyReplicas}'
-      register: eg_status
-      until: eg_status.stdout | int > 0
-      retries: 15
-      delay: 10
+      - name: Ожидание запуска Envoy Gateway
+        ansible.builtin.command: kubectl -n envoy-gateway-system get deployment/envoy-gateway -o jsonpath='{.status.readyReplicas}'
+        register: eg_status
+        until: eg_status.stdout | int > 0
+        retries: 15
+        delay: 10
 
-    - name: Скопировать манифест EnvoyProxy Config
-      ansible.builtin.template:
-        src: envoy-proxy-config.j2
-        dest: /etc/kubernetes/utils/envoy-proxy-config.yaml
-        mode: '0600'
-      register: eg_proxy_config
+      - name: Скопировать манифест EnvoyProxy Config
+        ansible.builtin.template:
+            src: envoy-proxy-config.j2
+            dest: /etc/kubernetes/utils/envoy-proxy-config.yaml
+            mode: "0600"
+        register: eg_proxy_config
 
-    - name: Применить EnvoyProxy Config
-      ansible.builtin.command: kubectl apply -f /etc/kubernetes/utils/envoy-proxy-config.yaml
-      when: eg_proxy_config.changed
+      - name: Применить EnvoyProxy Config
+        ansible.builtin.command: kubectl apply -f /etc/kubernetes/utils/envoy-proxy-config.yaml
+        when: eg_proxy_config.changed
 
-    - name: Скопировать манифест GatewayClass
-      ansible.builtin.template:
-        src: gateway-class.j2
-        dest: /etc/kubernetes/utils/gateway-class.yaml
-        mode: '0600'
-      register: eg_gateway_class
+      - name: Скопировать манифест GatewayClass
+        ansible.builtin.template:
+            src: gateway-class.j2
+            dest: /etc/kubernetes/utils/gateway-class.yaml
+            mode: "0600"
+        register: eg_gateway_class
 
-    - name: Применить GatewayClass
-      ansible.builtin.command: kubectl apply -f /etc/kubernetes/utils/gateway-class.yaml
-      when: eg_gateway_class.changed
+      - name: Применить GatewayClass
+        ansible.builtin.command: kubectl apply -f /etc/kubernetes/utils/gateway-class.yaml
+        when: eg_gateway_class.changed
 
-    - name: Скопировать манифест Gateway TLS Certificate
-      ansible.builtin.template:
-        src: gateway-cert.j2
-        dest: /etc/kubernetes/utils/gateway-cert.yaml
-        mode: '0600'
-      register: eg_gateway_cert
+      - name: Скопировать манифест Gateway TLS Certificate
+        ansible.builtin.template:
+            src: gateway-cert.j2
+            dest: /etc/kubernetes/utils/gateway-cert.yaml
+            mode: "0600"
+        register: eg_gateway_cert
 
-    - name: Применить Gateway TLS Certificate
-      ansible.builtin.command: kubectl apply -f /etc/kubernetes/utils/gateway-cert.yaml
-      when: eg_gateway_cert.changed
+      - name: Применить Gateway TLS Certificate
+        ansible.builtin.command: kubectl apply -f /etc/kubernetes/utils/gateway-cert.yaml
+        when: eg_gateway_cert.changed
 
-    - name: Скопировать манифест Gateway
-      ansible.builtin.template:
-        src: gateway.j2
-        dest: /etc/kubernetes/utils/gateway.yaml
-        mode: '0600'
-      register: eg_gateway
+      - name: Скопировать манифест Gateway
+        ansible.builtin.template:
+            src: gateway.j2
+            dest: /etc/kubernetes/utils/gateway.yaml
+            mode: "0600"
+        register: eg_gateway
 
-    - name: Применить Gateway
-      ansible.builtin.command: kubectl apply -f /etc/kubernetes/utils/gateway.yaml
-      when: eg_gateway.changed
+      - name: Применить Gateway
+        ansible.builtin.command: kubectl apply -f /etc/kubernetes/utils/gateway.yaml
+        when: eg_gateway.changed
 
 ### Ingress controller
 - name: Ingress controller
   when: ingressControllerEnable
   block:
-    - name: Добавить репозиторий ingress-nginx [online]
-      when: k8s_install_mode == "online"
-      kubernetes.core.helm_repository:
-        name: ingress-nginx
-        repo_url: https://kubernetes.github.io/ingress-nginx
+      - name: Добавить репозиторий ingress-nginx [online]
+        when: k8s_install_mode == "online"
+        kubernetes.core.helm_repository:
+            name: ingress-nginx
+            repo_url: https://kubernetes.github.io/ingress-nginx
 
-    - name: Скопировать файл значений
-      ansible.builtin.template:
-        src: ingress-controller-values.j2
-        dest: /etc/kubernetes/utils/ingress-controller-values.yaml
-        mode: '0600'
-      register: ingress_controller_values
+      - name: Скопировать файл значений
+        ansible.builtin.template:
+            src: ingress-controller-values.j2
+            dest: /etc/kubernetes/utils/ingress-controller-values.yaml
+            mode: "0600"
+        register: ingress_controller_values
 
-    - name: Установить Helm-чарт ingress-nginx [online]
-      when:
-        - ingress_controller_values.changed
-        - k8s_install_mode == "online"
-      kubernetes.core.helm:
-        name: ingress-nginx
-        chart_ref: ingress-nginx/ingress-nginx
-        chart_version: "{{ ingressControllerChartVersion }}"
-        release_namespace: ingress-nginx
-        create_namespace: true
-        values_files:
-          - /etc/kubernetes/utils/ingress-controller-values.yaml
+      - name: Установить Helm-чарт ingress-nginx [online]
+        when:
+            - ingress_controller_values.changed
+            - k8s_install_mode == "online"
+        kubernetes.core.helm:
+            name: ingress-nginx
+            chart_ref: ingress-nginx/ingress-nginx
+            chart_version: "{{ ingressControllerChartVersion }}"
+            release_namespace: ingress-nginx
+            create_namespace: true
+            values_files:
+                - /etc/kubernetes/utils/ingress-controller-values.yaml
 
-    - name: Установить Helm-чарт ingress-nginx [offline]
-      when:
-        - ingress_controller_values.changed
-        - k8s_install_mode == "offline"
-      kubernetes.core.helm:
-        name: ingress-nginx
-        chart_ref: "{{ playbook_dir }}/{{ k8s_offline_dir }}/utils/helm-charts/ingress-nginx-{{ ingressControllerChartVersion }}.tgz"
-        release_namespace: ingress-nginx
-        create_namespace: true
-        values_files:
-          - /etc/kubernetes/utils/ingress-controller-values.yaml
+      - name: Установить Helm-чарт ingress-nginx [offline]
+        when:
+            - ingress_controller_values.changed
+            - k8s_install_mode == "offline"
+        kubernetes.core.helm:
+            name: ingress-nginx
+            chart_ref: "{{ playbook_dir }}/{{ k8s_offline_dir }}/utils/helm-charts/ingress-nginx-{{ ingressControllerChartVersion }}.tgz"
+            release_namespace: ingress-nginx
+            create_namespace: true
+            values_files:
+                - /etc/kubernetes/utils/ingress-controller-values.yaml
 
 ## ArgoCD
 - name: ArgoCD
   when: argoCDEnable
   block:
-    - name: Добавить репозиторий ArgoCD [online]
-      when: k8s_install_mode == "online"
-      kubernetes.core.helm_repository:
-        name: argocd
-        repo_url: https://argoproj.github.io/argo-helm
+      - name: Добавить репозиторий ArgoCD [online]
+        when: k8s_install_mode == "online"
+        kubernetes.core.helm_repository:
+            name: argocd
+            repo_url: https://argoproj.github.io/argo-helm
 
-    - name: Скопировать файл значений ArgoCD
-      ansible.builtin.template:
-        src: argo-values.j2
-        dest: /etc/kubernetes/utils/argo-values.yaml
-        mode: '0600'
-      register: argo_values
+      - name: Скопировать файл значений ArgoCD
+        ansible.builtin.template:
+            src: argo-values.j2
+            dest: /etc/kubernetes/utils/argo-values.yaml
+            mode: "0600"
+        register: argo_values
 
-    - name: Установить Helm-чарт ArgoCD [online]
-      when:
-        - argo_values.changed
-        - k8s_install_mode == "online"
-      kubernetes.core.helm:
-        name: argocd
-        chart_ref: argocd/argo-cd
-        chart_version: "{{ argoCDChartVersion }}"
-        release_namespace: argocd
-        create_namespace: true
-        values_files:
-          - /etc/kubernetes/utils/argo-values.yaml
+      - name: Установить Helm-чарт ArgoCD [online]
+        when:
+            - argo_values.changed
+            - k8s_install_mode == "online"
+        kubernetes.core.helm:
+            name: argocd
+            chart_ref: argocd/argo-cd
+            chart_version: "{{ argoCDChartVersion }}"
+            release_namespace: argocd
+            create_namespace: true
+            values_files:
+                - /etc/kubernetes/utils/argo-values.yaml
 
-    - name: Установить Helm-чарт ArgoCD [offline]
-      when:
-        - argo_values.changed
-        - k8s_install_mode == "offline"
-      kubernetes.core.helm:
-        name: argocd
-        chart_ref: "{{ playbook_dir }}/{{ k8s_offline_dir }}/utils/helm-charts/argo-cd-{{ argoCDChartVersion }}.tgz"
-        release_namespace: argocd
-        create_namespace: true
-        values_files:
-          - /etc/kubernetes/utils/argo-values.yaml
+      - name: Установить Helm-чарт ArgoCD [offline]
+        when:
+            - argo_values.changed
+            - k8s_install_mode == "offline"
+        kubernetes.core.helm:
+            name: argocd
+            chart_ref: "{{ playbook_dir }}/{{ k8s_offline_dir }}/utils/helm-charts/argo-cd-{{ argoCDChartVersion }}.tgz"
+            release_namespace: argocd
+            create_namespace: true
+            values_files:
+                - /etc/kubernetes/utils/argo-values.yaml

@@ -15,29 +15,37 @@
 
 - name: Установить tigera-operator [online]
   when:
-    - tigera_operator_out.rc == 1
-    - k8s_install_mode == "online"
+      - tigera_operator_out.rc == 1
+      - k8s_install_mode == "online"
   ansible.builtin.shell: "kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/{{ tigera_operator_version }}/manifests/tigera-operator.yaml"
 
 - name: Скопировать tigera-operator.yaml [offline]
   when:
-    - tigera_operator_out.rc == 1
-    - k8s_install_mode == "offline"
+      - tigera_operator_out.rc == 1
+      - k8s_install_mode == "offline"
   ansible.builtin.copy:
-    src: "{{ playbook_dir }}/{{ k8s_offline_dir }}/cni/tigera-operator.yaml"
-    dest: /etc/kubernetes/tigera-operator.yaml
-    mode: "0644"
+      src: "{{ playbook_dir }}/{{ k8s_offline_dir }}/cni/tigera-operator.yaml"
+      dest: /etc/kubernetes/tigera-operator.yaml
+      mode: "0644"
 
 - name: Установить tigera-operator [offline]
   when:
-    - tigera_operator_out.rc == 1
-    - k8s_install_mode == "offline"
+      - tigera_operator_out.rc == 1
+      - k8s_install_mode == "offline"
   ansible.builtin.command: kubectl create -f /etc/kubernetes/tigera-operator.yaml
 
 - name: Скопировать calico-install.yaml
   ansible.builtin.template:
-    src: calico-install.j2
-    dest: /etc/kubernetes/calico-install.yaml
+      src: calico-install.j2
+      dest: /etc/kubernetes/calico-install.yaml
+
+- name: Дождаться готовности CRD tigera-operator
+  ansible.builtin.command: kubectl wait --for=condition=Established crd/installations.operator.tigera.io apiservers.operator.tigera.io --timeout=120s
+  changed_when: false
+  retries: 10
+  delay: 5
+  register: _crd_wait
+  until: _crd_wait.rc == 0
 
 - name: Установить Calico
   ansible.builtin.command: kubectl apply -f /etc/kubernetes/calico-install.yaml
