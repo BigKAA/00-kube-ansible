@@ -1,5 +1,6 @@
 k3s-playbook/files
 venv/
+.DS_Store
 .idea/
 .vscode/
 .serena/
