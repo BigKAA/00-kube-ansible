@@ -161,8 +161,8 @@ nodelocaldns_local_ip: 169.254.25.10
 # Для отключения HA уберите ha_cluster_virtual_ip
 
 # Виртуальный IP для HAProxy + Keepalived
-ha_cluster_virtual_ip: 192.168.218.140
-ha_cluster_virtual_port: 7443
+# ha_cluster_virtual_ip: 192.168.218.140
+# ha_cluster_virtual_port: 7443
 
 # ============================================================
 # [ОПЦИОНАЛЬНО] etcd

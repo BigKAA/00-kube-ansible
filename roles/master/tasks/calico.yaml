@@ -40,7 +40,7 @@
       dest: /etc/kubernetes/calico-install.yaml
 
 - name: Дождаться готовности CRD tigera-operator
-  ansible.builtin.command: kubectl wait --for=condition=Established crd/installations.operator.tigera.io apiservers.operator.tigera.io --timeout=120s
+  ansible.builtin.command: kubectl wait --for=condition=Established crd installations.operator.tigera.io apiservers.operator.tigera.io --timeout=120s
   changed_when: false
   retries: 10
   delay: 5
