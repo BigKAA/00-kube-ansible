@@ -45,9 +45,14 @@ mode: ipvs
 # KubeletConfiguration — настройки kubelet
 apiVersion: kubelet.config.k8s.io/v1beta1
 kind: KubeletConfiguration
+{% if cni == 'cilium' and cilium_nodelocaldns | default(true) | bool %}
+# clusterDNS не задаётся — kubeadm вычислит автоматически (первый IP из serviceSubnet).
+# Для Cilium перехват DNS выполняется через CiliumLocalRedirectPolicy.
+{% else %}
 # DNS — используем NodeLocalDNS
 clusterDNS:
 - {{ nodelocaldns_local_ip }}
+{% endif %}
 # Резервирование ресурсов для системных демонов
 {% if system_reserved is defined and system_reserved %}
 systemReserved:

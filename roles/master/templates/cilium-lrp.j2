@@ -1,0 +1,25 @@
+---
+# CiliumLocalRedirectPolicy — перехват DNS-трафика к сервису kube-dns
+# и перенаправление на локальный node-local-dns pod через eBPF.
+# https://docs.cilium.io/en/stable/network/kubernetes/local-redirect-policy/#node-local-dns-cache
+apiVersion: "cilium.io/v2"
+kind: CiliumLocalRedirectPolicy
+metadata:
+  name: "nodelocaldns"
+  namespace: kube-system
+spec:
+  redirectFrontend:
+    serviceMatcher:
+      serviceName: kube-dns
+      namespace: kube-system
+  redirectBackend:
+    localEndpointSelector:
+      matchLabels:
+        k8s-app: nodelocaldns
+    toPorts:
+      - port: "53"
+        name: dns
+        protocol: UDP
+      - port: "53"
+        name: dns-tcp
+        protocol: TCP

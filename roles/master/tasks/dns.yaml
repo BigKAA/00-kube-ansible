@@ -19,10 +19,83 @@
   ansible.builtin.set_fact:
     coredns_ip: "{{ dns_ip.stdout }}"
 
-- name: Скопировать манифест nodelocaldns
-  ansible.builtin.template:
-    src: nodelocaldns-daemonset.j2
-    dest: /etc/kubernetes/nodelocaldns-daemonset.yaml
+# === Cilium: NodeLocal DNS через CiliumLocalRedirectPolicy ===
+# При использовании Cilium стандартный механизм перехвата через iptables
+# не работает — Cilium обрабатывает service resolution на уровне eBPF
+# ещё до срабатывания iptables. Вместо этого node-local-dns разворачивается
+# в pod namespace (hostNetwork: false), а перехват DNS-трафика выполняется
+# через CiliumLocalRedirectPolicy.
+# https://docs.cilium.io/en/stable/network/kubernetes/local-redirect-policy/#node-local-dns-cache
+- name: NodeLocal DNS для Cilium (LRP)
+  when: cni == 'cilium' and cilium_nodelocaldns | default(true) | bool
+  block:
 
-- name: Развернуть nodelocaldns
-  ansible.builtin.command: kubectl apply -f /etc/kubernetes/nodelocaldns-daemonset.yaml
+    # kube-dns-upstream — отдельный ClusterIP на CoreDNS поды.
+    # Нужен, чтобы node-local-dns мог обращаться к CoreDNS в обход LRP.
+    # LRP перехватывает только kube-dns, а не kube-dns-upstream.
+    - name: Создать манифест kube-dns-upstream Service
+      ansible.builtin.copy:
+        dest: /etc/kubernetes/kube-dns-upstream.yaml
+        mode: '0644'
+        content: |
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: kube-dns-upstream
+            namespace: kube-system
+            labels:
+              k8s-app: kube-dns
+              kubernetes.io/name: "KubeDNSUpstream"
+          spec:
+            ports:
+            - name: dns
+              port: 53
+              protocol: UDP
+              targetPort: 53
+            - name: dns-tcp
+              port: 53
+              protocol: TCP
+              targetPort: 53
+            selector:
+              k8s-app: kube-dns
+
+    - name: Создать kube-dns-upstream Service
+      ansible.builtin.command: kubectl apply -f /etc/kubernetes/kube-dns-upstream.yaml
+
+    - name: Получить ClusterIP kube-dns-upstream
+      ansible.builtin.command: "kubectl -n kube-system get svc kube-dns-upstream -o jsonpath='{.spec.clusterIP}'"
+      changed_when: false
+      register: upstream_dns_result
+
+    - name: Сохранить upstream DNS IP
+      ansible.builtin.set_fact:
+        coredns_upstream_ip: "{{ upstream_dns_result.stdout }}"
+
+    - name: Скопировать манифест nodelocaldns (Cilium)
+      ansible.builtin.template:
+        src: nodelocaldns-cilium.j2
+        dest: /etc/kubernetes/nodelocaldns-daemonset.yaml
+
+    - name: Развернуть nodelocaldns (Cilium)
+      ansible.builtin.command: kubectl apply -f /etc/kubernetes/nodelocaldns-daemonset.yaml
+
+    - name: Скопировать CiliumLocalRedirectPolicy для DNS
+      ansible.builtin.template:
+        src: cilium-lrp.j2
+        dest: /etc/kubernetes/cilium-dns-lrp.yaml
+
+    - name: Применить CiliumLocalRedirectPolicy
+      ansible.builtin.command: kubectl apply -f /etc/kubernetes/cilium-dns-lrp.yaml
+
+# === Calico / Flannel: стандартный NodeLocal DNS через hostNetwork ===
+- name: NodeLocal DNS для Calico/Flannel
+  when: cni != 'cilium'
+  block:
+
+    - name: Скопировать манифест nodelocaldns
+      ansible.builtin.template:
+        src: nodelocaldns-daemonset.j2
+        dest: /etc/kubernetes/nodelocaldns-daemonset.yaml
+
+    - name: Развернуть nodelocaldns
+      ansible.builtin.command: kubectl apply -f /etc/kubernetes/nodelocaldns-daemonset.yaml

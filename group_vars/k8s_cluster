@@ -138,6 +138,12 @@ encapsulation: "IPIPCrossSubnet"
 # https://docs.cilium.io/en/stable/network/kubernetes/kubeproxy-free/
 cilium_kube_proxy_replacement: false
 
+# NodeLocal DNS Cache через CiliumLocalRedirectPolicy.
+# При true — DNS-трафик к kube-dns перехватывается через eBPF и
+# перенаправляется на локальный node-local-dns pod.
+# https://docs.cilium.io/en/stable/network/kubernetes/local-redirect-policy/#node-local-dns-cache
+cilium_nodelocaldns: true
+
 # ============================================================
 # [ОПЦИОНАЛЬНО] Kubelet
 # ============================================================

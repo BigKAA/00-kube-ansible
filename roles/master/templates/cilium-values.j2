@@ -39,6 +39,17 @@ k8sServicePort: "6443"
 kubeProxyReplacement: false
 {% endif %}
 
+# --- NodeLocal DNS Cache через Cilium Local Redirect Policy ---
+# https://docs.cilium.io/en/stable/network/kubernetes/local-redirect-policy/#node-local-dns-cache
+localRedirectPolicies:
+  enabled: {{ cilium_nodelocaldns | default(true) | bool }}
+{% if cilium_nodelocaldns | default(true) | bool and not (cilium_kube_proxy_replacement | default(false) | bool) %}
+# При сохранённом kube-proxy требуется socketLB для перехвата DNS-трафика
+# от подов и перенаправления через CiliumLocalRedirectPolicy.
+socketLB:
+  enabled: true
+{% endif %}
+
 # --- Оператор Cilium ---
 operator:
   replicas: 1

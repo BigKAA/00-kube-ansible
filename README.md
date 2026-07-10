@@ -226,6 +226,9 @@ cni: calico # calico, flannel или cilium
 Для Cilium с заменой kube-proxy на eBPF-датаплейн установите
 `cilium_kube_proxy_replacement: true` в `group_vars/k8s_cluster`.
 
+Подробное описание установки и особенностей Cilium
+(включая NodeLocal DNS через CiliumLocalRedirectPolicy) — в [CILIUM.md](CILIUM.md).
+
 ## Режимы установки
 
 Playbook поддерживает три режима установки пакетов Kubernetes, управляемых
