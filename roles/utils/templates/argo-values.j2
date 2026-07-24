@@ -2,6 +2,17 @@ crds:
   keep: false
 
 global:
+  # Переопределение registry/образа для всех компонентов ArgoCD
+  # (controller/server/repoServer/applicationSet наследуют global.image).
+  image:
+    repository: {{ argocdImageRegistry }}/{{ argocdImageRepository }}
+  # Глобальный pull-secret для приватного registry
+{% if (utils_global_image_pull_secrets | default([])) | length > 0 %}
+  imagePullSecrets:
+{% for s in utils_global_image_pull_secrets %}
+    - name: {{ s.name }}
+{% endfor %}
+{% endif %}
   logging:
     format: json
     # -- Set the global logging level. One of: `debug`, `info`, `warn` or `error`
@@ -35,6 +46,17 @@ configs:
 ## Redis
 redis:
   enabled: true
+  # Переопределение образа Redis (для закрытого окружения)
+  image:
+    repository: {{ argocdRedisImageRegistry }}/{{ argocdRedisImageRepository }}
+    tag: {{ argocdRedisImageTag }}
+
+## Dex-server
+# Переопределение образа dex (для закрытого окружения)
+dex:
+  image:
+    repository: {{ argocdDexImageRegistry }}/{{ argocdDexImageRepository }}
+    tag: {{ argocdDexImageTag }}
 
 ## Server
 server:

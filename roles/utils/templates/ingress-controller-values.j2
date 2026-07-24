@@ -1,4 +1,11 @@
 controller:
+  # Переопределение образа controller (registry/имя/тег задаются в group_vars).
+  # Позволяет тянуть образ из приватного registry.
+  image:
+    registry: {{ ingressNginxImageRegistry }}
+    image: {{ ingressNginxImageRepository }}
+    tag: {{ ingressNginxImageTag }}
+
   # This section refers to the creation of the IngressClass resource
   # IngressClass resources are supported since k8s >= 1.18 and required since k8s >= 1.19
   ingressClassResource:
@@ -42,3 +49,9 @@ controller:
   priorityClassName: "medium-priority"
 
 revisionHistoryLimit: 2
+{% if (utils_global_image_pull_secrets | default([])) | length > 0 %}
+imagePullSecrets:
+{% for s in utils_global_image_pull_secrets %}
+  - name: {{ s.name }}
+{% endfor %}
+{% endif %}

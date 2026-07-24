@@ -226,7 +226,11 @@ certManagerEnableGatewayAPI: false
 # ============================================================
 
 metricsServerEnable: true
-metricsServerImage: "registry.k8s.io/metrics-server/metrics-server:v0.8.1"
+# Образ metrics-server (registry/репозиторий/тег).
+# По умолчанию берётся из roles/utils/defaults/main.yaml — здесь можно переопределить.
+# metricsServerImageRegistry: "registry.k8s.io"
+# metricsServerImageRepository: "metrics-server/metrics-server"
+# metricsServerImageTag: "v0.8.1"
 
 # ============================================================
 # [ОБЯЗАТЕЛЬНО] Утилиты — MetalLB
@@ -282,6 +286,46 @@ argoCDAdminPassword: "$2a$10$L8OqGEFh3a0yxwfIha4DLuyq6GIYP119hlFM5wlSEsI.nviVAv/
 argoCDEnableServerSideDiff: "true"
 argoCDTrackingMethod: "annotation"
 argoCDIgnoreAggregateRoles: "true"
+
+# ============================================================
+# [ОПЦИОНАЛЬНО] Приватный registry (закрытое окружение)
+# ============================================================
+# Позволяет устанавливать образы утилит из закрытого registry.
+#
+# При utils_registry.enabled: true:
+#   - создаётся Kubernetes Secret(docker-registry) во всех неймспейсах
+#     утилит и подключается ко всем чартам через imagePullSecrets;
+#   - выполняется `helm registry login` для приватных OCI-чартов.
+#
+# Дефолты всех *Image* переменных — в roles/utils/defaults/main.yaml.
+# Для использования приватного registry переопределите нужные *ImageRegistry
+# ниже (например, на harbor.corp.local/library).
+#
+# utils_registry:
+#   enabled: true
+#   server: "harbor.corp.local:8443"
+#   username: "robot$pull"
+#   password: "CHANGE_ME"
+#   email: ""
+#   pull_secret_name: "utils-pull-secret"
+#   namespaces:
+#     - kube-system
+#     - cert-manager
+#     - metallb
+#     - ingress-nginx
+#     - argocd
+#     - envoy-gateway-system
+#   helm_oci_login: true
+#
+# Пример переопределения registry для отдельных утилит:
+# certManagerImageRegistry: "harbor.corp.local/library"
+# metallbImageRegistry: "harbor.corp.local/library"
+# ingressNginxImageRegistry: "harbor.corp.local/library"
+# argocdImageRegistry: "harbor.corp.local/library"
+# reloaderImageRegistry: "harbor.corp.local/library"
+# envoyGatewayImageRegistry: "harbor.corp.local/library"
+# nfsCsiImageRegistry: "harbor.corp.local/library"
+# metricsServerImageRegistry: "harbor.corp.local/library"
 
 # ============================================================
 # [ОПЦИОНАЛЬНО] Offline-режим (air-gap)

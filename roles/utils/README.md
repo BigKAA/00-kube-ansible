@@ -18,38 +18,96 @@
 
 ## Переменные
 
-| Переменная | По умолчанию | Описание |
-|------------|-------------|----------|
-| `helmVersion` | `v4.0.4` | Версия Helm |
-| `nfsEnable` | `true` | Включить NFS CSI Driver |
-| `nfsCSIDriverVersion` | `4.13.2` | Версия NFS CSI Driver |
-| `nfsServerHost` | `192.168.218.170` | Адрес NFS сервера |
-| `nfsServerPath` | `/var/nfs-disk` | Путь на NFS сервере |
-| `nfsStorageClassName` | `managed-nfs-storage` | Имя StorageClass |
-| `nfsReclaimPolicy` | `Delete` | Политика удаления PV |
-| `nfsArchiveOnDelete` | `false` | Архивировать при удалении |
-| `nfsMountOptions` | `["nfsvers=4.1"]` | Опции монтирования NFS |
-| `certManagerEnable` | `true` | Включить cert-manager |
-| `certManagerVersion` | `v1.19.2` | Версия cert-manager |
-| `certManagerEnableGatewayAPI` | `false` | Включить поддержку Gateway API |
-| `metricsServerEnable` | `true` | Включить Metrics Server |
-| `metallbEnable` | `true` | Включить MetalLB |
-| `metallbChartVersion` | `0.15.3` | Версия MetalLB Helm chart |
-| `metallbAddresses` | см. group_vars | Диапазон IP для MetalLB |
-| `ingressControllerEnable` | `true` | Включить Ingress Nginx |
-| `ingressControllerChartVersion` | `4.12.0` | Версия Ingress Nginx chart |
-| `envoyGatewayEnable` | `false` | Включить Envoy Gateway |
-| `envoyGatewayVersion` | `v1.8.0` | Версия Envoy Gateway |
-| `envoyGatewayReplicas` | `1` | Количество реплик Envoy Gateway |
-| `envoyGatewayLoadBalancerIP` | `192.168.218.180` | IP для EnvoyProxy Service |
-| `envoyGatewayDomain` | `kryukov.lan` | Домен для Gateway TLS |
-| `reloaderEnable` | `false` | Включить Stakater Reloader |
-| `reloaderChartVersion` | `2.2.11` | Версия Reloader chart |
-| `reloaderReloadStrategy` | `annotations` | Стратегия перезагрузки |
-| `argoCDEnable` | `true` | Включить ArgoCD |
-| `argoCDChartVersion` | `9.5.14` | Версия ArgoCD chart |
-| `argoCDURL` | `argocd.kryukov.local` | URL ArgoCD |
-| `argoCDAdminPassword` | см. group_vars | Bcrypt hash пароля ArgoCD |
+| Переменная                      | По умолчанию           | Описание                        |
+| ------------------------------- | ---------------------- | ------------------------------- |
+| `helmVersion`                   | `v4.0.4`               | Версия Helm                     |
+| `nfsEnable`                     | `true`                 | Включить NFS CSI Driver         |
+| `nfsCSIDriverVersion`           | `4.13.2`               | Версия NFS CSI Driver           |
+| `nfsServerHost`                 | `192.168.218.170`      | Адрес NFS сервера               |
+| `nfsServerPath`                 | `/var/nfs-disk`        | Путь на NFS сервере             |
+| `nfsStorageClassName`           | `managed-nfs-storage`  | Имя StorageClass                |
+| `nfsReclaimPolicy`              | `Delete`               | Политика удаления PV            |
+| `nfsArchiveOnDelete`            | `false`                | Архивировать при удалении       |
+| `nfsMountOptions`               | `["nfsvers=4.1"]`      | Опции монтирования NFS          |
+| `certManagerEnable`             | `true`                 | Включить cert-manager           |
+| `certManagerVersion`            | `v1.19.2`              | Версия cert-manager             |
+| `certManagerEnableGatewayAPI`   | `false`                | Включить поддержку Gateway API  |
+| `metricsServerEnable`           | `true`                 | Включить Metrics Server         |
+| `metallbEnable`                 | `true`                 | Включить MetalLB                |
+| `metallbChartVersion`           | `0.15.3`               | Версия MetalLB Helm chart       |
+| `metallbAddresses`              | см. group_vars         | Диапазон IP для MetalLB         |
+| `ingressControllerEnable`       | `true`                 | Включить Ingress Nginx          |
+| `ingressControllerChartVersion` | `4.12.0`               | Версия Ingress Nginx chart      |
+| `envoyGatewayEnable`            | `false`                | Включить Envoy Gateway          |
+| `envoyGatewayVersion`           | `v1.8.0`               | Версия Envoy Gateway            |
+| `envoyGatewayReplicas`          | `1`                    | Количество реплик Envoy Gateway |
+| `envoyGatewayLoadBalancerIP`    | `192.168.218.180`      | IP для EnvoyProxy Service       |
+| `envoyGatewayDomain`            | `kryukov.lan`          | Домен для Gateway TLS           |
+| `reloaderEnable`                | `false`                | Включить Stakater Reloader      |
+| `reloaderChartVersion`          | `2.2.11`               | Версия Reloader chart           |
+| `reloaderReloadStrategy`        | `annotations`          | Стратегия перезагрузки          |
+| `argoCDEnable`                  | `true`                 | Включить ArgoCD                 |
+| `argoCDChartVersion`            | `9.5.14`               | Версия ArgoCD chart             |
+| `argoCDURL`                     | `argocd.kryukov.local` | URL ArgoCD                      |
+| `argoCDAdminPassword`           | см. group_vars         | Bcrypt hash пароля ArgoCD       |
+
+## Приватный registry (закрытое окружение)
+
+Роль поддерживает установку образов из закрытого registry. Включается
+блоком `utils_registry` (см. `roles/utils/defaults/main.yaml`):
+
+```yaml
+utils_registry:
+    enabled: true
+    server: "harbor.corp.local:8443"
+    username: "robot$pull"
+    password: "CHANGE_ME"
+    pull_secret_name: "utils-pull-secret"
+    namespaces:
+        [
+            kube-system,
+            cert-manager,
+            metallb,
+            ingress-nginx,
+            argocd,
+            envoy-gateway-system,
+        ]
+    helm_oci_login: true
+```
+
+При `enabled: true`:
+
+- создаётся `Secret(docker-registry)` во всех неймспейсах из `namespaces`;
+- Secret автоматически подключается ко всем утилитам через
+  `imagePullSecrets` / `global.imagePullSecrets`;
+- выполняется `helm registry login` для приватных OCI-чартов
+  (cert-manager, envoy-gateway) — отключается `helm_oci_login: false`.
+
+### Переопределение registry/образа для каждой программы
+
+Для каждой утилиты можно отдельно задать registry и путь к образу.
+Дефолты (upstream) — в `roles/utils/defaults/main.yaml`.
+
+| Переменная                                               | По умолчанию                                             | Куда подставляется                             |
+| -------------------------------------------------------- | -------------------------------------------------------- | ---------------------------------------------- |
+| `metricsServerImage{Registry,Repository,Tag}`            | registry.k8s.io / metrics-server/metrics-server / v0.8.1 | raw-манифест                                   |
+| `certManagerImageRegistry` / `certManagerImageNamespace` | quay.io / jetstack                                       | top-level `imageRegistry` / `imageNamespace`   |
+| `certManagerChartRef`                                    | oci://quay.io/jetstack/charts/cert-manager               | Helm OCI chart                                 |
+| `metallbImageRegistry` / `metallbImageRepository`        | quay.io / metallb                                        | `controller/speaker.image.repository`          |
+| `metallbFrrK8sImage{Registry,Repository,Tag}`            | quay.io / metallb/frr-k8s / v0.0.25                      | `frr-k8s.frrk8s.image.{repository,tag}`        |
+| `metallbFrrImage{Registry,Repository,Tag}`               | quay.io / frrouting/frr / 10.4.3                         | `frr.image.{repository,tag}`                   |
+| `ingressNginxImage{Registry,Repository,Tag}`             | registry.k8s.io / ingress-nginx/controller / v1.15.1     | `controller.image.{registry,image,tag}`        |
+| `argocdImageRegistry` / `argocdImageRepository`          | quay.io / argoproj/argocd                                | `global.image.repository`                      |
+| `argocdRedisImage{Registry,Repository,Tag}`              | ecr-public.aws.com / docker/library/redis / 8.2.3-alpine | `redis.image.{repository,tag}`                 |
+| `argocdDexImage{Registry,Repository,Tag}`                | ghcr.io / dexidp/dex / v2.45.1                           | `dex.image.{repository,tag}`                   |
+| `reloaderImageRegistry` / `reloaderImageRepository`      | ghcr.io / stakater/reloader                              | top-level `imageRegistry` + `image.repository` |
+| `envoyGatewayImageRegistry`                              | docker.io                                                | `global.imageRegistry`                         |
+| `envoyRatelimitImage{Registry,Repository,Tag}`           | docker.io / envoyproxy/ratelimit / 1e50889b              | `global.images.ratelimit.image`                |
+| `envoyGatewayChartRef`                                   | oci://docker.io/envoyproxy/gateway-helm                  | Helm OCI chart                                 |
+| `nfsCsiImageRegistry` / `nfsCsiImageRepository`          | registry.k8s.io / sig-storage                            | `image.baseRepo` + `image.nfs.repository`      |
+
+> Комплементарный способ для полностью прозрачного air-gap — containerd
+> mirror configuration в роли `prepare-hosts` (redirect всех registry).
 
 ## Offline-режим
 

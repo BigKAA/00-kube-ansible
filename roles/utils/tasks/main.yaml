@@ -1,3 +1,11 @@
+### Приватный registry: значения по умолчанию
+# imagePullSecrets остаются пустыми, если приватный registry выключен,
+# чтобы не ломать helm values шаблоны.
+- name: Инициализировать imagePullSecrets пустым списком
+  ansible.builtin.set_fact:
+      utils_global_image_pull_secrets: []
+  when: not (utils_registry.enabled | default(false) | bool)
+
 ### Helm
 - name: Установить Helm [online]
   when: k8s_install_mode == "online"
@@ -79,6 +87,67 @@
   ansible.builtin.command: kubectl apply -f /etc/kubernetes/utils/priorityclass.yaml
   when: priority_class.changed
 
+### Приватный registry (закрытое окружение)
+# Создаёт imagePullSecret в неймспейсах утилит и (опционально)
+# выполняет `helm registry login` для приватных OCI-чартов.
+- name: Подготовить приватный registry
+  when: utils_registry.enabled | default(false) | bool
+  block:
+      - name: Убедиться, что неймспейсы для pull-secret существуют
+        ansible.builtin.command: "kubectl get namespace {{ item }} --ignore-not-found"
+        loop: "{{ utils_registry.namespaces }}"
+        changed_when: false
+
+      - name: Сформировать dockerconfigjson для pull-secret (один для всех ns)
+        ansible.builtin.set_fact:
+            utils_pull_secret_dockerconfig: "{{ {
+              'auths': {
+                (utils_registry.server): {
+                  'username': utils_registry.username,
+                  'password': utils_registry.password,
+                  'email': utils_registry.email | default(''),
+                  'auth': (utils_registry.username ~ ':' ~ utils_registry.password) | b64encode
+                }
+              }
+            } | to_json }}"
+        no_log: true
+
+      - name: Сгенерировать манифест pull-secret для каждого неймспейса
+        ansible.builtin.template:
+            src: image-pull-secrets.yaml.j2
+            dest: "/etc/kubernetes/utils/pull-secret-{{ item }}.yaml"
+            mode: "0600"
+            vars:
+                utils_pull_secret_namespace: "{{ item }}"
+        loop: "{{ utils_registry.namespaces }}"
+        no_log: true
+        register: utils_pull_secret_manifests
+
+      - name: Применить pull-secret в неймспейсах
+        ansible.builtin.command: "kubectl apply -f /etc/kubernetes/utils/pull-secret-{{ item }}.yaml"
+        loop: "{{ utils_registry.namespaces }}"
+        when: utils_pull_secret_manifests.changed | bool
+        no_log: true
+
+      - name: Список imagePullSecrets для helm values
+        ansible.builtin.set_fact:
+            utils_global_image_pull_secrets:
+                - name: "{{ utils_registry.pull_secret_name }}"
+
+      - name: Helm registry login для приватных OCI-чартов
+        ansible.builtin.command: >
+            helm registry login {{ utils_registry.server }}
+            --username '{{ utils_registry.username }}'
+            --password '{{ utils_registry.password }}'
+        when: utils_registry.helm_oci_login | default(true) | bool
+        no_log: true
+        changed_when: false
+
+  rescue:
+      - name: Ошибка подготовки приватного registry
+        ansible.builtin.fail:
+            msg: "Не удалось подготовить приватный registry. Проверьте utils_registry.server/username/password."
+
 ### Cert-manager (OCI Helm chart)
 - name: Установить cert-manager
   when: certManagerEnable
@@ -87,11 +156,17 @@
         when: k8s_install_mode == "online"
         kubernetes.core.helm:
             name: cert-manager
-            chart_ref: "oci://quay.io/jetstack/charts/cert-manager"
+            chart_ref: "{{ certManagerChartRef }}"
             chart_version: "{{ certManagerVersion }}"
             release_namespace: cert-manager
             create_namespace: true
             values:
+                # top-level imagePullSecrets (глобальный pull-secret)
+                imagePullSecrets: "{{ utils_global_image_pull_secrets }}"
+                # top-level переопределение registry для всех компонентов.
+                # NOTE: image.registry — DEPRECATED, используем imageRegistry.
+                imageRegistry: "{{ certManagerImageRegistry }}"
+                imageNamespace: "{{ certManagerImageNamespace }}"
                 crds:
                     enabled: true
                 global:
@@ -109,6 +184,9 @@
             release_namespace: cert-manager
             create_namespace: true
             values:
+                imagePullSecrets: "{{ utils_global_image_pull_secrets }}"
+                imageRegistry: "{{ certManagerImageRegistry }}"
+                imageNamespace: "{{ certManagerImageNamespace }}"
                 crds:
                     enabled: true
                 global:
@@ -187,6 +265,12 @@
             chart_version: "{{ nfsCSIDriverVersion }}"
             release_namespace: kube-system
             values:
+                # top-level pull-secret + переопределение registry (image.baseRepo)
+                imagePullSecrets: "{{ utils_global_image_pull_secrets }}"
+                image:
+                    baseRepo: "{{ nfsCsiImageRegistry }}"
+                    nfs:
+                        repository: "{{ nfsCsiImageRegistry }}/{{ nfsCsiImageRepository }}/nfsplugin"
                 controller:
                     runOnControlPlane: true
                     priorityClassName: system-cluster-critical
@@ -210,6 +294,11 @@
             chart_ref: "/tmp/csi-driver-nfs-{{ nfsCSIDriverVersion }}.tgz"
             release_namespace: kube-system
             values:
+                imagePullSecrets: "{{ utils_global_image_pull_secrets }}"
+                image:
+                    baseRepo: "{{ nfsCsiImageRegistry }}"
+                    nfs:
+                        repository: "{{ nfsCsiImageRegistry }}/{{ nfsCsiImageRepository }}/nfsplugin"
                 controller:
                     runOnControlPlane: true
                     priorityClassName: system-cluster-critical
@@ -231,6 +320,11 @@
             chart_ref: "{{ playbook_dir }}/../{{ k8s_offline_dir }}/utils/helm-charts/csi-driver-nfs-{{ nfsCSIDriverVersion }}.tgz"
             release_namespace: kube-system
             values:
+                imagePullSecrets: "{{ utils_global_image_pull_secrets }}"
+                image:
+                    baseRepo: "{{ nfsCsiImageRegistry }}"
+                    nfs:
+                        repository: "{{ nfsCsiImageRegistry }}/{{ nfsCsiImageRepository }}/nfsplugin"
                 controller:
                     runOnControlPlane: true
                     priorityClassName: system-cluster-critical
@@ -271,6 +365,11 @@
             release_namespace: kube-system
             create_namespace: false
             values:
+                # top-level pull-secret + registry (image.repository = полный путь)
+                imagePullSecrets: "{{ utils_global_image_pull_secrets }}"
+                imageRegistry: "{{ reloaderImageRegistry }}"
+                image:
+                    repository: "{{ reloaderImageRegistry }}/{{ reloaderImageRepository }}"
                 reloader:
                     reloadStrategy: "{{ reloaderReloadStrategy }}"
 
@@ -282,6 +381,10 @@
             release_namespace: kube-system
             create_namespace: false
             values:
+                imagePullSecrets: "{{ utils_global_image_pull_secrets }}"
+                imageRegistry: "{{ reloaderImageRegistry }}"
+                image:
+                    repository: "{{ reloaderImageRegistry }}/{{ reloaderImageRepository }}"
                 reloader:
                     reloadStrategy: "{{ reloaderReloadStrategy }}"
 
@@ -326,12 +429,27 @@
             release_namespace: metallb
             create_namespace: true
             values:
+                # top-level pull-secret + переопределение registry (полные пути)
+                imagePullSecrets: "{{ utils_global_image_pull_secrets }}"
                 controller:
                     image:
+                        repository: "{{ metallbImageRegistry }}/{{ metallbImageRepository }}/controller"
                         pullPolicy: IfNotPresent
                 speaker:
                     image:
+                        repository: "{{ metallbImageRegistry }}/{{ metallbImageRepository }}/speaker"
                         pullPolicy: IfNotPresent
+                # frr-k8s subchart (основной BGP-бэкенд 0.16.x)
+                frr-k8s:
+                    frrk8s:
+                        image:
+                            repository: "{{ metallbFrrK8sImageRegistry }}/{{ metallbFrrK8sImageRepository }}"
+                            tag: "{{ metallbFrrK8sImageTag }}"
+                # FRR sidecar внутри frr-k8s DaemonSet (DEPRECATED режим frr)
+                frr:
+                    image:
+                        repository: "{{ metallbFrrImageRegistry }}/{{ metallbFrrImageRepository }}"
+                        tag: "{{ metallbFrrImageTag }}"
 
       - name: Установить Helm-чарт MetalLB [online, local chart]
         when:
@@ -343,12 +461,24 @@
             release_namespace: metallb
             create_namespace: true
             values:
+                imagePullSecrets: "{{ utils_global_image_pull_secrets }}"
                 controller:
                     image:
+                        repository: "{{ metallbImageRegistry }}/{{ metallbImageRepository }}/controller"
                         pullPolicy: IfNotPresent
                 speaker:
                     image:
+                        repository: "{{ metallbImageRegistry }}/{{ metallbImageRepository }}/speaker"
                         pullPolicy: IfNotPresent
+                frr-k8s:
+                    frrk8s:
+                        image:
+                            repository: "{{ metallbFrrK8sImageRegistry }}/{{ metallbFrrK8sImageRepository }}"
+                            tag: "{{ metallbFrrK8sImageTag }}"
+                frr:
+                    image:
+                        repository: "{{ metallbFrrImageRegistry }}/{{ metallbFrrImageRepository }}"
+                        tag: "{{ metallbFrrImageTag }}"
 
       - name: Установить Helm-чарт MetalLB [offline]
         when: k8s_install_mode == "offline"
@@ -358,12 +488,24 @@
             release_namespace: metallb
             create_namespace: true
             values:
+                imagePullSecrets: "{{ utils_global_image_pull_secrets }}"
                 controller:
                     image:
+                        repository: "{{ metallbImageRegistry }}/{{ metallbImageRepository }}/controller"
                         pullPolicy: IfNotPresent
                 speaker:
                     image:
+                        repository: "{{ metallbImageRegistry }}/{{ metallbImageRepository }}/speaker"
                         pullPolicy: IfNotPresent
+                frr-k8s:
+                    frrk8s:
+                        image:
+                            repository: "{{ metallbFrrK8sImageRegistry }}/{{ metallbFrrK8sImageRepository }}"
+                            tag: "{{ metallbFrrK8sImageTag }}"
+                frr:
+                    image:
+                        repository: "{{ metallbFrrImageRegistry }}/{{ metallbFrrImageRepository }}"
+                        tag: "{{ metallbFrrImageTag }}"
 
       - name: Проверить статус MetalLB
         ansible.builtin.command: kubectl -n metallb get deployment.apps/metallb-controller -o jsonpath='{.status.readyReplicas}'
@@ -391,12 +533,21 @@
         when: k8s_install_mode == "online"
         kubernetes.core.helm:
             name: eg
-            chart_ref: "oci://docker.io/envoyproxy/gateway-helm"
+            chart_ref: "{{ envoyGatewayChartRef }}"
             chart_version: "{{ envoyGatewayVersion }}"
             release_namespace: envoy-gateway-system
             create_namespace: true
             skip_crds: false
             values:
+                # global.imageRegistry + imagePullSecrets переопределяют registry
+                # и pull-secret для envoyGateway/envoyProxy/ratelimit
+                global:
+                    imageRegistry: "{{ envoyGatewayImageRegistry }}"
+                    imagePullSecrets: "{{ utils_global_image_pull_secrets }}"
+                    images:
+                        # Полная строка образа ratelimit (тег из переменной)
+                        ratelimit:
+                            image: "{{ envoyRatelimitImageRegistry }}/{{ envoyRatelimitImageRepository }}:{{ envoyRatelimitImageTag }}"
                 deployment:
                     priorityClassName: high-priority
                     replicas: "{{ envoyGatewayReplicas }}"
@@ -410,6 +561,12 @@
             create_namespace: true
             skip_crds: false
             values:
+                global:
+                    imageRegistry: "{{ envoyGatewayImageRegistry }}"
+                    imagePullSecrets: "{{ utils_global_image_pull_secrets }}"
+                    images:
+                        ratelimit:
+                            image: "{{ envoyRatelimitImageRegistry }}/{{ envoyRatelimitImageRepository }}:{{ envoyRatelimitImageTag }}"
                 deployment:
                     priorityClassName: high-priority
                     replicas: "{{ envoyGatewayReplicas }}"

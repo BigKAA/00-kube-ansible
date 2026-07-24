@@ -1,0 +1,128 @@
+---
+# ============================================================
+# Defaults для роли utils
+# ============================================================
+# Образы контейнеров и Helm-чарты по умолчанию берутся из upstream
+# registry (registry.k8s.io, quay.io, docker.io, ghcr.io).
+#
+# Для установки из закрытого окружения:
+#   1. Включите блок `utils_registry` (enabled: true) — будет создан
+#      Kubernetes Secret(docker-registry) для аутентификации и
+#      выполнен `helm registry login` для OCI-чартов.
+#   2. Переопределите registry/repository/tag нужных программ на свой
+#      приватный registry (см. переменные *ImageRegistry ниже).
+# ============================================================
+
+# ------------------------------------------------------------
+# Приватный registry (закрытое окружение)
+# ------------------------------------------------------------
+# При enabled: true:
+#   - создаётся Kubernetes Secret типа docker-registry во всех
+#     неймспейсах из `utils_registry.namespaces`;
+#   - Secret автоматически подключается ко всем устанавливаемым
+#     утилитам через imagePullSecrets / global.imagePullSecrets;
+#   - при `helm_oci_login: true` выполняется `helm registry login`
+#     для приватных OCI-чартов (cert-manager, envoy-gateway).
+utils_registry:
+  enabled: false
+  # Адрес registry, например: harbor.corp.local:8443
+  server: ""
+  username: ""
+  password: ""
+  email: ""
+  # Имя создаваемого Kubernetes Secret
+  pull_secret_name: "utils-pull-secret"
+  # Неймспейсы, где будет создан Secret
+  namespaces:
+    - kube-system
+    - cert-manager
+    - metallb
+    - ingress-nginx
+    - argocd
+    - envoy-gateway-system
+  # Выполнять `helm registry login` для OCI-чартов
+  helm_oci_login: true
+
+# ------------------------------------------------------------
+# Образы контейнеров для каждой программы
+# ------------------------------------------------------------
+# Для каждой утилиты можно отдельно задать registry и путь к образу.
+# По умолчанию — upstream-значения.
+# Ключи helm-values сверены с реальными чартами через `helm show values`.
+
+# --- Metrics Server (raw-манифест) ---
+# Полный образ: <registry>/<repository>:<tag>
+metricsServerImageRegistry: "registry.k8s.io"
+metricsServerImageRepository: "metrics-server/metrics-server"
+metricsServerImageTag: "v0.8.1"
+
+# --- Cert-manager (Helm OCI chart) ---
+# Чарт использует top-level imageRegistry + imageNamespace.
+# Все компоненты (controller/webhook/cainjector/acmesolver) наследуют их.
+# NOTE: ключ image.registry — DEPRECATED, не используем.
+certManagerImageRegistry: "quay.io"
+certManagerImageNamespace: "jetstack"
+# OCI-чарт cert-manager. Для приватного registry переопределите на
+# oci://<your-registry>/jetstack/charts/cert-manager
+certManagerChartRef: "oci://quay.io/jetstack/charts/cert-manager"
+
+# --- MetalLB (Helm chart + образы controller/speaker/frr-k8s/frr) ---
+# repository = <registry>/<repository>/{controller,speaker}
+metallbImageRegistry: "quay.io"
+metallbImageRepository: "metallb"
+# frr-k8s — основной BGP-бэкенд MetallLB 0.16.x (subchart frr-k8s).
+# Полный образ: <registry>/<repository>:<tag>
+metallbFrrK8sImageRegistry: "quay.io"
+metallbFrrK8sImageRepository: "metallb/frr-k8s"
+metallbFrrK8sImageTag: "v0.0.25"
+# FRR sidecar-образ внутри frr-k8s DaemonSet (DEPRECATED режим frr,
+# но используется как sidecar/init). По умолчанию quay.io/frrouting/frr.
+metallbFrrImageRegistry: "quay.io"
+metallbFrrImageRepository: "frrouting/frr"
+metallbFrrImageTag: "10.4.3"
+
+# --- Ingress Nginx (Helm chart) ---
+# controller.image.registry + controller.image.image + controller.image.tag
+# repository здесь = image (имя без registry): ingress-nginx/controller
+ingressNginxImageRegistry: "registry.k8s.io"
+ingressNginxImageRepository: "ingress-nginx/controller"
+ingressNginxImageTag: "v1.15.1"
+
+# --- ArgoCD (Helm chart) ---
+# global.image.repository = <registry>/<repository>
+# controller/server/repoServer/applicationSet наследуют global.image
+argocdImageRegistry: "quay.io"
+argocdImageRepository: "argoproj/argocd"
+# Redis-образ ArgoCD (по умолчанию ecr-public.aws.com/docker/library/redis).
+# Для закрытого окружения переопределить на свой registry.
+argocdRedisImageRegistry: "ecr-public.aws.com"
+argocdRedisImageRepository: "docker/library/redis"
+argocdRedisImageTag: "8.2.3-alpine"
+# Dex-server образ ArgoCD (по умолчанию ghcr.io/dexidp/dex).
+argocdDexImageRegistry: "ghcr.io"
+argocdDexImageRepository: "dexidp/dex"
+argocdDexImageTag: "v2.45.1"
+
+# --- Stakater Reloader (Helm chart) ---
+# image.repository = <registry>/<repository>, опц. top-level imageRegistry
+reloaderImageRegistry: "ghcr.io"
+reloaderImageRepository: "stakater/reloader"
+
+# --- Envoy Gateway (Helm OCI chart) ---
+# global.imageRegistry — переопределяет registry для всех образов.
+# controller upstream image: docker.io/envoyproxy/gateway
+envoyGatewayImageRegistry: "docker.io"
+# Rate-limit образ (по умолчанию docker.io/envoyproxy/ratelimit:1e50889b).
+# Тег из чарта — переопределяется переменными ниже.
+envoyRatelimitImageRegistry: "docker.io"
+envoyRatelimitImageRepository: "envoyproxy/ratelimit"
+envoyRatelimitImageTag: "1e50889b"
+# OCI-чарт envoy-gateway. Для приватного registry переопределите на
+# oci://<your-registry>/envoyproxy/gateway-helm
+envoyGatewayChartRef: "oci://docker.io/envoyproxy/gateway-helm"
+
+# --- NFS CSI Driver (Helm chart) ---
+# image.baseRepo = <registry> (один ключ на весь registry)
+# nfsplugin (абсолютный): <registry>/<repository>/nfsplugin
+nfsCsiImageRegistry: "registry.k8s.io"
+nfsCsiImageRepository: "sig-storage"

@@ -116,9 +116,15 @@ spec:
       - name: tmp-dir
         emptyDir: {}
       priorityClassName: system-cluster-critical
+{% if (utils_global_image_pull_secrets | default([])) | length > 0 %}
+      imagePullSecrets:
+{% for s in utils_global_image_pull_secrets %}
+      - name: {{ s.name }}
+{% endfor %}
+{% endif %}
       containers:
       - name: metrics-server
-        image: "{{ metricsServerImage }}"
+        image: "{{ metricsServerImageRegistry }}/{{ metricsServerImageRepository }}:{{ metricsServerImageTag }}"
         imagePullPolicy: IfNotPresent
         args:
           - --cert-dir=/tmp
