@@ -164,7 +164,7 @@
 
     - name: Проверить Cilium chart
       ansible.builtin.stat:
-        path: "{{ _offline_dir }}/cni/cilium-{{ cilium_chart_version | default(cilium_version | default('1.19.3')) }}.tgz"
+        path: "{{ _offline_dir }}/cni/cilium-{{ cilium_chart_version | default(cilium_version | default('1.20.0')) }}.tgz"
       register: _find_cilium_chart
       when:
         - k8s_install_mode is defined and k8s_install_mode == "offline"

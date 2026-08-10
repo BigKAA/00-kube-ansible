@@ -100,15 +100,15 @@ flannel_version_matrix:
 # Матрица совместимости Kubernetes ↔ Cilium
 # https://docs.cilium.io/en/stable/network/kubernetes/compatibility/
 cilium_version_matrix:
-  "1.28": "1.16.7"
-  "1.29": "1.16.7"
-  "1.30": "1.17.8"
-  "1.31": "1.17.8"
-  "1.32": "1.18.9"
-  "1.33": "1.18.9"
-  "1.34": "1.19.3"
-  "1.35": "1.19.3"
-  "1.36": "1.19.3"
+  "1.28": "1.16.19"
+  "1.29": "1.16.19"
+  "1.30": "1.17.18"
+  "1.31": "1.17.18"
+  "1.32": "1.18.12"
+  "1.33": "1.18.12"
+  "1.34": "1.20.0"
+  "1.35": "1.20.0"
+  "1.36": "1.20.0"
 
 # Версия Calico — вычисляется автоматически по матрице совместимости.
 # Для переопределения задайте tigera_operator_version явно.
@@ -119,7 +119,7 @@ flannel_version: "{{ flannel_version_matrix[kube_version | regex_replace('^(\\d+
 
 # Версия Cilium — вычисляется автоматически по матрице совместимости.
 # Для переопределения задайте cilium_version явно.
-cilium_version: "{{ cilium_version_matrix[kube_version | regex_replace('^(\\d+\\.\\d+).*', '\\1')] | default('1.19.3') }}"
+cilium_version: "{{ cilium_version_matrix[kube_version | regex_replace('^(\\d+\\.\\d+).*', '\\1')] | default('1.20.0') }}"
 
 # Версия Helm-чарта Cilium — обычно совпадает с cilium_version.
 # Для переопределения задайте cilium_chart_version явно.
