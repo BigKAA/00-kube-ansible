@@ -367,6 +367,42 @@
         args:
             creates: /usr/bin/kubeadm
 
+### Helm
+- name: Установить Helm
+  block:
+    - name: Установить Helm [online]
+      when: k8s_install_mode == "online"
+      ansible.builtin.unarchive:
+          src: "https://get.helm.sh/helm-{{ helmVersion }}-linux-amd64.tar.gz"
+          dest: /root/
+          remote_src: true
+          creates: /root/linux-amd64/helm
+      register: helm_online
+    
+    - name: Установить Helm [offline]
+      when: k8s_install_mode == "offline"
+      ansible.builtin.unarchive:
+          src: "{{ playbook_dir }}/{{ k8s_offline_dir }}/utils/helm-{{ helmVersion }}-linux-amd64.tar.gz"
+          dest: /root/
+          creates: /root/linux-amd64/helm
+      register: helm_offline
+    
+    - name: Переместить helm в /usr/local/bin
+      ansible.builtin.copy:
+          src: /root/linux-amd64/helm
+          dest: /usr/local/bin/helm
+          remote_src: true
+          mode: "0755"
+      when: helm_online.changed or helm_offline.changed
+    
+    - name: Создать symlink helm в /usr/local/sbin (для PATH ansible)
+      ansible.builtin.file:
+          src: /usr/local/bin/helm
+          dest: /usr/local/sbin/helm
+          state: link
+          force: true
+      when: helm_online.changed or helm_offline.changed
+
 # Точка расширения: post-prepare hooks
 - name: Выполнить post-prepare hooks
   ansible.builtin.include_tasks: "{{ item }}"

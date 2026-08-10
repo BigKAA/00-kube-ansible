@@ -8,12 +8,7 @@
 #   [ВНУТРЕННИЕ]   — служебные переменные, не трогать
 # ============================================================
 
-# ============================================================
-# [ОБЯЗАТЕЛЬНО] Основные параметры
-# ============================================================
-
-# Примечание: kube_version задаётся в group_vars/all.yaml
-# (используется всеми ролями, включая external etcd).
+kube_version: "1.36.2"
 
 # ============================================================
 # [ОПЦИОНАЛЬНО] Registry и зеркала
@@ -69,7 +64,7 @@ stage: stable  # stable или prerelease
 # [ОПЦИОНАЛЬНО] CNI (Container Network Interface)
 # ============================================================
 # calico, flannel или cilium
-cni: calico
+cni: cilium
 
 # Матрица совместимости Kubernetes ↔ Calico
 # https://docs.tigera.io/calico/latest/getting-started/kubernetes/requirements
@@ -135,7 +130,7 @@ encapsulation: "IPIPCrossSubnet"
 # Замена kube-proxy на eBPF-датаплейн Cilium.
 # При true — kubeadm init выполняется с --skip-phases=addon/kube-proxy.
 # https://docs.cilium.io/en/stable/network/kubernetes/kubeproxy-free/
-cilium_kube_proxy_replacement: false
+cilium_kube_proxy_replacement: true
 
 # NodeLocal DNS Cache через CiliumLocalRedirectPolicy.
 # При true — DNS-трафик к kube-dns перехватывается через eBPF и
@@ -166,7 +161,7 @@ nodelocaldns_local_ip: 169.254.25.10
 # Для отключения HA уберите ha_cluster_virtual_ip
 
 # Виртуальный IP для HAProxy + Keepalived
-ha_cluster_virtual_ip: 192.168.218.140
+# ha_cluster_virtual_ip: 192.168.218.140
 ha_cluster_virtual_port: 7443
 
 # ============================================================
@@ -206,7 +201,7 @@ nfsEnable: true
 nfsCSIDriverVersion: "4.13.4"
 nfsServerHost: "192.168.218.13"
 nfsServerPath: "/volume1/nfs"
-nfsStorageClassName: "managed-nfs-storage"
+nfsStorageClassName: "nfs-storage"
 nfsReclaimPolicy: "Delete"
 nfsArchiveOnDelete: "false"
 nfsMountOptions:
@@ -235,7 +230,7 @@ metricsServerEnable: true
 # [ОБЯЗАТЕЛЬНО] Утилиты — MetalLB
 # ============================================================
 
-metallbEnable: true
+metallbEnable: false
 metallbChartVersion: "0.16.1"
 # Форматы: один IP (192.168.1.1/32), диапазон (192.168.218.180-192.168.218.185), сеть (192.168.1.64/30)
 metallbAddresses:
@@ -256,7 +251,7 @@ ingressControllerReplicaCount: 1
 # ============================================================
 
 envoyGatewayEnable: true
-envoyGatewayVersion: "v1.8.2"
+envoyGatewayVersion: "v1.8.3"
 envoyGatewayReplicas: 1
 # IP для EnvoyProxy Service (LoadBalancer через MetalLB)
 envoyGatewayLoadBalancerIP: "192.168.218.180"
@@ -267,7 +262,7 @@ envoyGatewayDomain: "local.lan"
 # [ОПЦИОНАЛЬНО] Утилиты — Stakater Reloader
 # ============================================================
 
-reloaderEnable: false
+reloaderEnable: true
 reloaderChartVersion: "2.2.14"
 reloaderReloadStrategy: "annotations"
 
@@ -275,7 +270,7 @@ reloaderReloadStrategy: "annotations"
 # [ОБЯЗАТЕЛЬНО] Утилиты — ArgoCD
 # ============================================================
 
-argoCDEnable: false
+argoCDEnable: true
 argoCDChartVersion: "10.1.2"
 argoCDLoglevel: "info"
 argoCDControllerReplicaCount: 1

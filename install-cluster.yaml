@@ -59,8 +59,8 @@
       ansible.builtin.assert:
         that:
           - kube_version is version('1.28', '>=')
-          - kube_version is version('1.36.1', '<=')
-        fail_msg: "kube_version {{ kube_version }} вне допустимого диапазона (1.28 — 1.36.1)"
+          - kube_version is version('1.36.2', '<=')
+        fail_msg: "kube_version {{ kube_version }} вне допустимого диапазона (1.28 — 1.36.2)"
         quiet: true
       run_once: true
 

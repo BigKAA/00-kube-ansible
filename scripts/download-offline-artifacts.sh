@@ -10,6 +10,8 @@
 #   --cri CRI                CRI: containerd или crio (по умолчанию: containerd)
 #   --cni CNI                CNI: calico или flannel (по умолчанию: calico)
 #   --helm-version VERSION   Версия Helm (по умолчанию: v4.0.4)
+#   --rpm-arch ARCH          Архитектура RPM (по умолчанию: x86_64)
+#   --deb-arch ARCH          Архитектура DEB (по умолчанию: amd64)
 #   --output DIR             Выходной каталог (по умолчанию: tmp/offline)
 #   --help                   Показать справку
 #
@@ -46,9 +48,11 @@ while [[ $# -gt 0 ]]; do
         --metallb-chart-version) METALLB_CHART_VERSION="$2"; shift 2 ;;
         --argocd-chart-version) ARGOCD_CHART_VERSION="$2"; shift 2 ;;
         --nfs-csi-driver-version) NFS_CSI_DRIVER_VERSION="$2"; shift 2 ;;
+        --rpm-arch)       K8S_RPM_ARCH="$2"; shift 2 ;;
+        --deb-arch)       K8S_DEB_ARCH="$2"; shift 2 ;;
         --output)         OUTPUT_DIR="$2"; shift 2 ;;
         --help)
-            head -n 18 "$0" | tail -n 15 | sed 's/^# //'
+            sed -n '2,/^# =\{5,/p' "$0" | sed 's/^# //; s/^#//' 
             exit 0
             ;;
         *) echo "Неизвестная опция: $1"; exit 1 ;;
@@ -73,8 +77,184 @@ echo " Envoy GW   : $ENVOY_GATEWAY_VERSION"
 echo " Выходной каталог: $OUTPUT_DIR"
 echo "============================================================"
 
+# Архитектуры (можно переопределить через окружение)
+K8S_RPM_ARCH="${K8S_RPM_ARCH:-x86_64}"
+K8S_DEB_ARCH="${K8S_DEB_ARCH:-amd64}"
+
 # Создание структуры каталогов
 mkdir -p "$OUTPUT_DIR"/{packages,cri/{containerd,crio},cni,images,utils/helm-charts,utils/helm-plugins/helm-diff}
+
+# ============================================================
+# Резолв URL пакетов Kubernetes через индексы pkgs.k8s.io
+# ============================================================
+# Суффикс release в pkgs.k8s.io (OpenBuildService) непредсказуем и
+# меняется между версиями (например, 1.36.2→150500.2.1, 1.36.3→150500.1.1).
+# Поэтому имя файла определяется динамически из индексов репозитория:
+#   RPM — repodata/repomd.xml → primary.xml.gz
+#   DEB — Packages.gz
+
+_RPM_PRIMARY_CACHE=""
+_RPM_PRIMARY_MM=""
+_DEB_PACKAGES_CACHE=""
+_DEB_PACKAGES_MM=""
+
+# Скачать и распаковать primary.xml для RPM (с кэшированием по minor-версии)
+_fetch_rpm_primary() {
+    local mm="$1"
+    [[ "$_RPM_PRIMARY_MM" == "$mm" && -n "$_RPM_PRIMARY_CACHE" ]] && return 0
+
+    local base="https://pkgs.k8s.io/core:/stable:/v${mm}/rpm"
+    local primary_href
+    primary_href=$(curl -fsSL --connect-timeout 30 --max-time 120 \
+        "$base/repodata/repomd.xml" 2>/dev/null \
+        | grep -oE 'repodata/[^"'"]*-primary\.xml\.gz' | head -n1)
+    if [[ -z "$primary_href" ]]; then
+        echo "  ОШИБКА: не удалось найти primary.xml.gz в repomd.xml для v$mm" >&2
+        return 1
+    fi
+    _RPM_PRIMARY_CACHE=$(curl -fsSL --connect-timeout 30 --max-time 120 \
+        "$base/$primary_href" 2>/dev/null | gunzip 2>/dev/null) || return 1
+    _RPM_PRIMARY_MM="$mm"
+}
+
+# Скачать и распаковать Packages для DEB (с кэшированием по minor-версии)
+_fetch_deb_packages() {
+    local mm="$1"
+    [[ "$_DEB_PACKAGES_MM" == "$mm" && -n "$_DEB_PACKAGES_CACHE" ]] && return 0
+
+    _DEB_PACKAGES_CACHE=$(curl -fsSL --connect-timeout 30 --max-time 120 \
+        "https://pkgs.k8s.io/core:/stable:/v${mm}/deb/Packages.gz" 2>/dev/null \
+        | gunzip 2>/dev/null) || return 1
+    _DEB_PACKAGES_MM="$mm"
+}
+
+# Резолв basename файла пакета по имени/версии/арх.
+# Аргументы: <pkg> <ver> <arch> <format(rpm|deb)> <minor>
+# Возвращает: basename файла (напр. kubeadm-1.36.2-150500.2.1.x86_64.rpm)
+resolve_k8s_pkg() {
+    local pkg="$1" ver="$2" arch="$3" fmt="$4" mm="$5"
+
+    if [[ "$fmt" == "rpm" ]]; then
+        _fetch_rpm_primary "$mm" || return 1
+        # here-string (а не pipe) чтобы избежать SIGPIPE при exit в awk + pipefail
+        awk -v RS='</package>' \
+            -v pkg="$pkg" -v ver="$ver" -v arch="$arch" '
+            {
+                if ($0 ~ "<name>" pkg "</name>" \
+                    && $0 ~ "ver=\"" ver "\"" \
+                    && $0 ~ "<arch>" arch "</arch>") {
+                    if (match($0, /<location href="[^"]*"/)) {
+                        loc = substr($0, RSTART+16, RLENGTH-17)
+                        # basename
+                        n = split(loc, parts, "/")
+                        print parts[n]
+                        exit 0
+                    }
+                }
+            }' <<< "$_RPM_PRIMARY_CACHE"
+    else
+        _fetch_deb_packages "$mm" || return 1
+        awk -v RS='' \
+            -v pkg="$pkg" -v ver="$ver" -v arch="$arch" '
+            {
+                if ($0 ~ "(^|\n)Package: " pkg "\n" \
+                    && $0 ~ "(^|\n)Version: " ver "-" \
+                    && $0 ~ "(^|\n)Architecture: " arch "\n") {
+                    if (match($0, /(^|\n)Filename: [^\n]*/)) {
+                        line = substr($0, RSTART, RLENGTH)
+                        sub(/^(\n)?Filename: /, "", line)
+                        n = split(line, parts, "/")
+                        print parts[n]
+                        exit 0
+                    }
+                }
+            }' <<< "$_DEB_PACKAGES_CACHE"
+    fi
+}
+
+# Резолв latest-версии пакета (для cri-tools, kubernetes-cni, чьи версии
+# не совпадают с KUBE_VERSION) и вернуть "ver basename".
+# Аргументы: <pkg> <arch> <format(rpm|deb)> <minor>
+resolve_k8s_pkg_latest() {
+    local pkg="$1" arch="$2" fmt="$3" mm="$4"
+
+    if [[ "$fmt" == "rpm" ]]; then
+        _fetch_rpm_primary "$mm" || return 1
+        # Собираем «ver basename» для всех совпадений, выбираем max ver через sort -V
+        awk -v RS='</package>' \
+            -v pkg="$pkg" -v arch="$arch" '
+            {
+                if ($0 ~ "<name>" pkg "</name>" && $0 ~ "<arch>" arch "</arch>") {
+                    ver=""; loc=""
+                    if (match($0, /ver="[^"]*"/)) {
+                        ver = substr($0, RSTART+5, RLENGTH-6)
+                    }
+                    if (match($0, /<location href="[^"]*"/)) {
+                        loc = substr($0, RSTART+16, RLENGTH-17)
+                        n = split(loc, parts, "/")
+                        loc = parts[n]
+                    }
+                    if (ver != "" && loc != "") print ver "\t" loc
+                }
+            }' <<< "$_RPM_PRIMARY_CACHE" \
+            | sort -V -r | head -n1
+    else
+        _fetch_deb_packages "$mm" || return 1
+        awk -v RS='' \
+            -v pkg="$pkg" -v arch="$arch" '
+            {
+                if ($0 ~ "(^|\n)Package: " pkg "\n" \
+                    && $0 ~ "(^|\n)Architecture: " arch "\n") {
+                    ver=""; fn=""
+                    if (match($0, /(^|\n)Version: [^\n]*/)) {
+                        line = substr($0, RSTART, RLENGTH)
+                        sub(/^(\n)?Version: /, "", line)
+                        ver = line
+                    }
+                    if (match($0, /(^|\n)Filename: [^\n]*/)) {
+                        line = substr($0, RSTART, RLENGTH)
+                        sub(/^(\n)?Filename: /, "", line)
+                        n = split(line, parts, "/")
+                        fn = parts[n]
+                    }
+                    if (ver != "" && fn != "") print ver "\t" fn
+                }
+            }' <<< "$_DEB_PACKAGES_CACHE" \
+            | sort -V -r | head -n1
+    fi
+}
+
+# Скачать пакет Kubernetes с динамическим резолвом имени файла.
+# Аргументы: <pkg> <ver> <arch> <fmt> <mm> <latest:(yes|no)>
+download_k8s_pkg() {
+    local pkg="$1" ver="$2" arch="$3" fmt="$4" mm="$5" latest="${6:-no}"
+    local resolved resolved_ver basename dest desc
+
+    if [[ "$latest" == "yes" ]]; then
+        resolved=$(resolve_k8s_pkg_latest "$pkg" "$arch" "$fmt" "$mm")
+        resolved_ver="${resolved%%$'\t'*}"
+        basename="${resolved##*$'\t'*}"
+        desc="$pkg $fmt (latest: $resolved_ver)"
+    else
+        basename=$(resolve_k8s_pkg "$pkg" "$ver" "$arch" "$fmt" "$mm")
+        desc="$pkg $fmt $ver"
+    fi
+
+    if [[ -z "$basename" ]]; then
+        echo "  ОШИБКА: пакет $pkg не найден в индексе pkgs.k8s.io (v$mm, $arch, $fmt)" >&2
+        return 1
+    fi
+
+    dest="$OUTPUT_DIR/packages/$basename"
+    local url
+    if [[ "$fmt" == "rpm" ]]; then
+        url="https://pkgs.k8s.io/core:/stable:/v${mm}/rpm/${arch}/${basename}"
+    else
+        url="https://pkgs.k8s.io/core:/stable:/v${mm}/deb/${arch}/${basename}"
+    fi
+
+    download "$url" "$dest" "$desc"
+}
 
 # ============================================================
 # Функция скачивания с проверкой
@@ -137,40 +317,34 @@ download_helm_chart() {
 # ============================================================
 # 1. Kubernetes пакеты (RPM + DEB)
 # ============================================================
+# Имена файлов определяются динамически из индексов pkgs.k8s.io,
+# т.к. суффикс release (150500.x.1 для RPM, x.1 для DEB) меняется
+# между версиями и непредсказуем.
+# Скачиваются: kubeadm, kubelet, kubectl (по KUBE_VERSION)
+#             cri-tools, kubernetes-cni (latest — зависимости kubeadm/kubelet,
+#             нужны для offline-установки, см. roles/prepare-hosts/tasks/main.yaml)
 echo ""
-echo ">>> Пакеты Kubernetes v$KUBE_VERSION"
+echo ">>> Пакеты Kubernetes v$KUBE_VERSION (резолв из pkgs.k8s.io)"
 
-# RPM
-download \
-    "https://pkgs.k8s.io/core:/stable:/v${KUBE_MAJOR_MINOR}/rpm/x86_64/kubeadm-${KUBE_VERSION}-150000.1.1.x86_64.rpm" \
-    "$OUTPUT_DIR/packages/kubeadm-${KUBE_VERSION}.x86_64.rpm" \
-    "kubeadm RPM"
+# --- RPM ---
+echo "  [RPM] arch: $K8S_RPM_ARCH"
+for pkg in kubeadm kubelet kubectl; do
+    download_k8s_pkg "$pkg" "$KUBE_VERSION" "$K8S_RPM_ARCH" rpm "$KUBE_MAJOR_MINOR" no || exit 1
+done
+# Зависимости — latest-версии (не привязаны к patch-версии k8s)
+for pkg in cri-tools kubernetes-cni; do
+    download_k8s_pkg "$pkg" "$KUBE_VERSION" "$K8S_RPM_ARCH" rpm "$KUBE_MAJOR_MINOR" yes || exit 1
+done
 
-download \
-    "https://pkgs.k8s.io/core:/stable:/v${KUBE_MAJOR_MINOR}/rpm/x86_64/kubelet-${KUBE_VERSION}-150000.1.1.x86_64.rpm" \
-    "$OUTPUT_DIR/packages/kubelet-${KUBE_VERSION}.x86_64.rpm" \
-    "kubelet RPM"
-
-download \
-    "https://pkgs.k8s.io/core:/stable:/v${KUBE_MAJOR_MINOR}/rpm/x86_64/kubectl-${KUBE_VERSION}-150000.1.1.x86_64.rpm" \
-    "$OUTPUT_DIR/packages/kubectl-${KUBE_VERSION}.x86_64.rpm" \
-    "kubectl RPM"
-
-# DEB
-download \
-    "https://pkgs.k8s.io/core:/stable:/v${KUBE_MAJOR_MINOR}/deb/amd64/kubeadm_${KUBE_VERSION}-1.1_amd64.deb" \
-    "$OUTPUT_DIR/packages/kubeadm_${KUBE_VERSION}-1.1_amd64.deb" \
-    "kubeadm DEB"
-
-download \
-    "https://pkgs.k8s.io/core:/stable:/v${KUBE_MAJOR_MINOR}/deb/amd64/kubelet_${KUBE_VERSION}-1.1_amd64.deb" \
-    "$OUTPUT_DIR/packages/kubelet_${KUBE_VERSION}-1.1_amd64.deb" \
-    "kubelet DEB"
-
-download \
-    "https://pkgs.k8s.io/core:/stable:/v${KUBE_MAJOR_MINOR}/deb/amd64/kubectl_${KUBE_VERSION}-1.1_amd64.deb" \
-    "$OUTPUT_DIR/packages/kubectl_${KUBE_VERSION}-1.1_amd64.deb" \
-    "kubectl DEB"
+# --- DEB ---
+echo "  [DEB] arch: $K8S_DEB_ARCH"
+for pkg in kubeadm kubelet kubectl; do
+    download_k8s_pkg "$pkg" "$KUBE_VERSION" "$K8S_DEB_ARCH" deb "$KUBE_MAJOR_MINOR" no || exit 1
+done
+# Зависимости — latest-версии
+for pkg in cri-tools kubernetes-cni; do
+    download_k8s_pkg "$pkg" "$KUBE_VERSION" "$K8S_DEB_ARCH" deb "$KUBE_MAJOR_MINOR" yes || exit 1
+done
 
 # ============================================================
 # 2. CNI манифесты
