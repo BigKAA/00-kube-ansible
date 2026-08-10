@@ -1,79 +1,224 @@
 ---
-- name: Reset cluster
-  hosts: k8s_cluster
+# ============================================================
+# Reset кластера — полное удаление Kubernetes, CNI и всех утилит.
+# ============================================================
+# Play 1: Удаление утилит и CNI через helm/kubectl на первой control node.
+#         (пока кластер ещё жив и API server отвечает)
+# Play 2: Полный сброс всех нод: kubeadm reset, удаление пакетов,
+#         конфигов, образов, CLI-инструментов, очистка firewall.
+# ============================================================
+
+- name: Удалить утилиты и CNI из кластера
+  hosts: "{{ groups['k8s_masters'][0] }}"
+  gather_facts: false
+  run_once: true
 
   tasks:
-  - name: Reset k8s cluster
-    ansible.builtin.command: kubeadm reset --force
-    ignore_errors: true
+    # --- Helm-releases утилит (в обратном порядке установки) ---
+    - name: Удалить ArgoCD release
+      kubernetes.core.helm:
+        name: argocd
+        release_namespace: argocd
+        state: absent
+        wait: true
+      ignore_errors: true
 
-  - name: Disable keepalived and haproxy services
-    when:
-      - ha_cluster_virtual_ip is defined
-      - ha_cluster_virtual_ip != ""
-      - inventory_hostname in groups['k8s_masters']
-    ansible.builtin.service:
-      name: "{{ item }}"
-      state: stopped
-      enabled: false
-    with_items:
-      - keepalived
-      - haproxy
-    ignore_errors: true
+    - name: Удалить Envoy Gateway release
+      kubernetes.core.helm:
+        name: eg
+        release_namespace: envoy-gateway-system
+        state: absent
+        wait: true
+      ignore_errors: true
 
-  - name: Uninstall HA packages RedHat
-    when:
-      - ha_cluster_virtual_ip is defined
-      - ha_cluster_virtual_ip != ""
-      - inventory_hostname in groups['k8s_masters']
-      - ansible_facts['os_family'] == "RedHat"
-    ansible.builtin.dnf:
-      name:
+    - name: Удалить Stakater Reloader release
+      kubernetes.core.helm:
+        name: reloader
+        release_namespace: kube-system
+        state: absent
+        wait: true
+      ignore_errors: true
+
+    - name: Удалить MetalLB release
+      kubernetes.core.helm:
+        name: metallb
+        release_namespace: metallb
+        state: absent
+        wait: true
+      ignore_errors: true
+
+    - name: Удалить NFS CSI Driver release
+      kubernetes.core.helm:
+        name: csi-driver-nfs
+        release_namespace: kube-system
+        state: absent
+        wait: true
+      ignore_errors: true
+
+    - name: Удалить Metrics Server manifest
+      ansible.builtin.shell: kubectl delete -f /etc/kubernetes/utils/metrics-server.yaml --ignore-not-found
+      ignore_errors: true
+
+    - name: Удалить cert-manager release
+      kubernetes.core.helm:
+        name: cert-manager
+        release_namespace: cert-manager
+        state: absent
+        wait: true
+      ignore_errors: true
+
+    # --- CNI ---
+    - name: Удалить Cilium release
+      when: cni == 'cilium'
+      kubernetes.core.helm:
+        name: cilium
+        release_namespace: kube-system
+        state: absent
+        wait: true
+      ignore_errors: true
+
+    - name: Удалить Flannel release (по лейблу)
+      when: cni == 'flannel'
+      ansible.builtin.shell: kubectl delete -f /etc/kubernetes/flannel.yaml --ignore-not-found
+      ignore_errors: true
+
+    # --- Неймспейсы утилит ---
+    - name: Удалить неймспейсы утилит
+      ansible.builtin.shell: kubectl delete namespace {{ item }} --ignore-not-found --timeout=60s
+      loop:
+        - argocd
+        - envoy-gateway-system
+        - metallb
+        - cert-manager
+      ignore_errors: true
+
+    # --- PriorityClasses ---
+    - name: Удалить PriorityClasses
+      ansible.builtin.shell: kubectl delete -f /etc/kubernetes/utils/priorityclass.yaml --ignore-not-found
+      ignore_errors: true
+
+    # --- imagePullSecrets (приватный registry) ---
+    - name: Удалить imagePullSecrets из неймспейсов
+      ansible.builtin.shell: |
+        kubectl get secret {{ utils_registry.pull_secret_name | default('utils-pull-secret') }} -n {{ item }} --ignore-not-found && \
+        kubectl delete secret {{ utils_registry.pull_secret_name | default('utils-pull-secret') }} -n {{ item }} --ignore-not-found || true
+      loop: "{{ utils_registry.namespaces | default([]) }}"
+      ignore_errors: true
+
+- name: Reset кластера (полная очистка нод)
+  hosts: k8s_cluster
+  gather_facts: true
+
+  tasks:
+    # --- kubeadm reset ---
+    - name: Reset k8s cluster
+      ansible.builtin.command: kubeadm reset --force
+      ignore_errors: true
+
+    # --- HA (HAProxy + Keepalived) ---
+    - name: Остановить keepalived и haproxy
+      when:
+        - ha_cluster_virtual_ip is defined
+        - ha_cluster_virtual_ip != ""
+        - inventory_hostname in groups['k8s_masters']
+      ansible.builtin.service:
+        name: "{{ item }}"
+        state: stopped
+        enabled: false
+      loop:
         - keepalived
         - haproxy
-      state: absent
+      ignore_errors: true
 
-  - name: Disabled containerd service
-    ansible.builtin.service:
-      name: containerd
-      state: stopped
-      enabled: false
+    - name: Удалить HA-пакеты
+      when:
+        - ha_cluster_virtual_ip is defined
+        - ha_cluster_virtual_ip != ""
+        - inventory_hostname in groups['k8s_masters']
+      ansible.builtin.dnf:
+        name:
+          - keepalived
+          - haproxy
+        state: absent
 
-  - name: Delete config.toml file
-    ansible.builtin.file:
-      path: /etc/containerd/config.toml
-      state: absent
+    - name: Удалить конфиги HA
+      when:
+        - ha_cluster_virtual_ip is defined
+        - ha_cluster_virtual_ip != ""
+        - inventory_hostname in groups['k8s_masters']
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/keepalived/keepalived.conf
+        - /etc/haproxy/haproxy.cfg
 
-  - name: Uninstall Kubernetes packages RedHat
-    when:
-      - ansible_facts['os_family'] == "RedHat"
-    ansible.builtin.dnf:
-      name:
-        - kubectl
-        - kubeadm
-        - kubelet
-      state: absent
+    # --- containerd ---
+    - name: Остановить containerd
+      ansible.builtin.service:
+        name: containerd
+        state: stopped
+        enabled: false
+      ignore_errors: true
 
-  - name: Uninstall containerd
-    when:
-      - ansible_facts['os_family'] == "RedHat"
-    ansible.builtin.dnf:
-      name:
-        - containerd
-      state: absent
+    # --- CLI-инструменты и Helm (только на masters[0]) ---
+    - name: Удалить CLI-инструменты и Helm
+      when: inventory_hostname == groups['k8s_masters'][0]
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /usr/local/bin/helm
+        - /usr/local/sbin/helm
+        - /usr/local/bin/cilium
+        - /usr/local/bin/yq
+        - /usr/local/bin/stern
+        - /root/.local/share/helm
 
-  - name: Copy clear fw script
-    ansible.builtin.copy:
-      src: clear_fw.sh
-      dest: /root/clear_fw.sh
-      owner: root
-      mode: '0700'
+    # --- Удаление пакетов ---
+    - name: Удалить пакеты Kubernetes и containerd
+      ansible.builtin.dnf:
+        name:
+          - kubectl
+          - kubeadm
+          - kubelet
+          - containerd.io
+        state: absent
 
-  - name: Clear firewall
-    ansible.builtin.shell: /root/clear_fw.sh
-    ignore_errors: true
+    # --- Конфиги и данные ---
+    - name: Удалить конфиги и каталоги CRI/k8s
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/containerd
+        - /etc/crictl.yaml
+        - /etc/kubernetes
+        - /var/lib/cni
+        - /var/lib/containerd
+        - /var/lib/kubelet
+        - /root/.kube
 
-  - name: Delete k8s utils manifests
-    ansible.builtin.file:
-      path: /etc/kubernetes/utils
-      state: absent
+    # --- Очистка firewall ---
+    - name: Скопировать скрипт очистки firewall
+      ansible.builtin.copy:
+        src: clear_fw.sh
+        dest: /root/clear_fw.sh
+        owner: root
+        mode: '0700'
+
+    - name: Очистить firewall
+      ansible.builtin.shell: /root/clear_fw.sh
+      ignore_errors: true
+
+    # --- Очистка модулей ядра (опционально, только выгрузка) ---
+    - name: Выгрузить модули ядра Kubernetes
+      community.general.modprobe:
+        name: "{{ item }}"
+        state: absent
+      loop:
+        - ip_vs_rr
+        - ip_vs_wrr
+        - ip_vs_sh
+        - ip_set
+      ignore_errors: true

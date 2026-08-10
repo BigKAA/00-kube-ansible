@@ -1,0 +1,58 @@
+---
+# Обновление CNI и утилит после upgrade нод кластера.
+# Выполняется на первой control node после того, как все ноды обновлены.
+
+# --- Cilium: helm upgrade до версии cilium_chart_version (вычисляется по матрице k8s) ---
+- name: Обновить Cilium release
+  when: cni == 'cilium'
+  block:
+    - name: Проверить наличие Helm
+      ansible.builtin.stat:
+        path: /usr/local/bin/helm
+      register: _helm_binary
+
+    - name: Ошибка — Helm не найден
+      ansible.builtin.fail:
+        msg: "Helm не найден в /usr/local/bin/helm. Установите утилиты перед upgrade."
+      when: not _helm_binary.stat.exists
+
+    - name: Добавить репозиторий Cilium [online]
+      when: k8s_install_mode == "online"
+      kubernetes.core.helm_repository:
+        name: cilium
+        repo_url: https://helm.cilium.io/
+
+    - name: Обновить Cilium [online]
+      when: k8s_install_mode == "online"
+      kubernetes.core.helm:
+        name: cilium
+        chart_ref: cilium/cilium
+        chart_version: "{{ cilium_chart_version }}"
+        release_namespace: kube-system
+        values_files:
+          - /etc/kubernetes/cilium-values.yaml
+        wait: true
+        timeout: 10m
+
+    - name: Обновить Cilium [offline]
+      when: k8s_install_mode == "offline"
+      kubernetes.core.helm:
+        name: cilium
+        chart_ref: "{{ playbook_dir }}/{{ k8s_offline_dir }}/cni/cilium-{{ cilium_chart_version }}.tgz"
+        release_namespace: kube-system
+        values_files:
+          - /etc/kubernetes/cilium-values.yaml
+        wait: true
+        timeout: 10m
+
+# --- Flannel: переименить образ в манифесте не требуется ---
+# Flannel использует статичный манифест (flannel.yaml), версия образа фиксирована.
+# При upgrade k8s обновление Flannel обычно не требуется (он работает с несколькими версиями k8s).
+# Для обновления Flannel — переустановите его вручную или выполните role master повторно.
+
+# --- Утилиты: helm upgrade всех release'ов ---
+# Роль utils идемпотентна — helm-модуль выполняет upgrade при изменении chart_version.
+# Повторный запуск роли utils обновит все утилиты до версий из group_vars.
+- name: Обновить утилиты (helm upgrade)
+  ansible.builtin.include_role:
+    name: utils

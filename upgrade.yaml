@@ -1,7 +1,23 @@
 ---
+# ============================================================
+# Upgrade кластера Kubernetes.
+# ============================================================
+# Play 1: Поузловой upgrade нод кластера (serial: 1):
+#         1st master → other masters → workers.
+# Play 2: Upgrade CNI и утилит на первой control node.
+# ============================================================
+
 - name: Upgrade kubernetes cluster
   hosts: k8s_cluster
   serial: "1"
 
   roles:
     - upgrade-cluster
+
+- name: Upgrade CNI and utils
+  hosts: "{{ groups['k8s_masters'][0] }}"
+  gather_facts: true
+
+  tasks:
+    - name: Обновить CNI и утилиты
+      ansible.builtin.include_tasks: roles/upgrade-cluster/tasks/upgrade-cni-utils.yaml
