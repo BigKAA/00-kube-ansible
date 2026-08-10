@@ -87,9 +87,9 @@
     - name: Применить CiliumLocalRedirectPolicy
       ansible.builtin.command: kubectl apply -f /etc/kubernetes/cilium-dns-lrp.yaml
 
-# === Calico / Flannel: стандартный NodeLocal DNS через hostNetwork ===
-- name: NodeLocal DNS для Calico/Flannel
-  when: cni != 'cilium'
+# === Flannel: стандартный NodeLocal DNS через hostNetwork ===
+- name: NodeLocal DNS для Flannel
+  when: cni == 'flannel'
   block:
 
     - name: Скопировать манифест nodelocaldns

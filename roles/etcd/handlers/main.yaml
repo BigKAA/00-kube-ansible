@@ -1,6 +1,0 @@
----
-- name: restart etcd
-  ansible.builtin.service:
-    name: etcd
-    state: restarted
-    daemon_reload: true

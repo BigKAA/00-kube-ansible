@@ -37,7 +37,6 @@ utils_registry:
     - kube-system
     - cert-manager
     - metallb
-    - ingress-nginx
     - argocd
     - envoy-gateway-system
   # Выполнять `helm registry login` для OCI-чартов
@@ -80,13 +79,6 @@ metallbFrrK8sImageTag: "v0.0.25"
 metallbFrrImageRegistry: "quay.io"
 metallbFrrImageRepository: "frrouting/frr"
 metallbFrrImageTag: "10.4.3"
-
-# --- Ingress Nginx (Helm chart) ---
-# controller.image.registry + controller.image.image + controller.image.tag
-# repository здесь = image (имя без registry): ingress-nginx/controller
-ingressNginxImageRegistry: "registry.k8s.io"
-ingressNginxImageRepository: "ingress-nginx/controller"
-ingressNginxImageTag: "v1.15.1"
 
 # --- ArgoCD (Helm chart) ---
 # global.image.repository = <registry>/<repository>

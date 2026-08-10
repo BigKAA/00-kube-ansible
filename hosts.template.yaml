@@ -5,8 +5,6 @@
 #   <WORKER_IP>    — IP адрес worker ноды
 #   <HOSTNAME>     — имя хоста (FQDN или короткое)
 #
-# Для external etcd раскомментируйте группу etcd_nodes.
-#
 k8s_masters:
   hosts:
     <MASTER1_HOSTNAME>:
@@ -27,16 +25,3 @@ k8s_cluster:
   children:
     k8s_masters:
     k8s_workers:
-
-# External etcd nodes (раскомментировать при etcd_mode: external)
-# etcd_nodes:
-#   hosts:
-#     <ETCD1_HOSTNAME>:
-#       ansible_host: <ETCD1_IP>
-#       etcd_short_name: <ETCD1_SHORT>
-#     <ETCD2_HOSTNAME>:
-#       ansible_host: <ETCD2_IP>
-#       etcd_short_name: <ETCD2_SHORT>
-#     <ETCD3_HOSTNAME>:
-#       ansible_host: <ETCD3_IP>
-#       etcd_short_name: <ETCD3_SHORT>

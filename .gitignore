@@ -1,11 +1,9 @@
-k3s-playbook/files
 venv/
 .idea/
 .vscode/
 .serena/
 tmp/
 CLAUDE.md
-files/etcd-pki
 
 # Persistent данные Docker-контейнера
 tmp/rpms/

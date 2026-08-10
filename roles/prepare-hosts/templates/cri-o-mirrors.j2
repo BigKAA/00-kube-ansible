@@ -1,8 +1,0 @@
-# https://github.com/containers/image/blob/main/docs/containers-registries.conf.5.md
-[[registry]]
-prefix = "docker.io"
-
-{% for dockerhubMirrorURL in dockerhubMirrorURLs %}
-[[registry.mirror]]
-location = "{{ dockerhubMirrorURL }}"
-{% endfor %}
