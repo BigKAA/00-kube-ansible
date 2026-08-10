@@ -9,7 +9,7 @@ metadata:
 spec:
   allowFirstLastIPs: "no"
   blocks:
-  {% for item in metallbAddresses %}
+  {% for item in loadBalancerAddresses %}
     # {{ item }}
     {% set parts = item.split('-') %}
     {% if parts | length == 2 and '.' in parts[0] %}

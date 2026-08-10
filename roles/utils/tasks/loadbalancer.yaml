@@ -7,7 +7,7 @@
 #     (CiliumLoadBalancerIPPool, MetalLB НЕ нужен)
 #   - cni: flannel → MetalLB (классический controller)
 #
-# Переменная metallbAddresses задаёт пул IP для обоих вариантов.
+# Переменная loadBalancerAddresses задаёт пул IP для обоих вариантов.
 # Включение:
 #   - cilium: автоматически через cilium-values.j2 (l2announcements)
 #   - flannel: через metallbEnable: true
@@ -18,8 +18,8 @@
   when:
     - cni == 'cilium'
     - cilium_kube_proxy_replacement | default(false) | bool
-    - metallbAddresses is defined
-    - metallbAddresses | length > 0
+    - loadBalancerAddresses is defined
+    - loadBalancerAddresses | length > 0
   block:
       - name: Скопировать манифест CiliumLoadBalancerIPPool
         ansible.builtin.template:
@@ -34,7 +34,7 @@
 
       - name: Метка — Cilium L2 LB активен (MetalLB не требуется)
         ansible.builtin.debug:
-            msg: "Cilium L2-анонсы включены. IP-пул: {{ metallbAddresses }}. MetalLB не устанавливается."
+            msg: "Cilium L2-анонсы включены. IP-пул: {{ loadBalancerAddresses }}. MetalLB не устанавливается."
 
 # --- Cilium без kubeProxyReplacement: предупреждение ---
 - name: Предупредить о необходимости kubeProxyReplacement для Cilium L2

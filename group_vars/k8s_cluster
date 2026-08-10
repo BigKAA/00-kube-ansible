@@ -170,20 +170,25 @@ metricsServerEnable: true
 # ============================================================
 # [ОПЦИОНАЛЬНО] LoadBalancer для сервисов типа LoadBalancer
 # ============================================================
-# Выбор зависит от CNI:
-#   cni: cilium + kubeProxyReplacement → Cilium L2-анонсы (замена MetalLB).
-#     MetalLB НЕ устанавливается, IP-пул задаётся через CiliumLoadBalancerIPPool.
-#     metallbEnable игнорируется.
-#   cni: flannel → MetalLB (классический controller).
-#     Включается через metallbEnable: true.
+# Назначает IP-адреса сервисам типа LoadBalancer (Envoy Gateway и др.).
+# Реализация выбирается автоматически по CNI:
 #
-# metallbAddresses — пул IP для обоих вариантов (LoadBalancer services).
+#   cni: cilium + cilium_kube_proxy_replacement: true
+#     → Cilium L2-анонсы (замена MetalLB). IP-пул — CiliumLoadBalancerIPPool.
+#       MetalLB не устанавливается. metallbEnable игнорируется.
+#
+#   cni: flannel
+#     → MetalLB (классический controller). Включается через metallbEnable: true.
+#
+# loadBalancerAddresses — пул IP-адресов для обоих вариантов.
 # Форматы: один IP (192.168.1.1/32), диапазон (192.168.218.180-192.168.218.185),
 #          сеть (192.168.1.64/30)
+loadBalancerAddresses:
+- 192.168.218.180-192.168.218.185
+
+# MetalLB (только при cni: flannel)
 metallbEnable: false
 metallbChartVersion: "0.16.1"
-metallbAddresses:
-- 192.168.218.180-192.168.218.185
 
 # ============================================================
 # [ОПЦИОНАЛЬНО] Утилиты — Envoy Gateway (Gateway API)
@@ -192,7 +197,7 @@ metallbAddresses:
 envoyGatewayEnable: true
 envoyGatewayVersion: "v1.8.3"
 envoyGatewayReplicas: 1
-# IP для EnvoyProxy Service (LoadBalancer через MetalLB)
+# IP для EnvoyProxy Service (LoadBalancer, должен входить в loadBalancerAddresses)
 envoyGatewayLoadBalancerIP: "192.168.218.180"
 # Домен для Gateway TLS сертификата
 envoyGatewayDomain: "local.lan"

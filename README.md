@@ -165,7 +165,7 @@ cni: flannel
   `CiliumLoadBalancerIPPool`. MetalLB не устанавливается.
 - **Flannel** (`cni: flannel`): MetalLB. Включается через `metallbEnable: true`.
 
-Пул IP-адресов — в переменной `metallbAddresses` (для обоих вариантов).
+Пул IP-адресов — в переменной `loadBalancerAddresses` (для обоих вариантов).
 
 ### HA
 

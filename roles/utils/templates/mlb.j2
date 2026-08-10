@@ -6,7 +6,7 @@ metadata:
   namespace: metallb
 spec:
   addresses:
-  {% for item in metallbAddresses %}
+  {% for item in loadBalancerAddresses %}
   - {{ item }}
   {% endfor %}
 
