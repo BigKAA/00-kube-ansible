@@ -13,8 +13,9 @@ Playbook для установки и управления тестовым кл
 - **CRI**: containerd
 - **CNI**: Flannel, Cilium (с kube-proxy replacement через eBPF)
 - **HA**: HAProxy + Keepalived (virtual IP для API server)
+- **LoadBalancer**: Cilium L2-анонсы (при cni=cilium) или MetalLB (при cni=flannel)
 - **Утилиты** (ставятся автоматически на первую control node):
-  Helm, NFS CSI Driver, cert-manager, Metrics Server, MetalLB,
+  Helm, NFS CSI Driver, cert-manager, Metrics Server,
   Envoy Gateway (Gateway API), Stakater Reloader, ArgoCD
 - **CLI на первой control node**: kubectl, helm, cilium CLI, yq, jq, stern
 - **Offline-установка**: полный air-gap через предзагруженные артефакты
@@ -154,6 +155,17 @@ cni: flannel
 ```
 
 Подробнее о Cilium — в [CILIUM.md](CILIUM.md).
+
+### LoadBalancer (для сервисов типа LoadBalancer)
+
+Выбор зависит от CNI:
+
+- **Cilium** (`cni: cilium` + `cilium_kube_proxy_replacement: true`):
+  L2-анонсы Cilium (замена MetalLB). IP-пул задаётся через
+  `CiliumLoadBalancerIPPool`. MetalLB не устанавливается.
+- **Flannel** (`cni: flannel`): MetalLB. Включается через `metallbEnable: true`.
+
+Пул IP-адресов — в переменной `metallbAddresses` (для обоих вариантов).
 
 ### HA
 

@@ -1,8 +1,59 @@
 ---
-# MetalLB (LoadBalancer для on-prem кластера).
+# ============================================================
+# LoadBalancer для сервисов типа LoadBalancer.
+# ============================================================
+# Диспетчеризация по CNI:
+#   - cni: cilium + kubeProxyReplacement → Cilium L2-анонсы
+#     (CiliumLoadBalancerIPPool, MetalLB НЕ нужен)
+#   - cni: flannel → MetalLB (классический controller)
+#
+# Переменная metallbAddresses задаёт пул IP для обоих вариантов.
+# Включение:
+#   - cilium: автоматически через cilium-values.j2 (l2announcements)
+#   - flannel: через metallbEnable: true
+# ============================================================
 
+# --- Cilium: CiliumLoadBalancerIPPool (L2-анонсы уже включены в cilium-values.j2) ---
+- name: Настроить Cilium L2 LoadBalancer IP Pool
+  when:
+    - cni == 'cilium'
+    - cilium_kube_proxy_replacement | default(false) | bool
+    - metallbAddresses is defined
+    - metallbAddresses | length > 0
+  block:
+      - name: Скопировать манифест CiliumLoadBalancerIPPool
+        ansible.builtin.template:
+            src: cilium-l2-pool.j2
+            dest: /etc/kubernetes/utils/cilium-l2-pool.yaml
+            mode: "0600"
+        register: cilium_l2_pool
+
+      - name: Применить CiliumLoadBalancerIPPool
+        ansible.builtin.command: kubectl apply -f /etc/kubernetes/utils/cilium-l2-pool.yaml
+        when: cilium_l2_pool.changed
+
+      - name: Метка — Cilium L2 LB активен (MetalLB не требуется)
+        ansible.builtin.debug:
+            msg: "Cilium L2-анонсы включены. IP-пул: {{ metallbAddresses }}. MetalLB не устанавливается."
+
+# --- Cilium без kubeProxyReplacement: предупреждение ---
+- name: Предупредить о необходимости kubeProxyReplacement для Cilium L2
+  when:
+    - cni == 'cilium'
+    - not (cilium_kube_proxy_replacement | default(false) | bool)
+    - envoyGatewayEnable | default(false) | bool
+  ansible.builtin.debug:
+      msg: >
+        ВНИМАНИЕ: Cilium L2-анонсы требуют kubeProxyReplacement=true,
+        но он выключен. Сервисы LoadBalancer (Envoy Gateway) останутся
+        в pending. Включите cilium_kube_proxy_replacement: true или
+        используйте cni: flannel с MetalLB.
+
+# --- Flannel: MetalLB (классический controller) ---
 - name: MetalLB
-  when: metallbEnable
+  when:
+    - cni == 'flannel'
+    - metallbEnable
   block:
       - name: Найти предзагруженный chart MetalLB
         ansible.builtin.find:

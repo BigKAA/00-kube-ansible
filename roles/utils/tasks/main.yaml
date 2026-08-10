@@ -36,8 +36,8 @@
 - name: Установить Stakater Reloader
   ansible.builtin.include_tasks: reloader.yaml
 
-- name: Установить MetalLB
-  ansible.builtin.include_tasks: metallb.yaml
+- name: Настроить LoadBalancer (MetalLB для Flannel / Cilium L2 для Cilium)
+  ansible.builtin.include_tasks: loadbalancer.yaml
 
 - name: Установить Envoy Gateway (Gateway API)
   ansible.builtin.include_tasks: envoy-gateway.yaml

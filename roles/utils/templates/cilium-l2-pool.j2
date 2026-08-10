@@ -1,0 +1,26 @@
+---
+# CiliumLoadBalancerIPPool — пул IP-адресов для сервисов LoadBalancer.
+# Заменяет MetalLB IPAddressPool при использовании Cilium L2-анонсов.
+# https://docs.cilium.io/en/stable/network/l2-announcements/
+apiVersion: cilium.io/v2alpha1
+kind: CiliumLoadBalancerIPPool
+metadata:
+  name: default-pool
+spec:
+  allowFirstLastIPs: "no"
+  blocks:
+  {% for item in metallbAddresses %}
+    # {{ item }}
+    {% set parts = item.split('-') %}
+    {% if parts | length == 2 and '.' in parts[0] %}
+    # Диапазон IP: start-stop
+    - start: "{{ parts[0] }}"
+      stop: "{{ parts[1] }}"
+    {% elif '/' in item %}
+    # CIDR
+    - cidr: "{{ item }}"
+    {% else %}
+    # Одиночный IP
+    - cidr: "{{ item }}/32"
+    {% endif %}
+  {% endfor %}

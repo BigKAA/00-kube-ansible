@@ -50,6 +50,22 @@ socketLB:
   enabled: true
 {% endif %}
 
+{% if cilium_kube_proxy_replacement | default(false) | bool %}
+# --- L2 Load Balancer (замена MetalLB) ---
+# Cilium раздаёт IP сервисам типа LoadBalancer через ARP/NDP анонсы.
+# ТРЕБУЕТ kubeProxyReplacement: true (включён выше).
+# https://docs.cilium.io/en/stable/network/l2-announcements/
+#
+# IP-адреса для сервисов задаются через CiliumLoadBalancerIPPool (CRD),
+# который создаётся ролью utils при cni=cilium (вместо MetalLB IPAddressPool).
+l2announcements:
+  enabled: true
+  # Lease-параметры (leader election между нодами для анонса IP)
+  leaseDuration: 15s
+  leaseRenewDeadline: 5s
+  leaseRetryPeriod: 1s
+{% endif %}
+
 # --- Оператор Cilium ---
 operator:
   replicas: 1

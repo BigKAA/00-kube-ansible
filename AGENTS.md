@@ -48,7 +48,8 @@ Ansible playbook для установки и управления тестов�
 - **HA**: HAProxy + Keepalived (virtual IP)
 - **etcd**: stacked (встроенный в control plane)
 - **Утилиты**: Helm, NFS CSI Driver, cert-manager, Metrics Server,
-  MetalLB, Envoy Gateway (Gateway API), Stakater Reloader, ArgoCD
+  Envoy Gateway (Gateway API), Stakater Reloader, ArgoCD
+- **LoadBalancer**: Cilium L2-анонсы (при cni=cilium) или MetalLB (при cni=flannel)
 - **CLI на первой control node**: kubectl, helm, cilium CLI, yq, jq, stern
 
 ### Протестированные дистрибутивы

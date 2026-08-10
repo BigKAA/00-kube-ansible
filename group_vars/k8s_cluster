@@ -168,12 +168,20 @@ metricsServerEnable: true
 # metricsServerImageTag: "v0.8.1"
 
 # ============================================================
-# [ОБЯЗАТЕЛЬНО] Утилиты — MetalLB
+# [ОПЦИОНАЛЬНО] LoadBalancer для сервисов типа LoadBalancer
 # ============================================================
-
+# Выбор зависит от CNI:
+#   cni: cilium + kubeProxyReplacement → Cilium L2-анонсы (замена MetalLB).
+#     MetalLB НЕ устанавливается, IP-пул задаётся через CiliumLoadBalancerIPPool.
+#     metallbEnable игнорируется.
+#   cni: flannel → MetalLB (классический controller).
+#     Включается через metallbEnable: true.
+#
+# metallbAddresses — пул IP для обоих вариантов (LoadBalancer services).
+# Форматы: один IP (192.168.1.1/32), диапазон (192.168.218.180-192.168.218.185),
+#          сеть (192.168.1.64/30)
 metallbEnable: false
 metallbChartVersion: "0.16.1"
-# Форматы: один IP (192.168.1.1/32), диапазон (192.168.218.180-192.168.218.185), сеть (192.168.1.64/30)
 metallbAddresses:
 - 192.168.218.180-192.168.218.185
 

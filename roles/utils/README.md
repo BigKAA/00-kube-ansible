@@ -34,7 +34,7 @@ tasks/
 ├── metrics-server.yaml # Metrics Server (raw-манифест)
 ├── nfs-csi.yaml        # NFS CSI Driver
 ├── reloader.yaml       # Stakater Reloader
-├── metallb.yaml        # MetalLB + IP-пул
+├── loadbalancer.yaml   # LoadBalancer (Cilium L2 для cilium / MetalLB для flannel)
 ├── envoy-gateway.yaml  # Envoy Gateway (Gateway API)
 └── argocd.yaml         # ArgoCD
 ```
