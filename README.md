@@ -365,7 +365,7 @@ make reset
 
 ### Обновление
 
-Измените `kube_version` в `group_vars/k8s_cluster` и запустите:
+Измените `kube_version` в `group_vars/all.yaml` и запустите:
 
 ```shell
 ansible-playbook upgrade.yaml

@@ -2,6 +2,8 @@
 
 ansible_python_interpreter: /usr/bin/python3
 
-# Версия Kubernetes — используется всеми ролями, включая etcd.
-# Переопределяется в group_vars/k8s_cluster при необходимости.
+# Версия Kubernetes — используется всеми ролями, включая external etcd.
+# Поддерживаются 1.28 — 1.36.2. https://kubernetes.io/releases/
+# При необходимости переопределяется через inventory, extra_vars
+# или group_vars/k8s_cluster.
 kube_version: "1.36.2"
