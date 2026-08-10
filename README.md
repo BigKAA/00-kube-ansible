@@ -47,7 +47,7 @@ pip3 install ansible==13.6.0
 
 ```shell
 docker build -f Dockerfile.ansible -t ansible-custom:13.6 .
-alias ansible-playbook="docker run -ti --rm --user \"$(id -u):$(id -g)\" -e HOME=/home/ansible -v ~/.ssh:/home/ansible/.ssh -v $(pwd):/workspace ansible-custom:13.6 ansible-playbook"
+alias ansible-playbook="docker run -ti --rm -u root -e HOME=/root -v ~/.ssh:/root/.ssh:ro -v $(pwd):/workspace ansible-custom:13.6 ansible-playbook"
 ```
 
 ### 3. Настройка SSH

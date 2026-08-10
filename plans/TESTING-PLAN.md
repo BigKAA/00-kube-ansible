@@ -191,16 +191,16 @@ docker build -f Dockerfile.ansible -t ansible-custom:13.6 .
 
 ```bash
 alias ansible-playbook="docker run -ti --rm \
-  --user \"$(id -u):$(id -g)\" \
-  -e HOME=/home/ansible \
-  -v ~/.ssh:/home/ansible/.ssh \
+  -u root \
+  -e HOME=/root \
+  -v ~/.ssh:/root/.ssh:ro \
   -v $(pwd):/workspace \
   ansible-custom:13.6 ansible-playbook"
 
 alias ansible="docker run -ti --rm \
-  --user \"$(id -u):$(id -g)\" \
-  -e HOME=/home/ansible \
-  -v ~/.ssh:/home/ansible/.ssh \
+  -u root \
+  -e HOME=/root \
+  -v ~/.ssh:/root/.ssh:ro \
   -v $(pwd):/workspace \
   ansible-custom:13.6 ansible"
 ```
@@ -211,14 +211,17 @@ alias ansible="docker run -ti --rm \
 > Коллекции Ansible предустановлены в образе — монтировать
 > `~/.ansible` не требуется.
 >
-> **Зачем нужен `--user "$(id -u):$(id -g)"`:**
-> Контейнерный пользователь `ansible` имеет uid 501 (см. `Dockerfile.ansible`).
-> SSH-ключи на хосте принадлежат вашему пользователю (обычно uid 1000) с
-> правами `600`. Без `--user` контейнер не сможет их прочитать — получите
-> `Permission denied (publickey)` и `Failed to add the host to the list of
-known hosts`. Флаг заставляет контейнер работать под тем же uid, что и
-> владелец ключей. Переменная `HOME=/home/ansible` нужна, чтобы Ansible и ssh
-> корректно находили конфиги (`~/.ssh/config`, `~/.ansible.cfg`).
+> **Зачем нужны `-u root` и `-v ~/.ssh:/root/.ssh:ro`:**
+> Контейнерный пользователь `ansible` имеет uid 501 (см. `Dockerfile.ansible`),
+> а SSH-ключи на хосте принадлежат вашему пользователю (обычно uid 1000) с
+> правами `600`. Возникает конфликт: под uid 501 ключ не читается
+> (`Permission denied (publickey)`), а под `--user $(id -u)` домашняя
+> директория `/home/ansible` недоступна на запись и нет записи в
+> `/etc/passwd` для вашего uid (`No user exists for uid`).
+> Запуск от `root` решает обе проблемы: root читает ключ с правами `600`
+> независимо от владельца, а `/root` доступен для записи (`~/.ansible/tmp`).
+> Монтирование `:ro` защищает `~/.ssh` хоста от изменений — known_hosts не
+> пишется, т.к. в `ansible.cfg` задано `host_key_checking = False`.
 
 ---
 
@@ -892,10 +895,10 @@ make reset ENV=homelab EXTRA='-e "etcd_mode=external" -e "reset_etcd=true"'
 ```bash
 # Из директории проекта
 docker run --rm -ti \
-  --user "$(id -u):$(id -g)" \
-  -e HOME=/home/ansible \
+  -u root \
+  -e HOME=/root \
   -v "$(pwd):/workspace" \
-  -v ~/.ssh:/home/ansible/.ssh \
+  -v ~/.ssh:/root/.ssh:ro \
   ansible-custom:13.6 \
   ansible-playbook -i hosts-homelab.yaml install-cluster.yaml \
     -u artur --become \

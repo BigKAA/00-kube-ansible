@@ -107,6 +107,30 @@
       owner: root
       mode: u=rw,g=r,o=r
 
+# На RHEL/Rocky 10 модуль ip_set (нужен для IPVS-режима kube-proxy)
+# находится в kernel-modules/kernel-modules-extra для КОНКРЕТНОЙ версии ядра.
+# Если ядро обновилось, но host не перезагружен, dnf install kernel-modules
+# поставит модули для нового ядра, а запущенное останется без ip_set.
+# Ставим kernel-modules-extra под текущее запущенное ядро.
+- name: Установить kernel-modules-extra для запущенного ядра [RedHat]
+  when: ansible_facts['os_family'] == "RedHat"
+  ansible.builtin.dnf:
+      name: "kernel-modules-extra-{{ ansible_facts.kernel }}"
+      state: present
+  register: _kernel_modules_extra
+  retries: 3
+  delay: 5
+  until: _kernel_modules_extra is not failed
+  # Пакет может отсутствовать в репозитории (например, ядро устарело и удалено из mirror)
+  ignore_errors: true
+
+- name: Предупредить об отсутствии kernel-modules-extra
+  when:
+      - ansible_facts['os_family'] == "RedHat"
+      - _kernel_modules_extra is failed
+  ansible.builtin.debug:
+      msg: "Внимание: kernel-modules-extra для ядра {{ ansible_facts.kernel }} недоступен. IPVS-режим kube-proxy может не работать (нет модуля ip_set)."
+
 - name: Загрузить модуль br_netfilter
   community.general.modprobe:
       name: br_netfilter
@@ -117,6 +141,29 @@
 - name: Загрузить модуль overlay
   community.general.modprobe:
       name: overlay
+
+- name: Загрузить модуль nf_conntrack
+  community.general.modprobe:
+      name: nf_conntrack
+  # nf_conntrack обязателен для kube-proxy (nf_conntrack_max sysctl).
+  # Без него kube-proxy падает с
+  # "open /proc/sys/net/netfilter/nf_conntrack_max: no such file or directory".
+
+# Модули для IPVS-режима kube-proxy (mode: ipvs в kubeadm-config).
+# ip_set обязателен — без него kube-proxy падает с
+# "can't use the IPVS proxier: error getting ipset version".
+- name: Загрузить модули IPVS (ip_set, ip_vs)
+  community.general.modprobe:
+      name: "{{ item }}"
+  loop:
+      - ip_set
+      - ip_vs_rr
+      - ip_vs_wrr
+      - ip_vs_sh
+  # Модуль ip_vs подгружается автоматически при старте kube-proxy.
+  # ip_set может отсутствовать, если не установлен kernel-modules для
+  # запущенного ядра — ниже отдельная задача проверяет наличие.
+  ignore_errors: true
 
 - name: Загрузить модули постоянно
   ansible.builtin.copy:

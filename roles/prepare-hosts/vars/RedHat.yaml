@@ -13,6 +13,7 @@ packages_common:
     - chrony
     - jq
     - ipvsadm
+    - ipset
     - python3-pyyaml
     - kernel-modules
 

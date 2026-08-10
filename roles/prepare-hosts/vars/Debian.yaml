@@ -15,6 +15,7 @@ packages_common:
     - ntp
     - jq
     - ipvsadm
+    - ipset
     - python3-yaml
 
 # Пакеты Kubernetes
