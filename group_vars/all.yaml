@@ -2,6 +2,11 @@
 
 ansible_python_interpreter: /usr/bin/python3
 
+# Единый источник версий — scripts/versions.yaml.
+# Читается здесь и наследуется всеми playbook'ами.
+# Значения ниже (kube_version и т.д.) можно переопределить в group_vars/k8s_cluster.
+_versions_file: "{{ playbook_dir }}/scripts/versions.yaml"
+
 # Версия Kubernetes — используется всеми ролями.
 # Поддерживаются версии начиная с 1.35. https://kubernetes.io/releases/
 # При необходимости переопределяется через inventory, extra_vars

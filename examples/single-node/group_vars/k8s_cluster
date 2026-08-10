@@ -2,19 +2,13 @@
 # Скопируйте в group_vars/k8s_cluster и настройте под своё окружение
 
 kube_version: 1.36.1
-cri: containerd
-cni: calico
+cni: cilium
 
-# HA отключён — уберите ha_cluster_virtual_ip для single-node
-# ha_cluster_virtual_ip: ""
+# HA отключён — не задавайте ha_cluster_virtual_ip для single-node
 
-# etcd — встроенный (stacked)
-etcd_mode: "stacked"
-
-# Утилиты — отключены для минимальной установки
+# Утилиты — отключены для минимальной установки (кроме Metrics Server)
 nfsEnable: false
 certManagerEnable: false
 metricsServerEnable: true
 metallbEnable: false
-ingressControllerEnable: false
 argoCDEnable: false

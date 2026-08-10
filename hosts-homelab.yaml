@@ -18,14 +18,3 @@ k8s_cluster:
   children:
     k8s_masters:
     k8s_workers:
-etcd_nodes:
-  hosts:
-    e1.kryukov.lan:
-      ansible_host: 192.168.218.141
-      etcd_short_name: e1
-    e2.kryukov.lan:
-      ansible_host: 192.168.218.142
-      etcd_short_name: e2
-    e3.kryukov.lan:
-      ansible_host: 192.168.218.143
-      etcd_short_name: e3

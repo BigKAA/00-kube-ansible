@@ -26,4 +26,3 @@ k8s_workers:
         cp3.local.lan:
         w1.local.lan:
         w2.local.lan:
-etcd_nodes:

@@ -1,0 +1,48 @@
+# ============================================================
+# Единый источник версий для offline-скрипта и Ansible.
+# ============================================================
+# Этот файл читается:
+#   - scripts/download-offline-artifacts.sh (через yq)
+#   - Ansible playbook'ами (через include_vars)
+#
+# При изменении версий обновляйте ТОЛЬКО этот файл —
+# group_vars/k8s_cluster и offline-скрипт наследуют значения отсюда.
+# ============================================================
+
+# --- Kubernetes ---
+kube_version_default: "1.36.2"
+kube_supported_min: "1.35"
+
+# --- CRI ---
+cri: containerd
+containerd_version: "1.7.28"
+runc_version: "1.2.11"
+
+# --- CNI ---
+cni_default: cilium
+
+cni_matrix:
+  cilium:
+    "1.35": "1.20.0"
+    "1.36": "1.20.0"
+  flannel:
+    "1.35": "v0.26.3"
+    "1.36": "v0.26.4"
+
+# --- CLI-инструменты (на первой control node) ---
+cli:
+  helm: "v3.21.2"
+  cilium_cli: "v0.18.5"
+  yq: "v4.47.1"
+  stern: "v1.34.0"
+  # jq устанавливается через packages_common (dnf)
+
+# --- Утилиты кластера ---
+utils:
+  cert_manager: "v1.20.3"
+  metrics_server: "v0.8.1"
+  metallb_chart: "0.16.1"
+  nfs_csi_driver: "4.13.4"
+  reloader_chart: "2.2.14"
+  envoy_gateway: "v1.8.3"
+  argocd_chart: "10.1.2"
