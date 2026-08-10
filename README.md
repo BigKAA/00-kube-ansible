@@ -70,15 +70,37 @@ cp hosts.template.yaml hosts.yaml
 
 ### 5. Запуск
 
+Базовый запуск использует инвентори по умолчанию из `ansible.cfg`
+(по умолчанию `hosts-homelab.yaml`):
+
 ```shell
 ansible-playbook install-cluster.yaml
 ```
 
-Или через Makefile:
+Или через Makefile (использует `hosts-<ENV>.yaml`):
 
 ```shell
-make install
+make install              # ENV=homelab → hosts-homelab.yaml
+make install ENV=curs     # → hosts-curs.yaml
 ```
+
+Для запуска с произвольным инвентори укажите его через ключ `-i`:
+
+```shell
+ansible-playbook -i hosts.yaml install-cluster.yaml
+ansible-playbook -i hosts-curs.yaml install-cluster.yaml
+```
+
+Готовые примеры инвентори лежат в [`examples/`](examples/):
+
+```shell
+ansible-playbook -i examples/single-node/hosts.yaml install-cluster.yaml
+ansible-playbook -i examples/ha-stacked/hosts.yaml install-cluster.yaml
+ansible-playbook -i examples/ha-external-etcd/hosts.yaml install-cluster.yaml
+```
+
+Подробнее о конфигурации инвентори для разных топологий кластера —
+в разделе [Установка](#установка).
 
 ## Установка
 
