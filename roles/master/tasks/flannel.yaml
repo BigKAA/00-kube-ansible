@@ -8,6 +8,21 @@
 - name: Установить утилиты
   ansible.builtin.include_tasks: utils.yaml
 
+# Offline: предзагрузка образов Flannel (images/flannel/*.tar)
+- name: Найти offline-образы Flannel [offline]
+  when: k8s_install_mode == "offline"
+  ansible.builtin.find:
+    paths: "{{ k8s_packages_remote_dir }}/images/flannel"
+    patterns: "*.tar"
+  register: _offline_flannel_images
+
+- name: Загрузить образы Flannel из архивов [offline]
+  when:
+    - k8s_install_mode == "offline"
+    - _offline_flannel_images.matched | int > 0
+  ansible.builtin.command: "ctr -n k8s.io images import {{ item.path }}"
+  loop: "{{ _offline_flannel_images.files }}"
+
 - name: Скопировать flannel.yaml
   ansible.builtin.template:
     src: flannel.j2

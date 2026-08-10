@@ -67,4 +67,4 @@ check-syntax: ## Проверить синтаксис playbook'ов
 
 download-artifacts: ## Скачать артефакты для offline-установки
 	@echo "Скачивание offline-артефактов..."
-	./scripts/download-offline-artifacts.sh --output tmp/offline
+	python3 scripts/download_offline_artifacts.py --output tmp/offline

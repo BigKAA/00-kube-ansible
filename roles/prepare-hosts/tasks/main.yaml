@@ -280,12 +280,26 @@
         with_fileglob:
             - "{{ playbook_dir }}/{{ k8s_offline_dir }}/packages/*.rpm"
 
-      - name: Скопировать архив образов Kubernetes [offline]
+      - name: Найти offline-образы контейнеров [offline]
         when: k8s_install_mode == "offline"
+        ansible.builtin.find:
+            paths: "{{ playbook_dir }}/{{ k8s_offline_dir }}/images"
+            patterns: "*.tar"
+            recurse: true
+        delegate_to: localhost
+        become: false
+        run_once: true
+        register: _offline_images
+
+      - name: Скопировать образы контейнеров на ноду [offline]
+        when:
+            - k8s_install_mode == "offline"
+            - _offline_images.matched | int > 0
         ansible.builtin.copy:
-            src: "{{ playbook_dir }}/{{ k8s_offline_dir }}/images/k8s-images.tar"
-            dest: "{{ k8s_packages_remote_dir }}/k8s-images.tar"
+            src: "{{ item.path }}"
+            dest: "{{ k8s_packages_remote_dir }}/images/"
             mode: "0644"
+        loop: "{{ _offline_images.files }}"
 
       - name: Установить Kubernetes из RPM [offline]
         when: k8s_install_mode == "offline"

@@ -12,3 +12,4 @@ tmp/ssh/
 tmp/logs/
 files/
 docs/
+scripts/__pycache__/

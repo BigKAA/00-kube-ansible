@@ -54,10 +54,20 @@
     remote_src: true
     mode: '0755'
 
-# Offline: предзагрузка образов Cilium до установки чарта
-- name: Загрузить образы Cilium из архива [offline]
+# Offline: предзагрузка образов Cilium до установки чарта (images/cilium/*.tar)
+- name: Найти offline-образы Cilium [offline]
   when: k8s_install_mode == "offline"
-  ansible.builtin.command: "ctr -n k8s.io images import {{ k8s_packages_remote_dir }}/cilium-images.tar"
+  ansible.builtin.find:
+    paths: "{{ k8s_packages_remote_dir }}/images/cilium"
+    patterns: "*.tar"
+  register: _offline_cilium_images
+
+- name: Загрузить образы Cilium из архивов [offline]
+  when:
+    - k8s_install_mode == "offline"
+    - _offline_cilium_images.matched | int > 0
+  ansible.builtin.command: "ctr -n k8s.io images import {{ item.path }}"
+  loop: "{{ _offline_cilium_images.files }}"
 
 - name: Добавить репозиторий Cilium [online]
   when: k8s_install_mode == "online"

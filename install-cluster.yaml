@@ -99,9 +99,10 @@
       register: _find_kubectl
       when: k8s_install_mode is defined and k8s_install_mode == "offline"
 
-    - name: Проверить k8s images archive
-      ansible.builtin.stat:
-        path: "{{ _offline_dir }}/images/k8s-images.tar"
+    - name: Проверить k8s images (отдельные tar в images/k8s/)
+      ansible.builtin.find:
+        paths: "{{ _offline_dir }}/images/k8s"
+        patterns: "*.tar"
       register: _find_k8s_images
       when: k8s_install_mode is defined and k8s_install_mode == "offline"
 
@@ -120,9 +121,10 @@
         - k8s_install_mode is defined and k8s_install_mode == "offline"
         - _cni == "cilium"
 
-    - name: Проверить Cilium images archive
-      ansible.builtin.stat:
-        path: "{{ _offline_dir }}/images/cilium-images.tar"
+    - name: Проверить Cilium images (отдельные tar в images/cilium/)
+      ansible.builtin.find:
+        paths: "{{ _offline_dir }}/images/cilium"
+        patterns: "*.tar"
       register: _find_cilium_images
       when:
         - k8s_install_mode is defined and k8s_install_mode == "offline"
@@ -137,10 +139,10 @@
             ([] if (_find_kubeadm is not defined or _find_kubeadm.skipped | default(false) or _find_kubeadm.matched | default(0) > 0) else ['packages/kubeadm-*.rpm'])
             + ([] if (_find_kubelet is not defined or _find_kubelet.skipped | default(false) or _find_kubelet.matched | default(0) > 0) else ['packages/kubelet-*.rpm'])
             + ([] if (_find_kubectl is not defined or _find_kubectl.skipped | default(false) or _find_kubectl.matched | default(0) > 0) else ['packages/kubectl-*.rpm'])
-            + ([] if (_find_k8s_images is not defined or _find_k8s_images.skipped | default(false) or _find_k8s_images.stat.exists | default(false)) else ['images/k8s-images.tar'])
+            + ([] if (_find_k8s_images is not defined or _find_k8s_images.skipped | default(false) or _find_k8s_images.matched | default(0) > 0) else ['images/k8s/*.tar'])
             + ([] if (_find_containerd is not defined or _find_containerd.skipped | default(false) or _find_containerd.matched | default(0) > 0) else ['cri/containerd/*.rpm'])
             + ([] if (_find_cilium_chart is not defined or _find_cilium_chart.skipped | default(false) or _find_cilium_chart.stat.exists | default(false)) else ['cni/cilium-<version>.tgz'])
-            + ([] if (_find_cilium_images is not defined or _find_cilium_images.skipped | default(false) or _find_cilium_images.stat.exists | default(false)) else ['images/cilium-images.tar'])
+            + ([] if (_find_cilium_images is not defined or _find_cilium_images.skipped | default(false) or _find_cilium_images.matched | default(0) > 0) else ['images/cilium/*.tar'])
           }}
       when: k8s_install_mode is defined and k8s_install_mode == "offline"
 
@@ -159,7 +161,7 @@
           Скачайте необходимые пакеты и разместите их в соответствующих директориях:
             - {{ _offline_dir }}/packages/       — kubeadm, kubelet, kubectl (RPM)
             - {{ _offline_dir }}/cri/containerd/  — containerd (RPM)
-            - {{ _offline_dir }}/images/          — k8s-images.tar, cilium-images.tar
+            - {{ _offline_dir }}/images/          — k8s/*.tar, cilium/*.tar (отдельные tar на образ)
             - {{ _offline_dir }}/cni/             — cilium-<version>.tgz (если cni=cilium)
             - {{ _offline_dir }}/utils/           — helm, helm-charts
       when:
