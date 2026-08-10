@@ -1,0 +1,64 @@
+---
+# Cert-manager (OCI Helm chart) + Issuer.
+
+- name: Установить cert-manager
+  when: certManagerEnable
+  block:
+      - name: Установить cert-manager через OCI [online]
+        when: k8s_install_mode == "online"
+        kubernetes.core.helm:
+            name: cert-manager
+            chart_ref: "{{ certManagerChartRef }}"
+            chart_version: "{{ certManagerVersion }}"
+            release_namespace: cert-manager
+            create_namespace: true
+            values:
+                # top-level imagePullSecrets (глобальный pull-secret)
+                imagePullSecrets: "{{ utils_global_image_pull_secrets }}"
+                # top-level переопределение registry для всех компонентов.
+                # NOTE: image.registry — DEPRECATED, используем imageRegistry.
+                imageRegistry: "{{ certManagerImageRegistry }}"
+                imageNamespace: "{{ certManagerImageNamespace }}"
+                crds:
+                    enabled: true
+                global:
+                    priorityClassName: high-priority
+                config:
+                    apiVersion: "controller.config.cert-manager.io/v1alpha1"
+                    kind: "ControllerConfiguration"
+                    enableGatewayAPI: "{{ certManagerEnableGatewayAPI }}"
+
+      - name: Установить cert-manager через OCI [offline]
+        when: k8s_install_mode == "offline"
+        kubernetes.core.helm:
+            name: cert-manager
+            chart_ref: "{{ playbook_dir }}/{{ k8s_offline_dir }}/utils/cert-manager-{{ certManagerVersion }}.tgz"
+            release_namespace: cert-manager
+            create_namespace: true
+            values:
+                imagePullSecrets: "{{ utils_global_image_pull_secrets }}"
+                imageRegistry: "{{ certManagerImageRegistry }}"
+                imageNamespace: "{{ certManagerImageNamespace }}"
+                crds:
+                    enabled: true
+                global:
+                    priorityClassName: high-priority
+                config:
+                    apiVersion: "controller.config.cert-manager.io/v1alpha1"
+                    kind: "ControllerConfiguration"
+                    enableGatewayAPI: "{{ certManagerEnableGatewayAPI }}"
+
+      - name: Ожидание запуска cert-manager (2 минуты)
+        ansible.builtin.wait_for:
+            timeout: 120
+
+      - name: Скопировать манифест Issuer
+        ansible.builtin.copy:
+            src: certs.yaml
+            dest: /etc/kubernetes/utils/certs.yaml
+            mode: "0600"
+        register: issuer
+
+      - name: Применить манифест Issuer
+        ansible.builtin.command: kubectl apply -f /etc/kubernetes/utils/certs.yaml
+        when: issuer.changed

@@ -1,0 +1,13 @@
+---
+# Priority classes для критичных компонентов кластера.
+
+- name: Скопировать манифест priority classes
+  ansible.builtin.copy:
+      src: priorityclass.yaml
+      dest: /etc/kubernetes/utils/priorityclass.yaml
+      mode: "0600"
+  register: priority_class
+
+- name: Применить манифест priority classes
+  ansible.builtin.command: kubectl apply -f /etc/kubernetes/utils/priorityclass.yaml
+  when: priority_class.changed

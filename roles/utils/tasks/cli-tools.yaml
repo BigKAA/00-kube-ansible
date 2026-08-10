@@ -1,0 +1,73 @@
+---
+# CLI-инструменты для управления кластером на первой control node.
+# jq уже устанавливается через packages_common (roles/prepare-hosts/vars/RedHat.yaml).
+# Здесь: cilium CLI (только при cni=cilium), yq, stern.
+
+- name: Определить архитектуру для CLI-бинарников
+  ansible.builtin.set_fact:
+    _cli_arch: "{{ 'amd64' if ansible_facts['architecture'] == 'x86_64' else 'arm64' if ansible_facts['architecture'] in ['aarch64', 'arm64'] else ansible_facts['architecture'] }}"
+
+# --- cilium CLI (только при cni=cilium) ---
+- name: Установить cilium CLI
+  when: cni == 'cilium'
+  block:
+    - name: Установить cilium CLI [online]
+      when: k8s_install_mode == "online"
+      ansible.builtin.unarchive:
+          src: "https://github.com/cilium/cilium-cli/releases/download/{{ ciliumCliVersion }}/cilium-linux-{{ _cli_arch }}.tar.gz"
+          dest: /usr/local/bin/
+          remote_src: true
+          creates: /usr/local/bin/cilium
+          mode: "0755"
+
+    - name: Установить cilium CLI [offline]
+      when: k8s_install_mode == "offline"
+      ansible.builtin.unarchive:
+          src: "{{ playbook_dir }}/{{ k8s_offline_dir }}/utils/cilium-linux-{{ _cli_arch }}.tar.gz"
+          dest: /usr/local/bin/
+          creates: /usr/local/bin/cilium
+          mode: "0755"
+
+# --- yq (mikefarah, Go-версия) ---
+- name: Установить yq [online]
+  when: k8s_install_mode == "online"
+  ansible.builtin.get_url:
+      url: "https://github.com/mikefarah/yq/releases/download/{{ yqVersion }}/yq_linux_{{ _cli_arch }}"
+      dest: /usr/local/bin/yq
+      mode: "0755"
+      owner: root
+
+- name: Установить yq [offline]
+  when: k8s_install_mode == "offline"
+  ansible.builtin.copy:
+      src: "{{ playbook_dir }}/{{ k8s_offline_dir }}/utils/yq_linux_{{ _cli_arch }}"
+      dest: /usr/local/bin/yq
+      mode: "0755"
+      owner: root
+
+# --- stern ---
+- name: Установить stern [online]
+  when: k8s_install_mode == "online"
+  ansible.builtin.unarchive:
+      src: "https://github.com/stern/stern/releases/download/{{ sternVersion }}/stern_{{ sternVersion | regex_replace('^v', '') }}_linux_{{ _cli_arch }}.tar.gz"
+      dest: /tmp/stern/
+      remote_src: true
+      creates: "/tmp/stern/stern_{{ sternVersion | regex_replace('^v', '') }}_linux_{{ _cli_arch }}"
+
+- name: Скопировать stern в /usr/local/bin [online]
+  when: k8s_install_mode == "online"
+  ansible.builtin.copy:
+      src: "/tmp/stern/stern_{{ sternVersion | regex_replace('^v', '') }}_linux_{{ _cli_arch }}/stern"
+      dest: /usr/local/bin/stern
+      remote_src: true
+      mode: "0755"
+      owner: root
+
+- name: Установить stern [offline]
+  when: k8s_install_mode == "offline"
+  ansible.builtin.unarchive:
+      src: "{{ playbook_dir }}/{{ k8s_offline_dir }}/utils/stern_{{ sternVersion }}_linux_{{ _cli_arch }}.tar.gz"
+      dest: /usr/local/bin/
+      creates: /usr/local/bin/stern
+      mode: "0755"
+      owner: root

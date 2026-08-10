@@ -1,0 +1,69 @@
+---
+# Приватный registry (закрытое окружение).
+# Создаёт imagePullSecret в неймспейсах утилит и (опционально)
+# выполняет `helm registry login` для приватных OCI-чартов.
+
+# imagePullSecrets остаются пустыми, если приватный registry выключен,
+# чтобы не ломать helm values шаблоны.
+- name: Инициализировать imagePullSecrets пустым списком
+  ansible.builtin.set_fact:
+      utils_global_image_pull_secrets: []
+  when: not (utils_registry.enabled | default(false) | bool)
+
+- name: Подготовить приватный registry
+  when: utils_registry.enabled | default(false) | bool
+  block:
+      - name: Убедиться, что неймспейсы для pull-secret существуют
+        ansible.builtin.command: "kubectl get namespace {{ item }} --ignore-not-found"
+        loop: "{{ utils_registry.namespaces }}"
+        changed_when: false
+
+      - name: Сформировать dockerconfigjson для pull-secret (один для всех ns)
+        ansible.builtin.set_fact:
+            utils_pull_secret_dockerconfig: "{{ {
+              'auths': {
+                (utils_registry.server): {
+                  'username': utils_registry.username,
+                  'password': utils_registry.password,
+                  'email': utils_registry.email | default(''),
+                  'auth': (utils_registry.username ~ ':' ~ utils_registry.password) | b64encode
+                }
+              }
+            } | to_json }}"
+        no_log: true
+
+      - name: Сгенерировать манифест pull-secret для каждого неймспейса
+        ansible.builtin.template:
+            src: image-pull-secrets.yaml.j2
+            dest: "/etc/kubernetes/utils/pull-secret-{{ item }}.yaml"
+            mode: "0600"
+            vars:
+                utils_pull_secret_namespace: "{{ item }}"
+        loop: "{{ utils_registry.namespaces }}"
+        no_log: true
+        register: utils_pull_secret_manifests
+
+      - name: Применить pull-secret в неймспейсах
+        ansible.builtin.command: "kubectl apply -f /etc/kubernetes/utils/pull-secret-{{ item }}.yaml"
+        loop: "{{ utils_registry.namespaces }}"
+        when: utils_pull_secret_manifests.changed | bool
+        no_log: true
+
+      - name: Список imagePullSecrets для helm values
+        ansible.builtin.set_fact:
+            utils_global_image_pull_secrets:
+                - name: "{{ utils_registry.pull_secret_name }}"
+
+      - name: Helm registry login для приватных OCI-чартов
+        ansible.builtin.command: >
+            helm registry login {{ utils_registry.server }}
+            --username '{{ utils_registry.username }}'
+            --password '{{ utils_registry.password }}'
+        when: utils_registry.helm_oci_login | default(true) | bool
+        no_log: true
+        changed_when: false
+
+  rescue:
+      - name: Ошибка подготовки приватного registry
+        ansible.builtin.fail:
+            msg: "Не удалось подготовить приватный registry. Проверьте utils_registry.server/username/password."

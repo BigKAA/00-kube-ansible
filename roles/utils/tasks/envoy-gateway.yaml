@@ -1,0 +1,98 @@
+---
+# Envoy Gateway (Gateway API).
+
+- name: Envoy Gateway
+  when: envoyGatewayEnable
+  block:
+      - name: Установить Envoy Gateway через OCI [online]
+        when: k8s_install_mode == "online"
+        kubernetes.core.helm:
+            name: eg
+            chart_ref: "{{ envoyGatewayChartRef }}"
+            chart_version: "{{ envoyGatewayVersion }}"
+            release_namespace: envoy-gateway-system
+            create_namespace: true
+            skip_crds: false
+            values:
+                # global.imageRegistry + imagePullSecrets переопределяют registry
+                # и pull-secret для envoyGateway/envoyProxy/ratelimit
+                global:
+                    imageRegistry: "{{ envoyGatewayImageRegistry }}"
+                    imagePullSecrets: "{{ utils_global_image_pull_secrets }}"
+                    images:
+                        # Полная строка образа ratelimit (тег из переменной)
+                        ratelimit:
+                            image: "{{ envoyRatelimitImageRegistry }}/{{ envoyRatelimitImageRepository }}:{{ envoyRatelimitImageTag }}"
+                deployment:
+                    priorityClassName: high-priority
+                    replicas: "{{ envoyGatewayReplicas }}"
+
+      - name: Установить Envoy Gateway через OCI [offline]
+        when: k8s_install_mode == "offline"
+        kubernetes.core.helm:
+            name: eg
+            chart_ref: "{{ playbook_dir }}/{{ k8s_offline_dir }}/utils/helm-charts/envoy-gateway-{{ envoyGatewayVersion }}.tgz"
+            release_namespace: envoy-gateway-system
+            create_namespace: true
+            skip_crds: false
+            values:
+                global:
+                    imageRegistry: "{{ envoyGatewayImageRegistry }}"
+                    imagePullSecrets: "{{ utils_global_image_pull_secrets }}"
+                    images:
+                        ratelimit:
+                            image: "{{ envoyRatelimitImageRegistry }}/{{ envoyRatelimitImageRepository }}:{{ envoyRatelimitImageTag }}"
+                deployment:
+                    priorityClassName: high-priority
+                    replicas: "{{ envoyGatewayReplicas }}"
+
+      - name: Ожидание запуска Envoy Gateway
+        ansible.builtin.command: kubectl -n envoy-gateway-system get deployment/envoy-gateway -o jsonpath='{.status.readyReplicas}'
+        register: eg_status
+        until: eg_status.stdout | int > 0
+        retries: 15
+        delay: 10
+
+      - name: Скопировать манифест EnvoyProxy Config
+        ansible.builtin.template:
+            src: envoy-proxy-config.j2
+            dest: /etc/kubernetes/utils/envoy-proxy-config.yaml
+            mode: "0600"
+        register: eg_proxy_config
+
+      - name: Применить EnvoyProxy Config
+        ansible.builtin.command: kubectl apply -f /etc/kubernetes/utils/envoy-proxy-config.yaml
+        when: eg_proxy_config.changed
+
+      - name: Скопировать манифест GatewayClass
+        ansible.builtin.template:
+            src: gateway-class.j2
+            dest: /etc/kubernetes/utils/gateway-class.yaml
+            mode: "0600"
+        register: eg_gateway_class
+
+      - name: Применить GatewayClass
+        ansible.builtin.command: kubectl apply -f /etc/kubernetes/utils/gateway-class.yaml
+        when: eg_gateway_class.changed
+
+      - name: Скопировать манифест Gateway TLS Certificate
+        ansible.builtin.template:
+            src: gateway-cert.j2
+            dest: /etc/kubernetes/utils/gateway-cert.yaml
+            mode: "0600"
+        register: eg_gateway_cert
+
+      - name: Применить Gateway TLS Certificate
+        ansible.builtin.command: kubectl apply -f /etc/kubernetes/utils/gateway-cert.yaml
+        when: eg_gateway_cert.changed
+
+      - name: Скопировать манифест Gateway
+        ansible.builtin.template:
+            src: gateway.j2
+            dest: /etc/kubernetes/utils/gateway.yaml
+            mode: "0600"
+        register: eg_gateway
+
+      - name: Применить Gateway
+        ansible.builtin.command: kubectl apply -f /etc/kubernetes/utils/gateway.yaml
+        when: eg_gateway.changed

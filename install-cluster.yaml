@@ -260,3 +260,10 @@
 
   roles:
     - workers
+
+- name: Install utils and CLI tools
+  hosts: "{{ groups['k8s_masters'][0] }}"
+  gather_facts: true
+
+  roles:
+    - utils

@@ -1,0 +1,43 @@
+---
+# ArgoCD (GitOps).
+
+- name: ArgoCD
+  when: argoCDEnable
+  block:
+      - name: Добавить репозиторий ArgoCD [online]
+        when: k8s_install_mode == "online"
+        kubernetes.core.helm_repository:
+            name: argocd
+            repo_url: https://argoproj.github.io/argo-helm
+
+      - name: Скопировать файл значений ArgoCD
+        ansible.builtin.template:
+            src: argo-values.j2
+            dest: /etc/kubernetes/utils/argo-values.yaml
+            mode: "0600"
+        register: argo_values
+
+      - name: Установить Helm-чарт ArgoCD [online]
+        when:
+            - argo_values.changed
+            - k8s_install_mode == "online"
+        kubernetes.core.helm:
+            name: argocd
+            chart_ref: argocd/argo-cd
+            chart_version: "{{ argoCDChartVersion }}"
+            release_namespace: argocd
+            create_namespace: true
+            values_files:
+                - /etc/kubernetes/utils/argo-values.yaml
+
+      - name: Установить Helm-чарт ArgoCD [offline]
+        when:
+            - argo_values.changed
+            - k8s_install_mode == "offline"
+        kubernetes.core.helm:
+            name: argocd
+            chart_ref: "{{ playbook_dir }}/{{ k8s_offline_dir }}/utils/helm-charts/argo-cd-{{ argoCDChartVersion }}.tgz"
+            release_namespace: argocd
+            create_namespace: true
+            values_files:
+                - /etc/kubernetes/utils/argo-values.yaml

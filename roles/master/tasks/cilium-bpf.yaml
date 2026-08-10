@@ -22,29 +22,34 @@
 
 # Helm ставится отдельно, т.к. роль master выполняется до роли utils.
 # Бинарник переиспользуется ролью utils позже.
+- name: Определить архитектуру для Helm-бинарника
+  ansible.builtin.set_fact:
+    _helm_arch: "{{ 'amd64' if ansible_facts['architecture'] == 'x86_64' else 'arm64' if ansible_facts['architecture'] in ['aarch64', 'arm64'] else ansible_facts['architecture'] }}"
+  when: lookup('first_found', ["/usr/local/bin/helm"], errors='ignore') is none
+
 - name: Установить Helm [online]
   when:
     - k8s_install_mode == "online"
     - lookup('first_found', ["/usr/local/bin/helm"], errors='ignore') is none
   ansible.builtin.unarchive:
-    src: "https://get.helm.sh/helm-{{ helmVersion }}-linux-amd64.tar.gz"
+    src: "https://get.helm.sh/helm-{{ helmVersion }}-linux-{{ _helm_arch }}.tar.gz"
     dest: /root/
     remote_src: true
-    creates: /root/linux-amd64/helm
+    creates: "/root/linux-{{ _helm_arch }}/helm"
 
 - name: Установить Helm [offline]
   when:
     - k8s_install_mode == "offline"
     - lookup('first_found', ["/usr/local/bin/helm"], errors='ignore') is none
   ansible.builtin.unarchive:
-    src: "{{ playbook_dir }}/{{ k8s_offline_dir }}/utils/helm-{{ helmVersion }}-linux-amd64.tar.gz"
+    src: "{{ playbook_dir }}/{{ k8s_offline_dir }}/utils/helm-{{ helmVersion }}-linux-{{ _helm_arch }}.tar.gz"
     dest: /root/
-    creates: /root/linux-amd64/helm
+    creates: "/root/linux-{{ _helm_arch }}/helm"
 
 - name: Переместить helm в /usr/local/bin
   when: lookup('first_found', ["/usr/local/bin/helm"], errors='ignore') is none
   ansible.builtin.copy:
-    src: /root/linux-amd64/helm
+    src: "/root/linux-{{ _helm_arch }}/helm"
     dest: /usr/local/bin/helm
     remote_src: true
     mode: '0755'

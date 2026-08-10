@@ -1,0 +1,14 @@
+---
+# Metrics Server (raw-манифест).
+
+- name: Скопировать манифест metrics server
+  ansible.builtin.template:
+      src: metrics-server.j2
+      dest: /etc/kubernetes/utils/metrics-server.yaml
+      mode: "0600"
+  when: metricsServerEnable
+  register: metrics_server
+
+- name: Применить манифест metrics server
+  ansible.builtin.command: kubectl apply -f /etc/kubernetes/utils/metrics-server.yaml
+  when: metrics_server.changed

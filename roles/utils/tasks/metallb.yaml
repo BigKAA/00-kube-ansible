@@ -1,0 +1,138 @@
+---
+# MetalLB (LoadBalancer для on-prem кластера).
+
+- name: MetalLB
+  when: metallbEnable
+  block:
+      - name: Найти предзагруженный chart MetalLB
+        ansible.builtin.find:
+            paths: "{{ playbook_dir }}/../{{ k8s_offline_dir }}/utils/helm-charts"
+            patterns: "metallb-*.tgz"
+        delegate_to: localhost
+        become: false
+        run_once: true
+        register: _metallb_chart_local
+
+      - name: Скопировать предзагруженный chart MetalLB на ноду
+        ansible.builtin.copy:
+            src: "{{ _metallb_chart_local.files[0].path }}"
+            dest: "/tmp/metallb-{{ metallbChartVersion }}.tgz"
+            mode: "0644"
+        when:
+            - k8s_install_mode == "online"
+            - _metallb_chart_local.matched | int > 0
+
+      - name: Добавить репозиторий MetalLB [online]
+        when:
+            - k8s_install_mode == "online"
+            - _metallb_chart_local.matched | int == 0
+        kubernetes.core.helm_repository:
+            name: metallb
+            repo_url: https://metallb.github.io/metallb
+
+      - name: Установить Helm-чарт MetalLB [online, repo]
+        when:
+            - k8s_install_mode == "online"
+            - _metallb_chart_local.matched | int == 0
+        kubernetes.core.helm:
+            name: metallb
+            chart_ref: metallb/metallb
+            chart_version: "{{ metallbChartVersion }}"
+            release_namespace: metallb
+            create_namespace: true
+            values:
+                # top-level pull-secret + переопределение registry (полные пути)
+                imagePullSecrets: "{{ utils_global_image_pull_secrets }}"
+                controller:
+                    image:
+                        repository: "{{ metallbImageRegistry }}/{{ metallbImageRepository }}/controller"
+                        pullPolicy: IfNotPresent
+                speaker:
+                    image:
+                        repository: "{{ metallbImageRegistry }}/{{ metallbImageRepository }}/speaker"
+                        pullPolicy: IfNotPresent
+                # frr-k8s subchart (основной BGP-бэкенд 0.16.x)
+                frr-k8s:
+                    frrk8s:
+                        image:
+                            repository: "{{ metallbFrrK8sImageRegistry }}/{{ metallbFrrK8sImageRepository }}"
+                            tag: "{{ metallbFrrK8sImageTag }}"
+                # FRR sidecar внутри frr-k8s DaemonSet (DEPRECATED режим frr)
+                frr:
+                    image:
+                        repository: "{{ metallbFrrImageRegistry }}/{{ metallbFrrImageRepository }}"
+                        tag: "{{ metallbFrrImageTag }}"
+
+      - name: Установить Helm-чарт MetalLB [online, local chart]
+        when:
+            - k8s_install_mode == "online"
+            - _metallb_chart_local.matched | int > 0
+        kubernetes.core.helm:
+            name: metallb
+            chart_ref: "/tmp/metallb-{{ metallbChartVersion }}.tgz"
+            release_namespace: metallb
+            create_namespace: true
+            values:
+                imagePullSecrets: "{{ utils_global_image_pull_secrets }}"
+                controller:
+                    image:
+                        repository: "{{ metallbImageRegistry }}/{{ metallbImageRepository }}/controller"
+                        pullPolicy: IfNotPresent
+                speaker:
+                    image:
+                        repository: "{{ metallbImageRegistry }}/{{ metallbImageRepository }}/speaker"
+                        pullPolicy: IfNotPresent
+                frr-k8s:
+                    frrk8s:
+                        image:
+                            repository: "{{ metallbFrrK8sImageRegistry }}/{{ metallbFrrK8sImageRepository }}"
+                            tag: "{{ metallbFrrK8sImageTag }}"
+                frr:
+                    image:
+                        repository: "{{ metallbFrrImageRegistry }}/{{ metallbFrrImageRepository }}"
+                        tag: "{{ metallbFrrImageTag }}"
+
+      - name: Установить Helm-чарт MetalLB [offline]
+        when: k8s_install_mode == "offline"
+        kubernetes.core.helm:
+            name: metallb
+            chart_ref: "{{ playbook_dir }}/../{{ k8s_offline_dir }}/utils/helm-charts/metallb-{{ metallbChartVersion }}.tgz"
+            release_namespace: metallb
+            create_namespace: true
+            values:
+                imagePullSecrets: "{{ utils_global_image_pull_secrets }}"
+                controller:
+                    image:
+                        repository: "{{ metallbImageRegistry }}/{{ metallbImageRepository }}/controller"
+                        pullPolicy: IfNotPresent
+                speaker:
+                    image:
+                        repository: "{{ metallbImageRegistry }}/{{ metallbImageRepository }}/speaker"
+                        pullPolicy: IfNotPresent
+                frr-k8s:
+                    frrk8s:
+                        image:
+                            repository: "{{ metallbFrrK8sImageRegistry }}/{{ metallbFrrK8sImageRepository }}"
+                            tag: "{{ metallbFrrK8sImageTag }}"
+                frr:
+                    image:
+                        repository: "{{ metallbFrrImageRegistry }}/{{ metallbFrrImageRepository }}"
+                        tag: "{{ metallbFrrImageTag }}"
+
+      - name: Проверить статус MetalLB
+        ansible.builtin.command: kubectl -n metallb get deployment.apps/metallb-controller -o jsonpath='{.status.readyReplicas}'
+        register: metallb_controller_status
+        until: metallb_controller_status.stdout | int > 0
+        retries: 10
+        delay: 10
+
+      - name: Скопировать манифест пула MetalLB
+        ansible.builtin.template:
+            src: mlb.j2
+            dest: /etc/kubernetes/utils/mlb.yaml
+            mode: "0600"
+        register: mlb_pool
+
+      - name: Применить манифест пула MetalLB
+        ansible.builtin.command: kubectl -n metallb apply -f /etc/kubernetes/utils/mlb.yaml
+        when: mlb_pool.changed
