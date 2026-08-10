@@ -4,42 +4,42 @@
 
 ### 1.1. Целевые машины (hosts-homelab.yaml)
 
-| Роль | Хост | IP | ОС |
-|------|------|----|----------------------|
+| Роль            | Хост           | IP              | ОС             |
+| --------------- | -------------- | --------------- | -------------- |
 | Control Plane 1 | r1.kryukov.lan | 192.168.218.131 | Rocky Linux 10 |
 | Control Plane 2 | r2.kryukov.lan | 192.168.218.132 | Rocky Linux 10 |
 | Control Plane 3 | r3.kryukov.lan | 192.168.218.133 | Rocky Linux 10 |
-| Worker 1 | r4.kryukov.lan | 192.168.218.134 | Rocky Linux 10 |
-| Worker 2 | r5.kryukov.lan | 192.168.218.135 | Rocky Linux 10 |
-| etcd 1 | e1.kryukov.lan | 192.168.218.141 | Rocky Linux 10 |
-| etcd 2 | e2.kryukov.lan | 192.168.218.142 | Rocky Linux 10 |
-| etcd 3 | e3.kryukov.lan | 192.168.218.143 | Rocky Linux 10 |
+| Worker 1        | r4.kryukov.lan | 192.168.218.134 | Rocky Linux 10 |
+| Worker 2        | r5.kryukov.lan | 192.168.218.135 | Rocky Linux 10 |
+| etcd 1          | e1.kryukov.lan | 192.168.218.141 | Rocky Linux 10 |
+| etcd 2          | e2.kryukov.lan | 192.168.218.142 | Rocky Linux 10 |
+| etcd 3          | e3.kryukov.lan | 192.168.218.143 | Rocky Linux 10 |
 
 ### 1.2. Сетевые параметры
 
-| Параметр | Значение |
-|----------|----------|
+| Параметр                  | Значение        |
+| ------------------------- | --------------- |
 | Kubernetes API Virtual IP | 192.168.218.130 |
-| HA Virtual Port | 7443 |
-| Service CIDR | 10.233.0.0/18 |
-| Pod Network CIDR | 10.233.64.0/18 |
+| HA Virtual Port           | 7443            |
+| Service CIDR              | 10.233.0.0/18   |
+| Pod Network CIDR          | 10.233.64.0/18  |
 
 ### 1.3. Ansible Control Node
 
-| Параметр | Значение |
-|----------|----------|
-| Платформа | MacOS (Orbstack) |
-| Ansible | В Docker-контейнере |
+| Параметр           | Значение                                              |
+| ------------------ | ----------------------------------------------------- |
+| Платформа          | MacOS (Orbstack)                                      |
+| Ansible            | В Docker-контейнере                                   |
 | Рабочая директория | /Users/arturkryukov/Projects/personal/00-kube-ansible |
-| Директория для RPM | `tmp/rpms/` (локальная) |
+| Директория для RPM | `tmp/rpms/` (локальная)                               |
 
 ### 1.4. Доступ SSH
 
-| Параметр | Значение |
-|----------|----------|
-| Пользователь | `artur` |
-| Аутентификация | По SSH-ключу |
-| sudo | Без пароля (`NOPASSWD`) |
+| Параметр       | Значение                      |
+| -------------- | ----------------------------- |
+| Пользователь   | `artur`                       |
+| Аутентификация | По SSH-ключу                  |
+| sudo           | Без пароля (`NOPASSWD`)       |
 | Ansible become | `--become-user=root --become` |
 
 Пример проверки доступа:
@@ -191,11 +191,15 @@ docker build -f Dockerfile.ansible -t ansible-custom:13.6 .
 
 ```bash
 alias ansible-playbook="docker run -ti --rm \
+  --user \"$(id -u):$(id -g)\" \
+  -e HOME=/home/ansible \
   -v ~/.ssh:/home/ansible/.ssh \
   -v $(pwd):/workspace \
   ansible-custom:13.6 ansible-playbook"
 
 alias ansible="docker run -ti --rm \
+  --user \"$(id -u):$(id -g)\" \
+  -e HOME=/home/ansible \
   -v ~/.ssh:/home/ansible/.ssh \
   -v $(pwd):/workspace \
   ansible-custom:13.6 ansible"
@@ -206,6 +210,15 @@ alias ansible="docker run -ti --rm \
 > `artur@<host>` должны быть доступны в `~/.ssh/` на хост-машине.
 > Коллекции Ansible предустановлены в образе — монтировать
 > `~/.ansible` не требуется.
+>
+> **Зачем нужен `--user "$(id -u):$(id -g)"`:**
+> Контейнерный пользователь `ansible` имеет uid 501 (см. `Dockerfile.ansible`).
+> SSH-ключи на хосте принадлежат вашему пользователю (обычно uid 1000) с
+> правами `600`. Без `--user` контейнер не сможет их прочитать — получите
+> `Permission denied (publickey)` и `Failed to add the host to the list of
+known hosts`. Флаг заставляет контейнер работать под тем же uid, что и
+> владелец ключей. Переменная `HOME=/home/ansible` нужна, чтобы Ansible и ssh
+> корректно находили конфиги (`~/.ssh/config`, `~/.ansible.cfg`).
 
 ---
 
@@ -791,32 +804,32 @@ ssh artur@e1.kryukov.lan "sudo systemctl status etcd"  # должен быть i
 
 ### 8.1. Чек-лист проверок
 
-| # | Проверка | Этап | Ожидаемый результат | Статус |
-|---|----------|------|---------------------|--------|
-| 1 | SSH доступ ко всем нодам (artur@) | Подготовка | Все ноды доступны, sudo работает | ✅ |
-| 2 | Скачивание RPM v1.35 для Rocky Linux 10 | Подготовка | RPM в tmp/rpms/, совместимы с EL10 | ✅ |
-| 3 | Скачивание RPM v1.36 для Rocky Linux 10 | Подготовка | RPM в tmp/rpms/, совместимы с EL10 | ✅ |
-| 4 | Синтаксис install-cluster.yaml | Подготовка | Без ошибок | ✅ |
-| 5 | Pre-flight: некорректная версия | Подготовка | Завершается с ошибкой | ⬜ |
-| 6 | Pre-flight: чётное количество control plane | Подготовка | Завершается с ошибкой | ⬜ |
-| 7 | Установка external etcd | Установка | 3 ноды, healthy | ✅ |
-| 8 | Установка control plane | Установка | 3 ноды, Ready | ✅ |
-| 9 | Установка worker нод | Установка | 2 ноды, Ready | ✅ |
-| 10 | HA (VIP) | Установка | VIP активен, API доступен | ✅ |
-| 11 | CNI (Calico) | Установка | Поды Running, связность | ✅ |
-| 12 | CRI (containerd) | Установка | Запущен, контейнеры работают | ✅ |
-| 13 | Версия k8s = 1.35.0 → 1.36.1 | Установка / Upgrade | `kubectl version` | ⬜ |
-| 14 | Версия etcd = 3.5.24 → 3.6.6 | Установка / Upgrade | `etcdctl version` | ⬜ |
-| 15 | Синтаксис upgrade.yaml | Upgrade | Без ошибок | ⬜ |
-| 16 | Upgrade etcd до 3.6.6 | Upgrade | Rolling upgrade, healthy | ⬜ |
-| 17 | Upgrade k8s до 1.36.1 | Upgrade | Все ноды, новая версия | ⬜ |
-| 18 | Работоспособность приложений | Upgrade | Deployment, Service, DNS | ⬜ |
-| 19 | HA после upgrade | Upgrade | VIP, API доступен | ⬜ |
-| 20 | Отказоустойчивость etcd | Негативные | Кластер жив при 1 ноде down | ⬜ |
-| 21 | Отказоустойчивость control plane | Негативные | VIP переезжает, API доступен | ⬜ |
-| 22 | Hooks (pre/post install) | Hooks | Выполняются корректно | ⬜ |
-| 23 | Reset кластера | Очистка | Пакеты удалены, iptables очищены | ✅ |
-| 24 | Reset etcd | Очистка | etcd остановлен, данные удалены | ✅ |
+| #   | Проверка                                    | Этап                | Ожидаемый результат                | Статус |
+| --- | ------------------------------------------- | ------------------- | ---------------------------------- | ------ |
+| 1   | SSH доступ ко всем нодам (artur@)           | Подготовка          | Все ноды доступны, sudo работает   | ✅     |
+| 2   | Скачивание RPM v1.35 для Rocky Linux 10     | Подготовка          | RPM в tmp/rpms/, совместимы с EL10 | ✅     |
+| 3   | Скачивание RPM v1.36 для Rocky Linux 10     | Подготовка          | RPM в tmp/rpms/, совместимы с EL10 | ✅     |
+| 4   | Синтаксис install-cluster.yaml              | Подготовка          | Без ошибок                         | ✅     |
+| 5   | Pre-flight: некорректная версия             | Подготовка          | Завершается с ошибкой              | ⬜     |
+| 6   | Pre-flight: чётное количество control plane | Подготовка          | Завершается с ошибкой              | ⬜     |
+| 7   | Установка external etcd                     | Установка           | 3 ноды, healthy                    | ✅     |
+| 8   | Установка control plane                     | Установка           | 3 ноды, Ready                      | ✅     |
+| 9   | Установка worker нод                        | Установка           | 2 ноды, Ready                      | ✅     |
+| 10  | HA (VIP)                                    | Установка           | VIP активен, API доступен          | ✅     |
+| 11  | CNI (Calico)                                | Установка           | Поды Running, связность            | ✅     |
+| 12  | CRI (containerd)                            | Установка           | Запущен, контейнеры работают       | ✅     |
+| 13  | Версия k8s = 1.35.0 → 1.36.1                | Установка / Upgrade | `kubectl version`                  | ⬜     |
+| 14  | Версия etcd = 3.5.24 → 3.6.6                | Установка / Upgrade | `etcdctl version`                  | ⬜     |
+| 15  | Синтаксис upgrade.yaml                      | Upgrade             | Без ошибок                         | ⬜     |
+| 16  | Upgrade etcd до 3.6.6                       | Upgrade             | Rolling upgrade, healthy           | ⬜     |
+| 17  | Upgrade k8s до 1.36.1                       | Upgrade             | Все ноды, новая версия             | ⬜     |
+| 18  | Работоспособность приложений                | Upgrade             | Deployment, Service, DNS           | ⬜     |
+| 19  | HA после upgrade                            | Upgrade             | VIP, API доступен                  | ⬜     |
+| 20  | Отказоустойчивость etcd                     | Негативные          | Кластер жив при 1 ноде down        | ⬜     |
+| 21  | Отказоустойчивость control plane            | Негативные          | VIP переезжает, API доступен       | ⬜     |
+| 22  | Hooks (pre/post install)                    | Hooks               | Выполняются корректно              | ⬜     |
+| 23  | Reset кластера                              | Очистка             | Пакеты удалены, iptables очищены   | ✅     |
+| 24  | Reset etcd                                  | Очистка             | etcd остановлен, данные удалены    | ✅     |
 
 ---
 
@@ -826,9 +839,9 @@ ssh artur@e1.kryukov.lan "sudo systemctl status etcd"  # должен быть i
 
 1. ~~**Дубликат в hosts-homelab.yaml**~~ — исправлено в коммите `81a977a`
 2. ~~**Offline-пакеты**~~ — реализован offline-режим в коммите `556f60d`:
-   - Добавлена переменная `k8s_install_mode: offline`
-   - `prepare-hosts` копирует RPM с Ansible control node и устанавливает через dnf
-   - Upgrade-задачи используют glob-паттерны и `k8s_rpm_remote_dir`
+    - Добавлена переменная `k8s_install_mode: offline`
+    - `prepare-hosts` копирует RPM с Ansible control node и устанавливает через dnf
+    - Upgrade-задачи используют glob-паттерны и `k8s_rpm_remote_dir`
 3. ~~**Upgrade ожидает конкретное именование RPM**~~ — подтверждено:
    скачанные пакеты имеют именование `150500.1.1`, совместимое с playbook.
    Playbook обновлён для использования glob-паттернов.
@@ -879,6 +892,8 @@ make reset ENV=homelab EXTRA='-e "etcd_mode=external" -e "reset_etcd=true"'
 ```bash
 # Из директории проекта
 docker run --rm -ti \
+  --user "$(id -u):$(id -g)" \
+  -e HOME=/home/ansible \
   -v "$(pwd):/workspace" \
   -v ~/.ssh:/home/ansible/.ssh \
   ansible-custom:13.6 \
@@ -927,10 +942,10 @@ ansible -i hosts-homelab.yaml --list-hosts etcd_nodes
 
 ### 11.2. Типичные проблемы
 
-| Проблема | Причина | Решение |
-|----------|---------|---------|
-| Ноды не становятся Ready | CNI не установлен | Проверить поды Calico |
-| API недоступен через VIP | Keepalived не работает | Проверить статус keepalived |
-| etcd кластер не формируется | Проблемы с сертификатами | Проверить `files/etcd-pki/` |
-| Upgrade зависает | Нода не drain | Проверить `kubectl get nodes` |
-| RPM не устанавливаются | Неправильное имя файла | Проверить naming convention |
+| Проблема                    | Причина                  | Решение                       |
+| --------------------------- | ------------------------ | ----------------------------- |
+| Ноды не становятся Ready    | CNI не установлен        | Проверить поды Calico         |
+| API недоступен через VIP    | Keepalived не работает   | Проверить статус keepalived   |
+| etcd кластер не формируется | Проблемы с сертификатами | Проверить `files/etcd-pki/`   |
+| Upgrade зависает            | Нода не drain            | Проверить `kubectl get nodes` |
+| RPM не устанавливаются      | Неправильное имя файла   | Проверить naming convention   |
