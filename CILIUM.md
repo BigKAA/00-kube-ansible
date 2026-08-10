@@ -92,7 +92,7 @@ cilium_nodelocaldns: true  # по умолчанию
 kubeadm вычисляет IP автоматически (первый адрес из `serviceSubnet`).
 Это IP сервиса CoreDNS (`kube-dns`), и именно его перехватывает LRP.
 
-Для Calico и Flannel `clusterDNS` остаётся равным `nodelocaldns_local_ip`
+Для Flannel `clusterDNS` остаётся равным `nodelocaldns_local_ip`
 (169.254.25.10) — стандартный подход через hostNetwork + iptables.
 
 ### Проверка

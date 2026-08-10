@@ -1,55 +1,66 @@
 # Роль: utils
 
-Установка утилит и дополнений на Kubernetes кластер.
+Установка утилит, CLI-инструментов и аддонов на первой control node.
+Версии — из [`scripts/versions.yaml`](../../scripts/versions.yaml).
 
 ## Что делает
 
-- Устанавливает Helm v4 + плагин helm-diff
+- Устанавливает Helm + плагин helm-diff
+- Устанавливает CLI-инструменты: cilium CLI (при cni=cilium), yq, stern
+- Настраивает приватный registry (imagePullSecrets) при включении
 - Устанавливает PriorityClass для системных компонентов
-- Устанавливает (опционально):
+- Устанавливает (опционально, через enable-флаги):
   - cert-manager (через OCI Helm chart)
   - Metrics Server
   - NFS CSI Driver (динамическое provisioning)
   - MetalLB
-  - Ingress Nginx
-  - Envoy Gateway (Gateway API)
   - Stakater Reloader
+  - Envoy Gateway (Gateway API)
   - ArgoCD
+
+## Структура task-файлов
+
+Роль разбита на отдельные task-файлы, `main.yaml` — диспетчер
+(последовательный include_tasks по порядку зависимостей):
+
+```text
+tasks/
+├── main.yaml           # диспетчер: include_tasks по порядку
+├── helm.yaml           # Helm + helm-diff
+├── cli-tools.yaml      # cilium CLI, yq, stern (jq — через packages_common)
+├── registry.yaml       # приватный registry (imagePullSecrets)
+├── priorityclass.yaml  # PriorityClasses
+├── cert-manager.yaml   # cert-manager + Issuer
+├── metrics-server.yaml # Metrics Server (raw-манифест)
+├── nfs-csi.yaml        # NFS CSI Driver
+├── reloader.yaml       # Stakater Reloader
+├── metallb.yaml        # MetalLB + IP-пул
+├── envoy-gateway.yaml  # Envoy Gateway (Gateway API)
+└── argocd.yaml         # ArgoCD
+```
+
+Порядок учитывает зависимости: cert-manager → до envoy-gateway (TLS).
 
 ## Переменные
 
-| Переменная                      | По умолчанию           | Описание                        |
-| ------------------------------- | ---------------------- | ------------------------------- |
-| `helmVersion`                   | `v4.0.4`               | Версия Helm                     |
-| `nfsEnable`                     | `true`                 | Включить NFS CSI Driver         |
-| `nfsCSIDriverVersion`           | `4.13.2`               | Версия NFS CSI Driver           |
-| `nfsServerHost`                 | `192.168.218.170`      | Адрес NFS сервера               |
-| `nfsServerPath`                 | `/var/nfs-disk`        | Путь на NFS сервере             |
-| `nfsStorageClassName`           | `managed-nfs-storage`  | Имя StorageClass                |
-| `nfsReclaimPolicy`              | `Delete`               | Политика удаления PV            |
-| `nfsArchiveOnDelete`            | `false`                | Архивировать при удалении       |
-| `nfsMountOptions`               | `["nfsvers=4.1"]`      | Опции монтирования NFS          |
-| `certManagerEnable`             | `true`                 | Включить cert-manager           |
-| `certManagerVersion`            | `v1.19.2`              | Версия cert-manager             |
-| `certManagerEnableGatewayAPI`   | `false`                | Включить поддержку Gateway API  |
-| `metricsServerEnable`           | `true`                 | Включить Metrics Server         |
-| `metallbEnable`                 | `true`                 | Включить MetalLB                |
-| `metallbChartVersion`           | `0.15.3`               | Версия MetalLB Helm chart       |
-| `metallbAddresses`              | см. group_vars         | Диапазон IP для MetalLB         |
-| `ingressControllerEnable`       | `true`                 | Включить Ingress Nginx          |
-| `ingressControllerChartVersion` | `4.12.0`               | Версия Ingress Nginx chart      |
-| `envoyGatewayEnable`            | `false`                | Включить Envoy Gateway          |
-| `envoyGatewayVersion`           | `v1.8.0`               | Версия Envoy Gateway            |
-| `envoyGatewayReplicas`          | `1`                    | Количество реплик Envoy Gateway |
-| `envoyGatewayLoadBalancerIP`    | `192.168.218.180`      | IP для EnvoyProxy Service       |
-| `envoyGatewayDomain`            | `kryukov.lan`          | Домен для Gateway TLS           |
-| `reloaderEnable`                | `false`                | Включить Stakater Reloader      |
-| `reloaderChartVersion`          | `2.2.11`               | Версия Reloader chart           |
-| `reloaderReloadStrategy`        | `annotations`          | Стратегия перезагрузки          |
-| `argoCDEnable`                  | `true`                 | Включить ArgoCD                 |
-| `argoCDChartVersion`            | `9.5.14`               | Версия ArgoCD chart             |
-| `argoCDURL`                     | `argocd.kryukov.local` | URL ArgoCD                      |
-| `argoCDAdminPassword`           | см. group_vars         | Bcrypt hash пароля ArgoCD       |
+Значения по умолчанию — в `group_vars/k8s_cluster` (canonical-источник
+версий — `scripts/versions.yaml`).
+
+| Переменная | Описание |
+|------------|----------|
+| `helmVersion` | Версия Helm |
+| `ciliumCliVersion` | Версия cilium CLI (только при cni=cilium) |
+| `yqVersion` | Версия yq |
+| `sternVersion` | Версия stern |
+| `nfsEnable` | Включить NFS CSI Driver |
+| `nfsCSIDriverVersion` | Версия NFS CSI Driver |
+| `nfsServerHost` / `nfsServerPath` | Адрес/путь NFS сервера |
+| `certManagerEnable` / `certManagerVersion` | cert-manager |
+| `metricsServerEnable` | Включить Metrics Server |
+| `metallbEnable` / `metallbChartVersion` | MetalLB |
+| `reloaderEnable` / `reloaderChartVersion` | Stakater Reloader |
+| `envoyGatewayEnable` / `envoyGatewayVersion` | Envoy Gateway |
+| `argoCDEnable` / `argoCDChartVersion` | ArgoCD |
 
 ## Приватный registry (закрытое окружение)
 
@@ -64,14 +75,11 @@ utils_registry:
     password: "CHANGE_ME"
     pull_secret_name: "utils-pull-secret"
     namespaces:
-        [
-            kube-system,
-            cert-manager,
-            metallb,
-            ingress-nginx,
-            argocd,
-            envoy-gateway-system,
-        ]
+        - kube-system
+        - cert-manager
+        - metallb
+        - argocd
+        - envoy-gateway-system
     helm_oci_login: true
 ```
 
@@ -81,89 +89,47 @@ utils_registry:
 - Secret автоматически подключается ко всем утилитам через
   `imagePullSecrets` / `global.imagePullSecrets`;
 - выполняется `helm registry login` для приватных OCI-чартов
-  (cert-manager, envoy-gateway) — отключается `helm_oci_login: false`.
+  (cert-manager, envoy-gateway).
 
-### Переопределение registry/образа для каждой программы
-
-Для каждой утилиты можно отдельно задать registry и путь к образу.
-Дефолты (upstream) — в `roles/utils/defaults/main.yaml`.
-
-| Переменная                                               | По умолчанию                                             | Куда подставляется                             |
-| -------------------------------------------------------- | -------------------------------------------------------- | ---------------------------------------------- |
-| `metricsServerImage{Registry,Repository,Tag}`            | registry.k8s.io / metrics-server/metrics-server / v0.8.1 | raw-манифест                                   |
-| `certManagerImageRegistry` / `certManagerImageNamespace` | quay.io / jetstack                                       | top-level `imageRegistry` / `imageNamespace`   |
-| `certManagerChartRef`                                    | oci://quay.io/jetstack/charts/cert-manager               | Helm OCI chart                                 |
-| `metallbImageRegistry` / `metallbImageRepository`        | quay.io / metallb                                        | `controller/speaker.image.repository`          |
-| `metallbFrrK8sImage{Registry,Repository,Tag}`            | quay.io / metallb/frr-k8s / v0.0.25                      | `frr-k8s.frrk8s.image.{repository,tag}`        |
-| `metallbFrrImage{Registry,Repository,Tag}`               | quay.io / frrouting/frr / 10.4.3                         | `frr.image.{repository,tag}`                   |
-| `ingressNginxImage{Registry,Repository,Tag}`             | registry.k8s.io / ingress-nginx/controller / v1.15.1     | `controller.image.{registry,image,tag}`        |
-| `argocdImageRegistry` / `argocdImageRepository`          | quay.io / argoproj/argocd                                | `global.image.repository`                      |
-| `argocdRedisImage{Registry,Repository,Tag}`              | ecr-public.aws.com / docker/library/redis / 8.2.3-alpine | `redis.image.{repository,tag}`                 |
-| `argocdDexImage{Registry,Repository,Tag}`                | ghcr.io / dexidp/dex / v2.45.1                           | `dex.image.{repository,tag}`                   |
-| `reloaderImageRegistry` / `reloaderImageRepository`      | ghcr.io / stakater/reloader                              | top-level `imageRegistry` + `image.repository` |
-| `envoyGatewayImageRegistry`                              | docker.io                                                | `global.imageRegistry`                         |
-| `envoyRatelimitImage{Registry,Repository,Tag}`           | docker.io / envoyproxy/ratelimit / 1e50889b              | `global.images.ratelimit.image`                |
-| `envoyGatewayChartRef`                                   | oci://docker.io/envoyproxy/gateway-helm                  | Helm OCI chart                                 |
-| `nfsCsiImageRegistry` / `nfsCsiImageRepository`          | registry.k8s.io / sig-storage                            | `image.baseRepo` + `image.nfs.repository`      |
-
-> Комплементарный способ для полностью прозрачного air-gap — containerd
-> mirror configuration в роли `prepare-hosts` (redirect всех registry).
+Переопределение registry/образа для каждой утилиты — через переменные
+`*ImageRegistry` / `*ImageRepository` / `*ImageTag` (см. `defaults/main.yaml`).
 
 ## Offline-режим
 
 При `k8s_install_mode: "offline"`:
 
-- Helm скачивается из локального архива вместо `get.helm.sh`
-- Плагин helm-diff устанавливается из локальной копии
-- cert-manager манифест устанавливается из OCI чарта (локальный `.tgz`)
-- Helm-чарты (MetalLB, Ingress Nginx, ArgoCD, NFS CSI Driver, Reloader, Envoy Gateway) устанавливаются из локальных `.tgz`
+- Helm и CLI-инструменты — из локальных архивов `tmp/offline/utils/`
+- Плагин helm-diff — из локальной копии `tmp/offline/utils/helm-plugins/`
+- Helm-чарты утилит — из локальных `.tgz` в `tmp/offline/utils/helm-charts/`
+- cert-manager (OCI) — из `tmp/offline/utils/cert-manager-*.tgz`
+- Envoy Gateway (OCI) — из `tmp/offline/utils/helm-charts/envoy-gateway-*.tgz`
 
 Каталоги offline-артефактов:
 
 ```text
 tmp/offline/utils/
-├── helm-*.tar.gz              # бинарный архив Helm
-├── cert-manager-*.tgz         # OCI чарт cert-manager
+├── helm-*.tar.gz                  # Helm (обе arch)
+├── cilium-linux-*.tar.gz          # cilium CLI (при cni=cilium)
+├── yq_linux_*                     # yq (обе arch)
+├── stern_*_linux_*.tar.gz         # stern (обе arch)
+├── cert-manager-*.tgz             # OCI чарт cert-manager
 ├── helm-charts/
-│   ├── metallb-*.tgz          # чарт MetalLB
-│   ├── ingress-nginx-*.tgz    # чарт Ingress Nginx
-│   ├── argo-cd-*.tgz          # чарт ArgoCD
-│   ├── csi-driver-nfs-*.tgz   # чарт NFS CSI Driver
-│   ├── reloader-*.tgz         # чарт Stakater Reloader
-│   └── envoy-gateway-*.tgz    # OCI чарт Envoy Gateway
+│   ├── metallb-*.tgz
+│   ├── csi-driver-nfs-*.tgz
+│   ├── reloader-*.tgz
+│   ├── envoy-gateway-*.tgz        # OCI чарт Envoy Gateway
+│   └── argo-cd-*.tgz
 └── helm-plugins/
-    └── helm-diff/             # плагин helm-diff
+    └── helm-diff/                 # плагин helm-diff
 ```
 
 ## Зависимости
 
 - Рабочий Kubernetes кластер с настроенным kubectl
-- Helm устанавливается автоматически
+- Helm устанавливается автоматически (task `helm.yaml`)
 - cert-manager требуется для Envoy Gateway TLS
 
 ## Примечания
 
-Роль выполняется только на первом control plane (`k8s_masters[0]`).
+Роль выполняется только на первой control node (`k8s_masters[0]`).
 Каждая утилита включается/отключается отдельной переменной `*Enable`.
-
-### Миграция с nfs-subdir-external-provisioner
-
-Если вы обновляетесь с предыдущей версии, где использовался
-`nfs-subdir-external-provisioner`:
-
-1. Новый CSI Driver NFS создаёт StorageClass с именем `managed-nfs-storage`
-   (совпадает со старым именем).
-2. Существующие PVC продолжат работать — старый provisioner не удаляется
-   автоматически.
-3. Для полного перехода удалите старый StorageClass и deployment
-   `nfs-client-provisioner` после проверки работы CSI Driver.
-
-### Gateway API vs Ingress Nginx
-
-Роль поддерживает оба ingress controller одновременно:
-
-- **Ingress Nginx** — классический ingress controller, проверенный временем
-- **Envoy Gateway** — современный Gateway API controller от Envoy Proxy
-
-Для использования Envoy Gateway установите `envoyGatewayEnable: true`.
-Gateway создаётся с TLS сертификатом от cert-manager (ClusterIssuer `dev-ca-issuer`).

@@ -18,52 +18,47 @@ Ansible playbook для установки и управления тестов�
 ├── reset.yaml               # Playbook удаления кластера
 ├── upgrade.yaml             # Playbook обновления кластера
 ├── group_vars/
-│   ├── all.yaml             # Общие переменные для всех групп
+│   ├── all.yaml             # Общие переменные (kube_version)
 │   ├── all/hooks.yaml       # Точки расширения (pre/post hooks)
-│   ├── k8s_cluster/         # Общие переменные кластера
-│   └── etcd_nodes/          # Переменные для external etcd нод
+│   └── k8s_cluster/         # Переменные кластера
 ├── examples/                # Примеры конфигураций
 │   ├── single-node/
-│   ├── ha-stacked/
-│   └── ha-external-etcd/
+│   └── ha-stacked/
 ├── plans/                   # Планы разработки, тестирования
-├── scripts/                 # Скрипты утилит (скачивание offline-артефактов)
+├── scripts/
+│   ├── versions.yaml        # Canonical-источник версий
+│   └── download_offline_artifacts.py  # Скачивание offline-артефактов
 ├── roles/
-│   ├── prepare-hosts/       # Подготовка хостов (CRI, пакеты)
+│   ├── prepare-hosts/       # Подготовка хостов (containerd, пакеты)
 │   ├── ha/                  # HAProxy + Keepalived для HA
-│   ├── etcd/                # External etcd кластер
 │   ├── master/              # Установка control plane нод
 │   ├── second_controls/     # Дополнительные control plane
 │   ├── workers/             # Установка worker нод
 │   ├── upgrade-cluster/     # Обновление кластера
-│   └── utils/               # Утилиты
-├── services/                # Сервисные playbooks
-├── k3s-playbook/            # Отдельный playbook для k3s (air-gap)
-├── files/
-│   └── etcd-pki/            # Сертификаты external etcd (генерируются автоматически)
+│   └── utils/               # Утилиты и CLI (10 task-файлов)
+├── services/                # Служебные playbooks (ping, debug, poweroff)
 └── images/                  # Изображения для документации
 ```
 
 ### Поддерживаемые компоненты
 
-- **Kubernetes**: v1.28 — v1.36.1
-- **CRI**: containerd, CRI-O
-- **CNI**: Calico (с поддержкой eBPF), Flannel, Cilium (с поддержкой kube-proxy replacement)
+- **Kubernetes**: v1.35+
+- **CRI**: containerd
+- **CNI**: Flannel, Cilium (с kube-proxy replacement через eBPF)
 - **HA**: HAProxy + Keepalived (virtual IP)
-- **etcd**: stacked (встроенный) или external (отдельный кластер).
-  Протестированы версии 3.5.x — 3.6.x
-- **Утилиты**: Helm, NFS CSI Driver, cert-manager,
-  Metrics Server, MetalLB, Ingress Nginx, Envoy Gateway (Gateway API),
-  Stakater Reloader, ArgoCD
+- **etcd**: stacked (встроенный в control plane)
+- **Утилиты**: Helm, NFS CSI Driver, cert-manager, Metrics Server,
+  MetalLB, Envoy Gateway (Gateway API), Stakater Reloader, ArgoCD
+- **CLI на первой control node**: kubectl, helm, cilium CLI, yq, jq, stern
 
 ### Протестированные дистрибутивы
 
-| k8s ver         | Distributive     | CRI                  | Статус |
-| --------------- | ---------------- | -------------------- | ------ |
-| 1.35.0 → 1.36.1 | Rocky Linux 10.1 | containerd           | OK     |
-| 1.31.2          | Rocky Linux 9.4  | containerd 1.7.23    | OK     |
-| 1.30            | Rocky Linux 8.10 | containerd 1.6.32    | OK     |
-| 1.30            | Debian 12        | containerd.io 1.7.21 | OK     |
+Только RedHat-семейство:
+
+| k8s ver | Distributive     | CRI        | Статус |
+|---------|------------------|------------|--------|
+| 1.35–1.36 | Rocky Linux 10 | containerd | OK |
+| 1.35    | Rocky Linux 9    | containerd | OK |
 
 ## 🗣️ Язык
 
@@ -164,11 +159,10 @@ pip install cryptography kubernetes docker
 
 Основные playbooks:
 
-- `install-cluster.yaml` — установка кластера
-  (включая external etcd при `etcd_mode: external`)
-- `reset.yaml` — удаление кластера (очищает iptables!)
-- `upgrade.yaml` — обновление кластера (последовательно, serial: 1)
-- `services/06-utils.yaml` — установка утилит (Helm, NFS CSI Driver, cert-manager и др.)
+- `install-cluster.yaml` — установка кластера + утилиты + CLI
+  (prepare-hosts → HA → master → second_controls → workers → utils)
+- `reset.yaml` — полное удаление кластера (утилиты, CNI, пакеты, конфиги)
+- `upgrade.yaml` — обновление кластера (ноды serial:1, затем CNI + утилиты)
 
 Поддерживаются точки расширения (hooks) через `group_vars/all/hooks.yaml`:
 pre/post задачи для подготовки хостов.
@@ -188,15 +182,13 @@ pre/post задачи для подготовки хостов.
 
 ### Важные предупреждения
 
-- `reset.yaml` удаляет **все** нестандартные iptables цепочки
+- `reset.yaml` удаляет **все** установленные компоненты: утилиты, CNI,
+  пакеты Kubernetes/containerd, CLI-инструменты, конфиги и каталоги,
+  очищает iptables цепочки
 - При HA кластере количество control plane нод должно быть **нечётным**
 - Порт HA virtual IP (`ha_cluster_virtual_port`) не должен быть 6443
-- При external etcd количество etcd нод должно быть
-  **нечётным** (рекомендуется 3)
-- External etcd **не удаляется** при `reset.yaml` по умолчанию
-  (установите `reset_etcd: true`)
-- Сертификаты external etcd генерируются на Ansible control node
-  в `files/etcd-pki/`
+- Canonical-источник версий — `scripts/versions.yaml`; при изменении
+  версии обновляйте его (Ansible-переменные в `group_vars` ссылаются на него)
 
 ## 🔄 Обновление информации
 

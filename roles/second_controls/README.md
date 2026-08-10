@@ -1,20 +1,19 @@
 # Роль: second_controls
 
-Подключение дополнительных control plane нод к Kubernetes кластеру.
+Подключение дополнительных control plane нод к Kubernetes кластеру (stacked etcd).
 
 ## Что делает
 
 - Генерирует join token, discovery-token-ca-cert-hash и certificate-key (на первом master)
-- Для external etcd: копирует PKI сертификаты с первого master
 - Выполняет `kubeadm join --control-plane` на дополнительных нодах
-- Перезапускает coredns после подключения всех нод
+- Создаёт symlink для kubeconfig (`/root/.kube/config`)
+- Перезапускает kubelet
 
 ## Переменные
 
 | Переменная | По умолчанию | Описание |
 |------------|-------------|----------|
-| `kube_version` | `1.36.1` | Версия Kubernetes |
-| `etcd_mode` | `stacked` | Режим etcd: `stacked` или `external` |
+| `kube_version` | `1.36.2` | Версия Kubernetes |
 
 ## Зависимости
 
@@ -25,5 +24,5 @@
 ## Примечания
 
 Роль применяется ко всем хостам в группе `k8s_masters`.
-Подготовка выполняется только на первом master.
-Join выполняется на всех нодах кроме первой.
+Подготовка (`prepare.yaml`) выполняется только на первом master.
+Join (`join.yaml`) выполняется на всех нодах кроме первой.

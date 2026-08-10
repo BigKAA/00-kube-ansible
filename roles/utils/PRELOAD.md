@@ -11,10 +11,14 @@
 - Все образы параметризованы ролью и могут быть перенаправлены в приватный
   registry через переменные.
 
-> Версии (из `group_vars/k8s_cluster`): cert-manager `v1.20.3`, metallb `0.16.1`,
-> ingress-nginx chart `4.15.1` (controller `v1.15.1`), argo-cd chart `10.1.2`
+> Версии (из `group_vars/k8s_cluster` / `scripts/versions.yaml`):
+> cert-manager `v1.20.3`, metallb `0.16.1`, argo-cd chart `10.1.2`
 > (image `v3.4.4`), reloader chart `2.2.14` (image `v1.4.19`), envoy-gateway
-> `v1.8.2`, csi-driver-nfs `4.13.4`, metrics-server `v0.8.1`.
+> `v1.8.3`, csi-driver-nfs `4.13.4`, metrics-server `v0.8.1`.
+>
+> Образы скачиваются автоматически скриптом
+> `scripts/download_offline_artifacts.py` (для Cilium — через `helm template`,
+> для остальных утилит — helm-чарты содержат образы).
 
 ---
 
@@ -50,18 +54,6 @@
 > Режим BGP по умолчанию в 0.16.x — **frr-k8s** (образ `metallb/frr-k8s`).
 > `frrouting/frr` — sidecar/init внутри frr-k8s DaemonSet (deprecated режим
 > `frr`, но всё равно используется). Все четыре образа параметризованы.
-
-## Ingress Nginx (chart 4.15.1)
-
-| registry/container:tag                                      | Переменные                                                                             |
-| ----------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `registry.k8s.io/ingress-nginx/controller:v1.15.1`          | `ingressNginxImageRegistry`<br>`ingressNginxImageRepository`<br>`ingressNginxImageTag` |
-| `registry.k8s.io/ingress-nginx/kube-webhook-certgen:v1.6.9` | не параметризован (только при включённых `admissionWebhooks`)                          |
-
-> В upstream-чарте образы имеют `@sha256` digest. В роли (через шаблон
-> `ingress-controller-values.j2`) для controller задан только `tag` без digest.
-> `kube-webhook-certgen` нужен только если включены `admissionWebhooks`
-> (в шаблоне проекта они выключены — образ исключён из preload).
 
 ## ArgoCD (chart 10.1.2)
 

@@ -4,10 +4,10 @@
 
 ## Что делает
 
-- Генерирует kubeadm-config.yaml (для stacked или external etcd)
+- Генерирует kubeadm-config.yaml (stacked etcd)
 - Загружает образы Kubernetes (kubeadm config images pull)
 - Выполняет `kubeadm init`
-- Устанавливает CNI (Calico, Flannel или Cilium)
+- Устанавливает CNI (Flannel или Cilium)
 - Устанавливает NodeLocalDNS
 - Создаёт symlink для kubeconfig (`/root/.kube/config`)
 
@@ -15,17 +15,16 @@
 
 | Переменная | По умолчанию | Описание |
 |------------|-------------|----------|
-| `kube_version` | `1.36.1` | Версия Kubernetes |
-| `cri_socket` | авто | Сокет CRI |
-| `cni` | `calico` | CNI: `calico`, `flannel` или `cilium` |
-| `etcd_mode` | `stacked` | Режим etcd: `stacked` или `external` |
+| `kube_version` | `1.36.2` | Версия Kubernetes (>= 1.35) |
+| `cri_socket` | авто | Сокет CRI (containerd) |
+| `cni` | `cilium` | CNI: `flannel` или `cilium` |
 | `service_cidr` | `10.233.0.0/18` | CIDR для сервисов |
 | `pod_network_cidr` | `10.233.64.0/18` | CIDR для подов |
-| `tigera_operator_version` | `v3.28.1` | Версия Calico/Tigera Operator |
-| `enableBPF` | не задано | Включить eBPF для Calico |
+| `flannel_version` | авто (по матрице) | Версия Flannel |
 | `cilium_version` | авто (по матрице) | Версия Cilium |
 | `cilium_chart_version` | = `cilium_version` | Версия Helm-чарта Cilium |
-| `cilium_kube_proxy_replacement` | `false` | Заменить kube-proxy на eBPF-датаплейн Cilium |
+| `cilium_kube_proxy_replacement` | `true` | Заменить kube-proxy на eBPF-датаплейн Cilium |
+| `cilium_nodelocaldns` | `true` | NodeLocalDNS через CiliumLocalRedirectPolicy |
 | `nodelocaldns_image` | см. group_vars | Образ NodeLocalDNS |
 | `nodelocaldns_local_ip` | `169.254.25.10` | IP NodeLocalDNS |
 
@@ -33,22 +32,20 @@
 
 При `k8s_install_mode: "offline"`:
 
-- Образы Kubernetes загружаются из `k8s-images.tar` (через `ctr images import`)
-- Tigera Operator устанавливается из локального файла `cni/tigera-operator.yaml`
-- CNI-образы Calico загружаются из `calico-images.tar`
+- Образы Kubernetes загружаются из `images/k8s/*.tar` (через `ctr images import`)
+- Образы Cilium — из `images/cilium/*.tar`
+- Образы Flannel — из `images/flannel/*.tar`
 - Helm-чарт Cilium устанавливается из локального файла `cni/cilium-<version>.tgz`
-- CNI-образы Cilium загружаются из `cilium-images.tar`
 
 Каталоги offline-артефактов:
 
 ```text
 tmp/offline/
 ├── images/
-│   ├── k8s-images.tar        # образы Kubernetes
-│   ├── calico-images.tar     # образы Calico (при cni: calico)
-│   └── cilium-images.tar     # образы Cilium (при cni: cilium)
+│   ├── k8s/        # образы Kubernetes (отдельные tar)
+│   ├── cilium/     # образы Cilium (при cni: cilium)
+│   └── flannel/    # образы Flannel (при cni: flannel)
 └── cni/
-    ├── tigera-operator.yaml  # манифест Calico Operator (при cni: calico)
     └── cilium-<version>.tgz  # Helm-чарт Cilium (при cni: cilium)
 ```
 

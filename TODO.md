@@ -1,8 +1,14 @@
 # TODO
 
-## Роль etcd
+## Offline-скрипт
 
-- [ ] Поддержка Podman как альтернативы Docker для etcd-контейнера.
-      На RHEL-системах (Rocky, Alma) Docker deprecated, Podman встроен.
-      Нужна переменная `etcd_container_runtime: docker|podman` и условия
-      в `etcd.service.j2` (разный синтаксис запуска контейнера).
+- [ ] Проверка мульти-арх (aarch64): протестировать скачивание и
+      установку offline-артефактов на arm64-нодах.
+- [ ] Добавить поддержку multi-arch docker save (образы для нескольких
+      платформ в одном tar через `docker buildx imagetools`).
+
+## Тестирование
+
+- [ ] Прогнать полный цикл через Docker-контейнер (Dockerfile.ansible)
+      на inventory `hosts-curs.yaml` (install → проверка → reset → offline).
+- [ ] Проверить `make upgrade` — upgrade minor-версии k8s + CNI + утилит.
