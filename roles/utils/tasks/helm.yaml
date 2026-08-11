@@ -38,7 +38,6 @@
       dest: /usr/local/sbin/helm
       state: link
       force: true
-  when: helm_online.changed or helm_offline.changed
 
 - name: Проверить наличие helm-diff
   ansible.builtin.stat:
@@ -50,7 +49,7 @@
       - not helm_diff_plugin.stat.exists
       - k8s_install_mode == "online"
       - helmDiffEnable | default(true) | bool
-  ansible.builtin.shell: "export PATH=$PATH:/usr/local/bin; helm plugin install --verify=false https://github.com/databus23/helm-diff"
+  ansible.builtin.shell: "export PATH=$PATH:/usr/local/bin; helm plugin install https://github.com/databus23/helm-diff"
 
 - name: Скопировать плагин helm-diff на ноду [offline]
   when:

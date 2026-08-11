@@ -13,8 +13,6 @@
             release_namespace: cert-manager
             create_namespace: true
             values:
-                # top-level imagePullSecrets (глобальный pull-secret)
-                imagePullSecrets: "{{ utils_global_image_pull_secrets }}"
                 # top-level переопределение registry для всех компонентов.
                 # NOTE: image.registry — DEPRECATED, используем imageRegistry.
                 imageRegistry: "{{ certManagerImageRegistry }}"
@@ -23,6 +21,8 @@
                     enabled: true
                 global:
                     priorityClassName: high-priority
+                    # В cert-manager >=1.20 imagePullSecrets перенесён в global
+                    imagePullSecrets: "{{ utils_global_image_pull_secrets }}"
                 config:
                     apiVersion: "controller.config.cert-manager.io/v1alpha1"
                     kind: "ControllerConfiguration"
@@ -36,13 +36,13 @@
             release_namespace: cert-manager
             create_namespace: true
             values:
-                imagePullSecrets: "{{ utils_global_image_pull_secrets }}"
                 imageRegistry: "{{ certManagerImageRegistry }}"
                 imageNamespace: "{{ certManagerImageNamespace }}"
                 crds:
                     enabled: true
                 global:
                     priorityClassName: high-priority
+                    imagePullSecrets: "{{ utils_global_image_pull_secrets }}"
                 config:
                     apiVersion: "controller.config.cert-manager.io/v1alpha1"
                     kind: "ControllerConfiguration"

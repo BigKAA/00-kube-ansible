@@ -31,7 +31,7 @@ cni_matrix:
 
 # --- CLI-инструменты (на первой control node) ---
 cli:
-  helm: "v3.21.2"
+  helm: "v4.2.3"
   cilium_cli: "v0.18.5"
   yq: "v4.47.1"
   stern: "v1.34.0"

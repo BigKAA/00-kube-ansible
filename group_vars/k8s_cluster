@@ -116,14 +116,14 @@ ha_cluster_virtual_port: 7443
 # [ОПЦИОНАЛЬНО] etcd (stacked — встроенный в control plane)
 # ============================================================
 
-# Образ etcd для stacked режима
-etcd_image: "registry.k8s.io/etcd:3.6.6-0"
+# Для stacked режима образ etcd определяется автоматически через
+# `kubeadm config images list` — переопределять его не нужно.
 
 # ============================================================
 # [ОБЯЗАТЕЛЬНО] Утилиты — Helm
 # ============================================================
 
-helmVersion: v3.21.2
+helmVersion: v4.2.3
 
 # ============================================================
 # [ОПЦИОНАЛЬНО] CLI-инструменты (на первой control node)
@@ -214,7 +214,7 @@ reloaderReloadStrategy: "annotations"
 # [ОБЯЗАТЕЛЬНО] Утилиты — ArgoCD
 # ============================================================
 
-argoCDEnable: true
+argoCDEnable: false
 argoCDChartVersion: "10.1.2"
 argoCDLoglevel: "info"
 argoCDControllerReplicaCount: 1

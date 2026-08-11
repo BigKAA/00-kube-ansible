@@ -7,7 +7,7 @@ kind: CiliumLoadBalancerIPPool
 metadata:
   name: default-pool
 spec:
-  allowFirstLastIPs: "no"
+  allowFirstLastIPs: "No"
   blocks:
   {% for item in loadBalancerAddresses %}
     # {{ item }}

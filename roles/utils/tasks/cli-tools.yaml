@@ -46,18 +46,25 @@
       owner: root
 
 # --- stern ---
+- name: Создать каталог /tmp/stern
+  when: k8s_install_mode == "online"
+  ansible.builtin.file:
+      path: /tmp/stern
+      state: directory
+      mode: "0755"
+
 - name: Установить stern [online]
   when: k8s_install_mode == "online"
   ansible.builtin.unarchive:
       src: "https://github.com/stern/stern/releases/download/{{ sternVersion }}/stern_{{ sternVersion | regex_replace('^v', '') }}_linux_{{ _cli_arch }}.tar.gz"
       dest: /tmp/stern/
       remote_src: true
-      creates: "/tmp/stern/stern_{{ sternVersion | regex_replace('^v', '') }}_linux_{{ _cli_arch }}"
+      creates: "/tmp/stern/stern"
 
 - name: Скопировать stern в /usr/local/bin [online]
   when: k8s_install_mode == "online"
   ansible.builtin.copy:
-      src: "/tmp/stern/stern_{{ sternVersion | regex_replace('^v', '') }}_linux_{{ _cli_arch }}/stern"
+      src: "/tmp/stern/stern"
       dest: /usr/local/bin/stern
       remote_src: true
       mode: "0755"

@@ -86,6 +86,10 @@
 
     - name: Применить CiliumLocalRedirectPolicy
       ansible.builtin.command: kubectl apply -f /etc/kubernetes/cilium-dns-lrp.yaml
+      register: lrp_apply
+      until: lrp_apply.rc == 0
+      retries: 15
+      delay: 10
 
 # === Flannel: стандартный NodeLocal DNS через hostNetwork ===
 - name: NodeLocal DNS для Flannel
