@@ -258,7 +258,7 @@
     - role: second_controls
 
 - name: Install worker nodes
-  hosts: groups['k8s_masters'][0],k8s_workers
+  hosts: "{{ groups['k8s_masters'][0] }},k8s_workers"
 
   roles:
     - workers

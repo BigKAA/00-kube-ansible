@@ -277,8 +277,7 @@
             src: "{{ item }}"
             dest: "{{ k8s_packages_remote_dir }}/"
             mode: "0644"
-        with_fileglob:
-            - "{{ playbook_dir }}/{{ k8s_offline_dir }}/packages/*.rpm"
+        loop: "{{ query('fileglob', playbook_dir ~ '/' ~ k8s_offline_dir ~ '/packages/*.rpm') | list }}"
 
       - name: Найти offline-образы контейнеров [offline]
         when: k8s_install_mode == "offline"

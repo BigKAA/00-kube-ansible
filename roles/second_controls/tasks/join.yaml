@@ -19,7 +19,7 @@
   ansible.builtin.file:
     path: /root/.kube
     state: directory
-    mode: 0700
+    mode: "0700"
 
 - name: Add link for config file
   ansible.builtin.file:

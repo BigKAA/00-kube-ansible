@@ -1,7 +1,7 @@
 # Ansible playbook для установки Kubernetes кластера
 
 [![Kubernetes](https://img.shields.io/badge/Kubernetes-v1.35+-blue)](https://kubernetes.io/releases/)
-[![Ansible](https://img.shields.io/badge/Ansible-13.6-green)](https://www.ansible.com/)
+[![Ansible](https://img.shields.io/badge/Ansible-14.2-green)](https://www.ansible.com/)
 [![Distributives](https://img.shields.io/badge/OS-RedHat%20family-red)](https://rockylinux.org/)
 
 Playbook для установки и управления тестовым кластером Kubernetes
@@ -27,8 +27,10 @@ Playbook для установки и управления тестовым кл
 
 **Требования к Ansible control node:**
 
-- Python 3.10+
-- Ansible 13.6 (ansible-core 2.20.5)
+- Python 3.12+
+- Ansible 14.2 (ansible-core 2.21.3)
+- Коллекции Ansible: `kubernetes.core >=6.4.0` (для поддержки Helm 4.x),
+  `community.crypto`, `community.general`, `ansible.posix`
 - SSH-ключ для доступа к нодам
 - Docker, helm, git, yq (для offline-подготовки артефактов)
 
@@ -46,15 +48,15 @@ Playbook для установки и управления тестовым кл
 ```shell
 python3 -m venv venv
 . venv/bin/activate
-pip3 install ansible==13.6.0 cryptography kubernetes docker passlib jmespath
-ansible-galaxy collection install community.crypto community.general ansible.posix kubernetes.core
+pip3 install ansible==14.2.0 cryptography kubernetes docker passlib jmespath
+ansible-galaxy collection install 'kubernetes.core:>=6.4.0'
 ```
 
 Или используйте Docker-образ (предустановленные коллекции и Python-модули):
 
 ```shell
-docker build -f Dockerfile.ansible -t ansible-custom:13.6 .
-alias ansible-playbook="docker run -ti --rm -u root -e HOME=/root -v ~/.ssh:/root/.ssh:ro -v $(pwd):/workspace ansible-custom:13.6 ansible-playbook"
+docker build -f Dockerfile.ansible -t kube-ansible .
+alias ansible-playbook="docker run -ti --rm -v ~/.ssh:/home/ansible/.ssh:ro -v $(pwd):/workspace kube-ansible ansible-playbook"
 ```
 
 ### 3. Настройка SSH

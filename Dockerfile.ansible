@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.13-slim
 
 # Создаём пользователя ansible
 RUN useradd -u 501 -m -d /home/ansible -s /bin/bash ansible
@@ -14,25 +14,14 @@ RUN apt-get update && apt-get install -y \
 # cryptography — для community.crypto (SSL/TLS)
 # kubernetes — для kubernetes.core (Helm, k8s)
 # docker — для community.docker (управление контейнерами)
-# ansible 13.6.0 = ansible-core 2.20.5
+# ansible 14.2.0 = ansible-core 2.21.3
 RUN pip install --no-cache-dir \
-    ansible==13.6.0 \
+    ansible==14.2.0 \
     passlib \
     jmespath \
     cryptography \
     kubernetes \
     docker
-
-# Устанавливаем коллекции Ansible
-# community.crypto — SSL/TLS сертификаты (etcd PKI)
-# community.general — modprobe, sysctl и другие общие модули
-# ansible.posix — sysctl, iptables и другие POSIX-модули
-# kubernetes.core — helm, helm_repository и другие k8s-модули
-RUN ansible-galaxy collection install \
-    community.crypto \
-    community.general \
-    ansible.posix \
-    kubernetes.core
 
 # Создаём директорию для SSH
 RUN mkdir -p /home/ansible/.ssh && \

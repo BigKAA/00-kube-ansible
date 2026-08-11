@@ -30,8 +30,7 @@
       src: "{{ item }}"
       dest: "{{ k8s_packages_remote_dir }}/"
       mode: "0644"
-  with_fileglob:
-      - "{{ playbook_dir }}/{{ k8s_offline_dir }}/cri/containerd/*.rpm"
+  loop: "{{ query('fileglob', playbook_dir ~ '/' ~ k8s_offline_dir ~ '/cri/containerd/*.rpm') | list }}"
 
 - name: Установить containerd из RPM [offline]
   when: k8s_install_mode == "offline"
