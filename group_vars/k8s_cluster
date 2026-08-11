@@ -151,9 +151,9 @@ nfsServerHost: "192.168.218.13"
 nfsServerPath: "/volume1/nfs"
 nfsStorageClassName: "nfs-storage"
 nfsReclaimPolicy: "Delete"
-nfsArchiveOnDelete: "false"
+nfs: "false"
 nfsMountOptions:
-  - "nfsvers=4.1"
+  - "nfsvers=4"
 
 # ============================================================
 # [ОПЦИОНАЛЬНО] Утилиты — Cert-manager

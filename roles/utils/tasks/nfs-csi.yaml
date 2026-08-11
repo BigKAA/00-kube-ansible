@@ -58,7 +58,6 @@
                     parameters:
                         server: "{{ nfsServerHost }}"
                         share: "{{ nfsServerPath }}"
-                        archiveOnDelete: "{{ nfsArchiveOnDelete }}"
                     mountOptions: "{{ nfsMountOptions }}"
 
       - name: Установить NFS CSI Driver [online, local chart]
@@ -86,7 +85,6 @@
                     parameters:
                         server: "{{ nfsServerHost }}"
                         share: "{{ nfsServerPath }}"
-                        archiveOnDelete: "{{ nfsArchiveOnDelete }}"
                     mountOptions: "{{ nfsMountOptions }}"
 
       - name: Установить NFS CSI Driver [offline]
@@ -112,7 +110,6 @@
                     parameters:
                         server: "{{ nfsServerHost }}"
                         share: "{{ nfsServerPath }}"
-                        archiveOnDelete: "{{ nfsArchiveOnDelete }}"
                     mountOptions: "{{ nfsMountOptions }}"
 
       - name: Проверить статус NFS CSI Driver
