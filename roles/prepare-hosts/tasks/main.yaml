@@ -108,16 +108,19 @@
       owner: root
       mode: u=rw,g=r,o=r
 
-# На RHEL/Rocky 10 модуль ip_set (нужен для IPVS-режима kube-proxy)
-# находится в kernel-modules/kernel-modules-extra для КОНКРЕТНОЙ версии ядра.
+# На RHEL/Rocky 10 netfilter-модули (xt_comment, xt_tcpudp, xt_addrtype,
+# xt_mark, xt_MASQUERADE) и ip_set находятся в kernel-modules/kernel-modules-extra
+# для КОНКРЕТНОЙ версии ядра. Cilium использует iptables для masquerade
+# (enableIPv4Masquerade: true) даже в режиме kube-proxy-replacement — без xt_*
+# reconciliation падает (RULE_APPEND failed … Extension comment not supported),
+# MASQUERADE в POSTROUTING не ставится, трафик pod→node-IP дропается rp_filter.
+# Поэтому kernel-modules-extra нужен всегда, независимо от режима kube-proxy
+# (IPVS без xt_* тоже работать не будет).
 # Если ядро обновилось, но host не перезагружен, dnf install kernel-modules
-# поставит модули для нового ядра, а запущенное останется без ip_set.
+# поставит модули для нового ядра, а запущенное останется без xt_*/ip_set.
 # Ставим kernel-modules-extra под текущее запущенное ядро.
-# Требуется только при включённом kube-proxy (IPVS не нужен при cilium+kube-proxy-free).
 - name: Установить kernel-modules-extra для запущенного ядра [RedHat]
-  when:
-      - ansible_facts['os_family'] == "RedHat"
-      - kube_proxy_enabled
+  when: ansible_facts['os_family'] == "RedHat"
   ansible.builtin.dnf:
       name: "kernel-modules-extra-{{ ansible_facts.kernel }}"
       state: present
@@ -128,13 +131,21 @@
   # Пакет может отсутствовать в репозитории (например, ядро устарело и удалено из mirror)
   ignore_errors: true
 
+# depmod делает только что установленные модули доступными для autoload
+# без перезагрузки — иначе xt_*/ip_set подхватятся только после reboot.
+- name: Перестроить базу модулей ядра (depmod) [RedHat]
+  when:
+      - ansible_facts['os_family'] == "RedHat"
+      - _kernel_modules_extra is changed
+  ansible.builtin.command: depmod -a
+  changed_when: true
+
 - name: Предупредить об отсутствии kernel-modules-extra
   when:
       - ansible_facts['os_family'] == "RedHat"
-      - kube_proxy_enabled
       - _kernel_modules_extra is failed
   ansible.builtin.debug:
-      msg: "Внимание: kernel-modules-extra для ядра {{ ansible_facts.kernel }} недоступен. IPVS-режим kube-proxy может не работать (нет модуля ip_set)."
+      msg: "Внимание: kernel-modules-extra для ядра {{ ansible_facts.kernel }} недоступен. Cilium (iptables-masquerade — нет xt_*) и/или IPVS kube-proxy (нет ip_set) могут не работать, трафик pod→node-IP будет дропаться."
 
 - name: Загрузить модуль br_netfilter
   community.general.modprobe:

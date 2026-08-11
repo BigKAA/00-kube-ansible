@@ -15,12 +15,32 @@
 
 ### IPVS — только при включённом kube-proxy
 
-IPVS-модули (`ip_set`, `ip_vs`, `ip_vs_rr`, `ip_vs_wrr`, `ip_vs_sh`), пакеты
-(`ipvsadm`, `ipset`) и `kernel-modules-extra` (содержит `ip_set`) требуются
-только работающему kube-proxy (`mode: ipvs` в `kubeadm-config`).
+IPVS-модули (`ip_set`, `ip_vs`, `ip_vs_rr`, `ip_vs_wrr`, `ip_vs_sh`) и пакеты
+(`ipvsadm`, `ipset`) требуются только работающему kube-proxy
+(`mode: ipvs` в `kubeadm-config`).
 
-Условие установки/загрузки — производная переменная `kube_proxy_enabled`
+Условие установки/загрузки IPVS — производная переменная `kube_proxy_enabled`
 (вычисляется в `group_vars/k8s_cluster`):
+
+| CNI | `cilium_kube_proxy_replacement` | kube-proxy | IPVS |
+|-----|---------------------------------|------------|------|
+| flannel | — | работает | устанавливается |
+| cilium | `false` | работает | устанавливается |
+| cilium | `true` | удалён (eBPF) | **не устанавливается** |
+
+Список IPVS-модулей для постоянной загрузки генерируется шаблоном
+`templates/modules-kubernetes.conf.j2` (IPVS-блок включается только при
+`kube_proxy_enabled`).
+
+### kernel-modules-extra — всегда (Cilium + IPVS)
+
+`kernel-modules-extra` для текущего ядра ставится **всегда** на RedHat,
+независимо от `kube_proxy_enabled`. Помимо `ip_set` для IPVS, пакет содержит
+netfilter `xt_*`-модули (`xt_comment`, `xt_tcpudp`, `xt_addrtype`, `xt_mark`,
+`xt_MASQUERADE`), без которых Cilium не может ставить iptables-правила для
+masquerade (`enableIPv4Masquerade: true`) даже в режиме kube-proxy-replacement.
+После установки выполняется `depmod -a`, чтобы модули стали доступны без
+перезагрузки.
 
 | CNI | `cilium_kube_proxy_replacement` | kube-proxy | IPVS |
 |-----|---------------------------------|------------|------|
