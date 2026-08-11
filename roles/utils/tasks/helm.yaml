@@ -48,14 +48,17 @@
   when:
       - not helm_diff_plugin.stat.exists
       - k8s_install_mode == "online"
-      - helmDiffEnable | default(true) | bool
-  ansible.builtin.shell: "export PATH=$PATH:/usr/local/bin; helm plugin install https://github.com/databus23/helm-diff --verify=false"
+      - helmDiffEnable | default(false) | bool
+  ansible.builtin.shell: "export PATH=$PATH:/usr/local/bin; helm plugin install https://github.com/databus23/helm-diff"
+  # Опциональный плагин для ручного использования (helm diff). Установка с GitHub
+  # нестабильна — не должна блокировать развёртывание кластера.
+  ignore_errors: true
 
 - name: Скопировать плагин helm-diff на ноду [offline]
   when:
       - not helm_diff_plugin.stat.exists
       - k8s_install_mode == "offline"
-      - helmDiffEnable | default(true) | bool
+      - helmDiffEnable | default(false) | bool
   ansible.posix.synchronize:
       src: "{{ playbook_dir }}/{{ k8s_offline_dir }}/utils/helm-plugins/helm-diff/"
       dest: /tmp/helm-diff
@@ -66,6 +69,7 @@
   when:
       - not helm_diff_plugin.stat.exists
       - k8s_install_mode == "offline"
+      - helmDiffEnable | default(false) | bool
   ansible.builtin.command: helm plugin install /tmp/helm-diff
 
 - name: Создать каталог для манифестов утилит

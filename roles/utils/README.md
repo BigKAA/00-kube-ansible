@@ -99,7 +99,7 @@ utils_registry:
 При `k8s_install_mode: "offline"`:
 
 - Helm и CLI-инструменты — из локальных архивов `tmp/offline/utils/`
-- Плагин helm-diff — из локальной копии `tmp/offline/utils/helm-plugins/`
+- Плагин helm-diff (опционально, `helmDiffEnable: true`) — из локальной копии `tmp/offline/utils/helm-plugins/`
 - Helm-чарты утилит — из локальных `.tgz` в `tmp/offline/utils/helm-charts/`
 - cert-manager (OCI) — из `tmp/offline/utils/cert-manager-*.tgz`
 - Envoy Gateway (OCI) — из `tmp/offline/utils/helm-charts/envoy-gateway-*.tgz`

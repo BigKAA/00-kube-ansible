@@ -221,7 +221,7 @@ make install ENV=curs EXTRA='-e "k8s_install_mode=offline"'
 - Образы контейнеров (отдельные `.tar` на каждый образ: `images/k8s/`, `images/cilium/`)
 - Helm-чарты утилит и Cilium
 - CLI-инструменты (helm, cilium CLI, yq, stern) — обе архитектуры
-- Helm-плагин helm-diff
+- Helm-плагин helm-diff (опционально, `helmDiffEnable: true`)
 
 Версии читаются из [`scripts/versions.yaml`](scripts/versions.yaml).
 
