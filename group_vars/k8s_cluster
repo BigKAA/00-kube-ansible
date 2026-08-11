@@ -86,6 +86,13 @@ cilium_kube_proxy_replacement: true
 # https://docs.cilium.io/en/stable/network/kubernetes/local-redirect-policy/#node-local-dns-cache
 cilium_nodelocaldns: true
 
+# [ВНУТРЕННЯЯ] Производная переменная: запущен ли kube-proxy.
+# IPVS-модули (ip_set, ip_vs_*) и пакеты (ipvsadm, ipset) требуются
+# только работающему kube-proxy (mode: ipvs в kubeadm-config).
+# При cni: cilium + cilium_kube_proxy_replacement: true kube-proxy отсутствует
+# (eBPF-датаплейн Cilium полностью заменяет его) → IPVS не нужен.
+kube_proxy_enabled: "{{ not (cni | default('flannel') == 'cilium' and cilium_kube_proxy_replacement | default(false) | bool) }}"
+
 # ============================================================
 # [ОПЦИОНАЛЬНО] Kubelet
 # ============================================================

@@ -1,6 +1,6 @@
 # Переменные для семейства RedHat (Rocky, Alma, CentOS, RHEL)
 
-# Системные пакеты
+# Системные пакеты (без IPVS — они в packages_ipvs)
 packages_common:
     - net-tools
     - mc
@@ -12,17 +12,21 @@ packages_common:
     - tar
     - chrony
     - jq
-    - ipvsadm
-    - ipset
     - python3-pyyaml
     - kernel-modules
+
+# Пакеты IPVS для kube-proxy (mode: ipvs).
+# Устанавливаются только при включённом kube-proxy (kube_proxy_enabled).
+# При cni: cilium + cilium_kube_proxy_replacement: true kube-proxy отсутствует → не нужны.
+packages_ipvs:
+    - ipvsadm
+    - ipset
 
 # Пакеты Kubernetes
 packages_k8s:
     - "kubectl-{{ kube_version }}"
     - "kubelet-{{ kube_version }}"
     - "kubeadm-{{ kube_version }}"
-    - ipvsadm
 
 # NTP сервис
 ntp_service: chronyd

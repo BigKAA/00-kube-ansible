@@ -132,6 +132,10 @@ DaemonSet и LRP не разворачиваются.
 - Cilium настраивается с `kubeProxyReplacement: true`
 - Создаётся ConfigMap `kubernetes-services-endpoint` для доступа к API server
   через виртуальный IP (особенно важно при HA)
+- IPVS-модули ядра (`ip_set`, `ip_vs_*`), пакеты (`ipvsadm`, `ipset`) и
+  `kernel-modules-extra` не устанавливаются и не загружаются — без kube-proxy
+  они не нужны. Условие определяется производной переменной `kube_proxy_enabled`
+  в `group_vars/k8s_cluster`.
 
 Для HA-кластера Cilium обращается к API server через `k8sServiceHost`,
 который автоматически настраивается на `ha_cluster_virtual_ip`.

@@ -216,7 +216,9 @@
       ignore_errors: true
 
     # --- Очистка модулей ядра (опционально, только выгрузка) ---
+    # IPVS-модули загружались только при включённом kube-proxy.
     - name: Выгрузить модули ядра Kubernetes
+      when: kube_proxy_enabled
       community.general.modprobe:
         name: "{{ item }}"
         state: absent

@@ -4,14 +4,33 @@
 
 ## Что делает
 
-- Устанавливает системные пакеты (net-tools, vim, git, jq, ipvsadm и др.)
+- Устанавливает системные пакеты (net-tools, vim, git, jq и др.)
 - Настраивает NTP (chrony)
 - Отключает firewalld и SELinux
 - Отключает swap
-- Загружает модули ядра (br_netfilter, overlay, nf_conntrack, IPVS)
+- Загружает модули ядра (br_netfilter, overlay, nf_conntrack)
 - Настраивает sysctl (ip_forward, bridge-nf-call)
 - Устанавливает и настраивает containerd
 - Устанавливает kubeadm, kubelet, kubectl
+
+### IPVS — только при включённом kube-proxy
+
+IPVS-модули (`ip_set`, `ip_vs`, `ip_vs_rr`, `ip_vs_wrr`, `ip_vs_sh`), пакеты
+(`ipvsadm`, `ipset`) и `kernel-modules-extra` (содержит `ip_set`) требуются
+только работающему kube-proxy (`mode: ipvs` в `kubeadm-config`).
+
+Условие установки/загрузки — производная переменная `kube_proxy_enabled`
+(вычисляется в `group_vars/k8s_cluster`):
+
+| CNI | `cilium_kube_proxy_replacement` | kube-proxy | IPVS |
+|-----|---------------------------------|------------|------|
+| flannel | — | работает | устанавливается |
+| cilium | `false` | работает | устанавливается |
+| cilium | `true` | удалён (eBPF) | **не устанавливается** |
+
+Список модулей для постоянной загрузки генерируется шаблоном
+`templates/modules-kubernetes.conf.j2` (IPVS-блок включается только при
+`kube_proxy_enabled`).
 
 ## Переменные
 

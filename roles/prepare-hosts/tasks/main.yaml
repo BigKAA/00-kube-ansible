@@ -18,6 +18,14 @@
       name: "{{ packages_common }}"
       state: present
 
+# Пакеты IPVS (ipvsadm, ipset) нужны только работающему kube-proxy (mode: ipvs).
+# При cni: cilium + cilium_kube_proxy_replacement: true kube-proxy отсутствует.
+- name: Установка пакетов IPVS для kube-proxy
+  when: kube_proxy_enabled
+  ansible.builtin.dnf:
+      name: "{{ packages_ipvs }}"
+      state: present
+
 # ============================================================
 # NTP
 # ============================================================
@@ -105,8 +113,11 @@
 # Если ядро обновилось, но host не перезагружен, dnf install kernel-modules
 # поставит модули для нового ядра, а запущенное останется без ip_set.
 # Ставим kernel-modules-extra под текущее запущенное ядро.
+# Требуется только при включённом kube-proxy (IPVS не нужен при cilium+kube-proxy-free).
 - name: Установить kernel-modules-extra для запущенного ядра [RedHat]
-  when: ansible_facts['os_family'] == "RedHat"
+  when:
+      - ansible_facts['os_family'] == "RedHat"
+      - kube_proxy_enabled
   ansible.builtin.dnf:
       name: "kernel-modules-extra-{{ ansible_facts.kernel }}"
       state: present
@@ -120,6 +131,7 @@
 - name: Предупредить об отсутствии kernel-modules-extra
   when:
       - ansible_facts['os_family'] == "RedHat"
+      - kube_proxy_enabled
       - _kernel_modules_extra is failed
   ansible.builtin.debug:
       msg: "Внимание: kernel-modules-extra для ядра {{ ansible_facts.kernel }} недоступен. IPVS-режим kube-proxy может не работать (нет модуля ip_set)."
@@ -145,7 +157,11 @@
 # Модули для IPVS-режима kube-proxy (mode: ipvs в kubeadm-config).
 # ip_set обязателен — без него kube-proxy падает с
 # "can't use the IPVS proxier: error getting ipset version".
+# Требуются только при включённом kube-proxy: при cni: cilium +
+# cilium_kube_proxy_replacement: true kube-proxy отсутствует (eBPF заменяет его),
+# и IPVS-модули не нужны.
 - name: Загрузить модули IPVS (ip_set, ip_vs)
+  when: kube_proxy_enabled
   community.general.modprobe:
       name: "{{ item }}"
   loop:
@@ -158,9 +174,11 @@
   # запущенного ядра — ниже отдельная задача проверяет наличие.
   ignore_errors: true
 
+# Постоянная загрузка модулей. Шаблон включает IPVS-модули (ip_set, ip_vs_*)
+# только при включённом kube-proxy.
 - name: Загрузить модули постоянно
-  ansible.builtin.copy:
-      src: modules-kubernetes.conf
+  ansible.builtin.template:
+      src: modules-kubernetes.conf.j2
       dest: /etc/modules-load.d/modules-kubernetes.conf
       owner: root
       mode: u=rw,g=r,o=r

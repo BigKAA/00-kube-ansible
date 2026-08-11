@@ -1,0 +1,18 @@
+# Постоянная загрузка модулей ядра для Kubernetes.
+# Файл читается systemd-modules-load.service при загрузке ОС.
+# Генерируется шаблоном modules-kubernetes.conf.j2: IPVS-модули
+# включаются только при работающем kube-proxy (mode: ipvs).
+
+# Общие модули для CRI/CNI
+br_netfilter
+overlay
+nf_conntrack
+{% if kube_proxy_enabled %}
+# IPVS-модули для kube-proxy (mode: ipvs).
+# При cni: cilium + cilium_kube_proxy_replacement: true kube-proxy отсутствует → блок исключается.
+ip_set
+ip_vs
+ip_vs_rr
+ip_vs_wrr
+ip_vs_sh
+{% endif %}

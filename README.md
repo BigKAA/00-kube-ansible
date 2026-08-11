@@ -156,6 +156,10 @@ cilium_nodelocaldns: true
 cni: flannel
 ```
 
+При `cilium_kube_proxy_replacement: true` kube-proxy отсутствует, поэтому
+IPVS-модули (`ip_set`, `ip_vs_*`) и пакеты (`ipvsadm`, `ipset`) не
+устанавливаются и не загружаются (управляется переменной `kube_proxy_enabled`).
+
 Подробнее о Cilium — в [CILIUM.md](CILIUM.md).
 
 ### LoadBalancer (для сервисов типа LoadBalancer)
