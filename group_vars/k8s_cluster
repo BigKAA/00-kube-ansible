@@ -193,6 +193,14 @@ metricsServerEnable: true
 loadBalancerAddresses:
 - 192.168.218.180-192.168.218.185
 
+# Cilium L2: ограничение интерфейсов для ARP/NDP-анонсов.
+# Список регулярных выражений (golang regexp), объединённых логическим ИЛИ.
+# Применяется только при cni: cilium + cilium_kube_proxy_replacement: true.
+# Пустой список — анонсы идут через все интерфейсы ноды (поведение Cilium
+# по умолчанию, наиболее переносимый вариант для разных имён интерфейсов).
+# Пример ограничения: ["^eth[0-9]+", "^ens[0-9]+"]
+cilium_l2_announce_interfaces: []
+
 # MetalLB (только при cni: flannel)
 metallbEnable: false
 metallbChartVersion: "0.16.1"

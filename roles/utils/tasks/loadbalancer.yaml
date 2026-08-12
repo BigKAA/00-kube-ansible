@@ -4,7 +4,7 @@
 # ============================================================
 # Диспетчеризация по CNI:
 #   - cni: cilium + kubeProxyReplacement → Cilium L2-анонсы
-#     (CiliumLoadBalancerIPPool, MetalLB НЕ нужен)
+#     (CiliumLoadBalancerIPPool + CiliumL2AnnouncementPolicy, MetalLB НЕ нужен)
 #   - cni: flannel → MetalLB (классический controller)
 #
 # Переменная loadBalancerAddresses задаёт пул IP для обоих вариантов.
@@ -13,7 +13,11 @@
 #   - flannel: через metallbEnable: true
 # ============================================================
 
-# --- Cilium: CiliumLoadBalancerIPPool (L2-анонсы уже включены в cilium-values.j2) ---
+# --- Cilium: L2-анонсы (feature включён в cilium-values.j2) ---
+# Применяются две CRD:
+#   1) CiliumLoadBalancerIPPool — пул IP-адресов для сервисов LoadBalancer;
+#   2) CiliumL2AnnouncementPolicy — ОБЯЗАТЕЛЬНАЯ политика, без неё Cilium
+#      не отвечает на ARP/NDP и сервисы недоступны из сети.
 - name: Настроить Cilium L2 LoadBalancer IP Pool
   when:
     - cni == 'cilium'
@@ -31,6 +35,21 @@
       - name: Применить CiliumLoadBalancerIPPool
         ansible.builtin.command: kubectl apply -f /etc/kubernetes/utils/cilium-l2-pool.yaml
         when: cilium_l2_pool.changed
+
+      # CiliumL2AnnouncementPolicy — ОБЯЗАТЕЛЬНАЯ часть L2-анонсов.
+      # Без неё LoadBalancer-сервисы получают IP из пула, но недоступны
+      # из сети: Cilium не отвечает на ARP/NDP без активной политики.
+      # https://docs.cilium.io/en/stable/network/l2-announcements/#l2-announcement-policies
+      - name: Скопировать манифест CiliumL2AnnouncementPolicy
+        ansible.builtin.template:
+            src: cilium-l2-policy.j2
+            dest: /etc/kubernetes/utils/cilium-l2-policy.yaml
+            mode: "0600"
+        register: cilium_l2_policy
+
+      - name: Применить CiliumL2AnnouncementPolicy
+        ansible.builtin.command: kubectl apply -f /etc/kubernetes/utils/cilium-l2-policy.yaml
+        when: cilium_l2_policy.changed
 
       - name: Метка — Cilium L2 LB активен (MetalLB не требуется)
         ansible.builtin.debug:

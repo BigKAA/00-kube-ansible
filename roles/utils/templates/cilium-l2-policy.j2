@@ -1,0 +1,28 @@
+---
+# CiliumL2AnnouncementPolicy — ОБЯЗАТЕЛЬНАЯ политика для L2-анонсов.
+#
+# Только включить l2announcements.enabled=true (Helm values) и создать
+# CiliumLoadBalancerIPPool НЕДОСТАТОЧНО. Без этой политики Cilium не
+# отвечает на ARP/NDP-запросы для LoadBalancer-IP, поэтому сервисы
+# получают адрес, но остаются недоступными из локальной сети.
+# https://docs.cilium.io/en/stable/network/l2-announcements/#l2-announcement-policies
+#
+# Политика без serviceSelector/nodeSelector применяется ко всем сервисам
+# и всем нодам (аналог широкого L2Advertisement в MetalLB).
+apiVersion: cilium.io/v2alpha1
+kind: CiliumL2AnnouncementPolicy
+metadata:
+  name: default-l2-policy
+spec:
+{% if cilium_l2_announce_interfaces | default([]) | length > 0 %}
+  # Регулярные выражения (golang regexp) для интерфейсов ноды.
+  # Объединены логическим ИЛИ — подойдёт любой совпавший интерфейс.
+  interfaces:
+{% for iface in cilium_l2_announce_interfaces %}
+  - {{ iface }}
+{% endfor %}
+{% endif %}
+  # Анонсировать ExternalIPs сервисов
+  externalIPs: true
+  # Анонсировать LoadBalancer IP-адреса сервисов
+  loadBalancerIPs: true

@@ -142,6 +142,57 @@ DaemonSet и LRP не разворачиваются.
 
 Подробнее: [Cilium — kube-proxy replacement](https://docs.cilium.io/en/stable/network/kubernetes/kubeproxy-free/)
 
+## L2-анонсы и сервисы LoadBalancer
+
+Cilium раздаёт IP-адреса сервисам типа `LoadBalancer` (Envoy Gateway и др.)
+через [L2-анонсы (ARP/NDP)](https://docs.cilium.io/en/stable/network/l2-announcements/) —
+это замена MetalLB для on-prem сетей без BGP. Работает **только** при
+`cilium_kube_proxy_replacement: true`.
+
+Для работы L2-анонсов нужны **три** составляющих, playbook настраивает их
+автоматически при `cni: cilium` + `cilium_kube_proxy_replacement: true`:
+
+1. **Helm value `l2announcements.enabled: true`** — включает сам механизм
+   (см. `roles/master/templates/cilium-values.j2`).
+2. **`CiliumLoadBalancerIPPool`** — пул IP-адресов, которые Cilium назначает
+   сервисам. Источник адресов — переменная `loadBalancerAddresses`
+   (см. `roles/utils/templates/cilium-l2-pool.j2`).
+3. **`CiliumL2AnnouncementPolicy`** — **обязательная** политика, без которой
+   L2-анонсы не работают. Хотя бы одна политика должна существовать, иначе
+   Cilium не отвечает на ARP/NDP-запросы и сервисы получают IP, но остаются
+   недоступными из сети
+   (см. `roles/utils/templates/cilium-l2-policy.j2`).
+
+> ⚠️ Частая ошибка — включить `l2announcements.enabled=true` и создать только
+> пул, забыв политику. В документации прямо сказано: *L2 announcements will
+> not work without a policy*.
+
+### Переменные
+
+В `group_vars/k8s_cluster`:
+
+```yaml
+# Пул IP для LoadBalancer-сервисов (диапазон/CIDR/одиночный IP)
+loadBalancerAddresses:
+- 192.168.218.180-192.168.218.185
+
+# Ограничение интерфейсов для ARP/NDP (регулярные выражения, ИЛИ).
+# Пустой список — все интерфейсы ноды (по умолчанию, переносимый вариант).
+cilium_l2_announce_interfaces: []
+```
+
+### Проверка
+
+```bash
+# Политика и пул применены
+kubectl get ciliuml2announcementpolicy,ciliumloadbalancerippool
+
+# Сервис LoadBalancer получил внешний IP (НЕ pending)
+kubectl get svc -A | grep LoadBalancer
+```
+
+Подробнее: [Cilium — L2 Announcements](https://docs.cilium.io/en/stable/network/l2-announcements/)
+
 ## Управление после установки
 
 | Действие | Команда |
@@ -158,4 +209,5 @@ DaemonSet и LRP не разворачиваются.
 - [Local Redirect Policy](https://docs.cilium.io/en/stable/network/kubernetes/local-redirect-policy/)
 - [NodeLocal DNS Cache (Cilium)](https://docs.cilium.io/en/stable/network/kubernetes/local-redirect-policy/#node-local-dns-cache)
 - [kube-proxy Replacement](https://docs.cilium.io/en/stable/network/kubernetes/kubeproxy-free/)
+- [L2 Announcements (LoadBalancer)](https://docs.cilium.io/en/stable/network/l2-announcements/)
 - [Cilium Helm Reference](https://docs.cilium.io/en/stable/helm-reference/)

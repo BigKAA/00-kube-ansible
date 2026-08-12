@@ -51,6 +51,10 @@
       ansible.builtin.shell: kubectl delete ciliumloadbalancerippool --all --ignore-not-found
       ignore_errors: true
 
+    - name: Удалить CiliumL2AnnouncementPolicy (L2-анонсы Cilium)
+      ansible.builtin.shell: kubectl delete ciliuml2announcementpolicy --all --ignore-not-found
+      ignore_errors: true
+
     - name: Удалить NFS CSI Driver release
       kubernetes.core.helm:
         name: csi-driver-nfs
