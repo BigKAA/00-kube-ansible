@@ -11,12 +11,15 @@ Playbook для установки и управления тестовым кл
 
 - **Kubernetes** v1.35+ (stacked etcd)
 - **CRI**: containerd
-- **CNI**: Flannel, Cilium (с kube-proxy replacement через eBPF)
+- **CNI**: Flannel, Cilium (с kube-proxy replacement через eBPF),
+  `none` - "голый" кластер без CNI (учебный режим, ноды NotReady
+  до установки CNI вручную)
 - **HA**: HAProxy + Keepalived (virtual IP для API server)
 - **LoadBalancer**: Cilium L2-анонсы (при cni=cilium) или MetalLB (при cni=flannel)
 - **Утилиты** (ставятся автоматически на первую control node):
   Helm, NFS CSI Driver, cert-manager, Metrics Server,
-  Envoy Gateway (Gateway API), Stakater Reloader, ArgoCD
+  Envoy Gateway (Gateway API), Stakater Reloader, ArgoCD.
+  Пропускаются при `utils_enabled: false` (например, для учебного стенда)
 - **CLI на первой control node**: kubectl, helm, cilium CLI, yq, jq, stern
 - **Offline-установка**: полный air-gap через предзагруженные артефакты
 - **Управление**: установка, обновление, полное удаление кластера

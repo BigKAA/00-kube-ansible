@@ -60,7 +60,14 @@
         when: cilium_kube_proxy_replacement | default(false) | bool
         ansible.builtin.include_tasks: cilium-bpf.yaml
 
+    - name: Без CNI (учебный режим)
+      when: cni == 'none'
+      ansible.builtin.include_tasks: none.yaml
+
+    # При cni=none (учебный "голый" кластер) DNS не настраиваем:
+    # CoreDNS остаётся в Pending до установки CNI слушателем курса.
     - name: Настроить DNS
+      when: cni != 'none'
       ansible.builtin.include_tasks: dns.yaml
 
     # Почему-то в 1.25 на AlmaLinux 8 не ставится enabled автоматически

@@ -1,0 +1,12 @@
+---
+# Инициализация "голой" control plane ноды без CNI (учебный режим cni=none).
+# kubeadm init разворачивает kubernetes с kube-proxy и CoreDNS,
+# но без CNI ноды остаются NotReady, CoreDNS и kube-proxy - Pending.
+# CNI устанавливается слушателем курса вручную (Calico, Cilium и т.д.).
+
+- name: Инициализация master ноды
+  ansible.builtin.command: kubeadm init --config /etc/kubernetes/kubeadm-config.yaml
+  register: kubeadm_init
+
+- name: Установить утилиты
+  ansible.builtin.include_tasks: utils.yaml

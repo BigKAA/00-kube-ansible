@@ -44,7 +44,8 @@ Ansible playbook для установки и управления тестов�
 
 - **Kubernetes**: v1.35+
 - **CRI**: containerd
-- **CNI**: Flannel, Cilium (с kube-proxy replacement через eBPF)
+- **CNI**: Flannel, Cilium (с kube-proxy replacement через eBPF),
+  `none` - без CNI (учебный режим "голого" кластера)
 - **HA**: HAProxy + Keepalived (virtual IP)
 - **etcd**: stacked (встроенный в control plane)
 - **Утилиты**: Helm, NFS CSI Driver, cert-manager, Metrics Server,

@@ -61,8 +61,8 @@
     - name: Проверка — CNI допустимое значение
       ansible.builtin.assert:
         that:
-          - cni in ['flannel', 'cilium']
-        fail_msg: "cni должен быть 'flannel' или 'cilium' (сейчас: {{ cni }})"
+          - cni in ['flannel', 'cilium', 'none']
+        fail_msg: "cni должен быть 'flannel', 'cilium' или 'none' (сейчас: {{ cni }})"
         quiet: true
       run_once: true
 
@@ -266,6 +266,9 @@
 - name: Install utils and CLI tools
   hosts: "{{ groups['k8s_masters'][0] }}"
   gather_facts: true
+  # utils_enabled: false — пропустить установку утилит (Helm, cert-manager,
+  # Envoy Gateway и пр.). Используется для "голого" учебного стенда.
+  when: utils_enabled | default(true) | bool
 
   roles:
     - utils
